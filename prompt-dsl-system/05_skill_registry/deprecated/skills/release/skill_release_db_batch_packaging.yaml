@@ -1,0 +1,127 @@
+# DEPRECATED: replaced by skill_hongzhi_universal_ops
+# Suggested mode: release
+# Mapping hints: Use mode=release; put refs_hint=skill_release_db_batch_packaging in objective/constraints; preserve legacy acceptance checks.
+# Original name: skill_release_db_batch_packaging
+name: "skill_release_db_batch_packaging"
+description: "Package multiple SQL inputs into executable release batches (Batch0~BatchN) with manifest and optional run entry for direct execution tools such as Navicat/disql/DBeaver. Use when preparing DB delivery artifacts for Oracle/DM8 and needing clear batch order, rollback points, and idempotency notes."
+version: "1.0.0"
+domain: "release"
+tags:
+  - "release"
+  - "db"
+  - "sql"
+  - "batch"
+  - "packaging"
+  - "oracle"
+  - "dm8"
+parameters:
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Repository-relative or absolute scope for delivery outputs."
+  - name: "objective"
+    type: "string"
+    required: true
+    description: "Concrete packaging goal and constraints."
+  - name: "target_db"
+    type: "string"
+    required: true
+    description: "Target database type: oracle|dm8."
+  - name: "execution_tool"
+    type: "string"
+    required: true
+    description: "Primary execution tool: navicat|disql|dbeaver|generic."
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Pipeline-run context identifier for cross-step linkage."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Unique trace id for the run (recommended)."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Artifact ids from previous steps (e.g., [\"A1\", \"A2\"])."
+prompt_template: |
+  You are the enterprise delivery assistant.
+  Skill: skill_release_db_batch_packaging
+  Goal: Package SQL delivery inputs into executable Batch artifacts for release.
+
+  Input:
+  - module_path: {{module_path}}
+  - objective: {{objective}}
+  - target_db: {{target_db}}
+  - execution_tool: {{execution_tool}}
+  - context_id: {{context_id}}
+  - trace_id: {{trace_id}}
+  - input_artifact_refs: {{input_artifact_refs}}
+
+  Execution focus:
+  - Build a direct-execution delivery package for SQL migration/deployment.
+  - Enforce batch order, idempotency notes, irreversible warnings, and rollback points.
+  - Include optional run_all.sql with configurable schema header strategy when needed.
+
+  Artifact handoff requirements:
+  - Number artifacts as A1, A2, A3...
+  - Must include:
+    - A1: batches/ directory structure recommendation.
+    - A2: Batch_manifest.md with batch order, idempotency, irreversible batches, rollback points.
+    - A3: run_all.sql design (or concrete script) with optional schema header behavior.
+
+  Upstream artifact reference rule:
+  - If input_artifact_refs is provided, read and cite those artifact ids before generating new artifacts.
+
+  Return ONLY the unified output structure:
+  - summary
+  - artifacts[]
+  - risks[]
+  - next_actions[]
+output_contract:
+  summary: "Concise packaging outcome with batching strategy and execution assumptions."
+  artifacts:
+    - id: "A1"
+      name: "A1_batches_directory_structure"
+      description: "batches/ directory structure recommendation for Batch0~BatchN delivery."
+    - id: "A2"
+      name: "A2_batch_manifest"
+      description: "Batch_manifest.md covering order, idempotency, irreversible actions, rollback points."
+    - id: "A3"
+      name: "A3_run_all_entry"
+      description: "Optional run_all.sql entry design/script with schema header strategy."
+  risks:
+    - "Known execution, ordering, idempotency, and rollback risks."
+  next_actions:
+    - "Ordered follow-ups for packaging validation and release handoff."
+examples:
+  - input:
+      module_path: "<MODULE_PATH>"
+      objective: |
+        inputs: "multiple sql files + merged sql + upgrade scripts"
+        constraints: "no business-logic rewrite; keep execution order deterministic"
+        acceptance: "produce A1/A2/A3 artifacts for Batch delivery"
+        forbidden: "do not expose sensitive config or credentials"
+      target_db: "dm8"
+      execution_tool: "disql"
+      context_id: "CTX-DB-DELIVERY"
+      trace_id: "TRACE-DB-DELIVERY"
+      input_artifact_refs:
+        - "A1"
+        - "A2"
+    output:
+      summary: "Batch packaging design completed with execution and rollback guidance."
+      artifacts:
+        - id: "A1"
+          name: "A1_batches_directory_structure"
+          description: "Batch directory structure and naming layout."
+        - id: "A2"
+          name: "A2_batch_manifest"
+          description: "Manifest with sequence, idempotency, irreversible warning, rollback points."
+        - id: "A3"
+          name: "A3_run_all_entry"
+          description: "run_all.sql entry strategy with optional schema header control."
+      risks:
+        - "Batch ordering mismatch can cause partial deployment failures."
+      next_actions:
+        - "Run integrity gate against merged and batch artifacts before release."

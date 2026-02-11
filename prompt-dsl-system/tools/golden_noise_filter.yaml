@@ -1,0 +1,21 @@
+profile: legacy
+enabled: true
+notes:
+  - Legacy single-file fallback for backward compatibility.
+  - Behavior is close to preprod to keep compatibility while reducing unstable noise.
+drop_paths:
+  - generated_at
+  - timestamp
+  - trace_id
+  - context_id
+  - uuid
+normalize_basename_paths:
+  - paths.*
+  - deliveries.*
+normalize_id_paths:
+  - '*.request_id'
+list_sort_paths:
+  - changed
+  - added
+  - removed
+list_sort_object_key: path

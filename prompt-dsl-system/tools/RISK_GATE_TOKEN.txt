@@ -1,0 +1,12 @@
+TOKEN: ed85e785981330f359a69e179f72f2aa
+RISK: HIGH
+THRESHOLD: HIGH
+ISSUED_AT: 2026-02-10T04:41:46+00:00
+EXPIRES_AT: 2026-02-10T05:11:46+00:00
+REASONS:
+  1. loop level=HIGH: triggers=release_gate_bypass_attempt
+  2. loop trigger release_gate_bypass_attempt detected
+  3. verify gate: FAIL (hits=42)
+NEXT_CMD: ./prompt-dsl-system/tools/run.sh run -r . -m <MODULE_PATH> --pipeline <PIPELINE> --ack-latest
+NEXT_CMD_ACK_FILE: ./prompt-dsl-system/tools/run.sh run -r . -m <MODULE_PATH> --pipeline <PIPELINE> --ack-file prompt-dsl-system/tools/RISK_GATE_TOKEN.json
+NEXT_CMD_EXAMPLE: ./prompt-dsl-system/tools/run.sh run -r . -m <MODULE_PATH> --pipeline <PIPELINE> --ack ed85e785981330f359a69e179f72f2aa

@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-02-09T10:42:56+00:00",
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "allowed_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system",
+  "forbidden_paths": [
+    "/sys",
+    "/error",
+    "/util",
+    "/vote"
+  ],
+  "change_evidence": {
+    "sources": [
+      "prompt-dsl-system/05_skill_registry/CHANGELOG_CONSTITUTION_UPGRADE.md",
+      "prompt-dsl-system/05_skill_registry/CONSOLIDATION_CHANGELOG.md",
+      "prompt-dsl-system/05_skill_registry/REDUNDANCY_REPORT.md"
+    ],
+    "changed_files": [
+      "prompt-dsl-system/**",
+      "prompt-dsl-system/00_conventions/COMPLIANCE_MATRIX.md",
+      "prompt-dsl-system/00_conventions/FACT_BASELINE.md",
+      "prompt-dsl-system/00_conventions/HONGZHI_COMPANY_CONSTITUTION.md",
+      "prompt-dsl-system/00_conventions/ROLLBACK_INSTRUCTIONS.md",
+      "prompt-dsl-system/00_conventions/SKILL_SPEC.md",
+      "prompt-dsl-system/04_ai_pipeline_orchestration/BASELINE_PIPELINE_SNAPSHOT.json",
+      "prompt-dsl-system/04_ai_pipeline_orchestration/README.md",
+      "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bpmn_state_audit_testgen.md",
+      "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bugfix_min_scope_with_tree.md",
+      "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_db_delivery_batch_and_runbook.md",
+      "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_ownercommittee_audit_fix.md",
+      "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md",
+      "prompt-dsl-system/05_skill_registry/BASELINE_REGISTRY_SNAPSHOT.json",
+      "prompt-dsl-system/05_skill_registry/REDUNDANCY_REPORT.md",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/**",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/** (headers updated with mapping hints)",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/<domain>/*.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/code/skill_code_dependency_trace.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/code/skill_code_fix_type_mismatch.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/code/skill_code_generate_change_ledger.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/code/skill_code_refactor_java_service.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/code/skill_code_security_hardening.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/docs/skill_docs_generate_api_contract.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/docs/skill_docs_generate_db_dictionary.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/docs/skill_docs_generate_module_readme.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/frontend/skill_frontend_fix_layui_form_binding.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/frontend/skill_frontend_publish_page_online.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/frontend/skill_frontend_trace_page_api_calls.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/governance/skill_governance_data_boundary_rules.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/governance/skill_governance_db_merged_integrity_gate.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/governance/skill_governance_read_company_profile.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/governance/skill_governance_role_project_linkage_audit.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/process/skill_process_generate_test_cases.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/process/skill_process_parse_bpmn_to_nodes.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/process/skill_process_state_mapping_audit.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/release/skill_release_build_package_checklist.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/release/skill_release_db_batch_packaging.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/release/skill_release_db_execution_runbook.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/release/skill_release_rollback_plan.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/release/skill_release_smoke_test_plan.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/sql/skill_sql_convert_oracle_to_dm8.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/sql/skill_sql_data_migration_plan.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/sql/skill_sql_generate_dm8_ddl_from_schema.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/sql/skill_sql_index_review.yaml",
+      "prompt-dsl-system/05_skill_registry/deprecated/skills/sql/skill_sql_portability_audit.yaml",
+      "prompt-dsl-system/05_skill_registry/skills.json",
+      "prompt-dsl-system/05_skill_registry/skills/**",
+      "prompt-dsl-system/05_skill_registry/skills/<domain>/",
+      "prompt-dsl-system/05_skill_registry/skills/universal/skill_hongzhi_universal_ops.yaml",
+      "prompt-dsl-system/tools/README.md",
+      "prompt-dsl-system/tools/ops_guard.py",
+      "prompt-dsl-system/tools/ops_guard_report.json",
+      "prompt-dsl-system/tools/run_plan.yaml",
+      "prompt-dsl-system/tools/run_plan_bpmn.yaml",
+      "prompt-dsl-system/tools/run_plan_bugfix.yaml",
+      "prompt-dsl-system/tools/run_plan_ownercommittee.yaml",
+      "prompt-dsl-system/tools/run_plan_sql.yaml",
+      "prompt-dsl-system/tools/validate_report.json"
+    ]
+  },
+  "checks": {
+    "forbidden_path_violations": [],
+    "out_of_allowed_root_violations": [],
+    "loop_risk": {
+      "status": "not_detected",
+      "message": "no loop signal in available logs",
+      "signals": []
+    }
+  },
+  "summary": {
+    "pass": true,
+    "failure_reasons": [],
+    "suggested_actions": []
+  }
+}

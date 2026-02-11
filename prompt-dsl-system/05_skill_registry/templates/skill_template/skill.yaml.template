@@ -1,0 +1,134 @@
+# Skill Template — auto-generated skeleton
+# Usage: copy this file to skills/<domain>/skill_<domain>_<verb>_<object>.yaml
+#        then fill in all {{PLACEHOLDER}} values.
+# Spec: see 00_conventions/SKILL_SPEC.md
+
+name: "skill_{{DOMAIN}}_{{VERB}}_{{OBJECT}}"
+description: "{{ONE_LINE_DESCRIPTION}}"
+version: "1.0.0"
+domain: "{{DOMAIN}}"
+tags:
+  - "{{TAG1}}"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids."
+  - name: "mode"
+    type: "string"
+    required: true
+    enum: ["{{MODE1}}"]
+    description: "Execution mode selector."
+  - name: "objective"
+    type: "string"
+    required: true
+    description: "Task objective."
+  - name: "constraints"
+    type: "array"
+    required: true
+    items: string
+    description: "Execution constraints."
+  - name: "acceptance"
+    type: "array"
+    required: true
+    items: string
+    description: "Acceptance criteria."
+  - name: "forbidden"
+    type: "array"
+    required: true
+    items: string
+    description: "Forbidden actions."
+  - name: "boundary_policy"
+    type: "object"
+    required: true
+    description: "Boundary policy."
+  - name: "fact_policy"
+    type: "object"
+    required: true
+    description: "Fact policy."
+  - name: "self_monitor_policy"
+    type: "object"
+    required: true
+    description: "Self-monitor policy."
+  - name: "decision_policy"
+    type: "object"
+    required: true
+    description: "Decision policy."
+  - name: "sql_policy"
+    type: "object"
+    required: true
+    description: "SQL policy."
+  - name: "module_path"
+    type: "string"
+    required: false
+    description: "Alias for allowed_module_root."
+prompt_template: |
+  You are the {{DOMAIN}} operations assistant.
+  Skill: skill_{{DOMAIN}}_{{VERB}}_{{OBJECT}}
+
+  {{PROMPT_BODY}}
+
+  Return ONLY: summary, artifacts[], risks[], next_actions[].
+output_contract:
+  summary: "Execution summary."
+  artifacts:
+    - id: "A1"
+      name: "A1_impact_tree.md"
+      description: "Impact tree."
+    - id: "A2"
+      name: "A2_change_ledger.md"
+      description: "Change ledger."
+    - id: "A3"
+      name: "A3_rollback_plan.md"
+      description: "Rollback plan."
+    - id: "A4"
+      name: "A4_cleanup_report.md"
+      description: "Cleanup report."
+  risks:
+    - level: "medium"
+      why: "{{RISK_WHY}}"
+      impact: "{{RISK_IMPACT}}"
+      mitigation: "{{RISK_MITIGATION}}"
+      rollback: "{{RISK_ROLLBACK}}"
+  next_actions:
+    - "Handoff A1-A4."
+examples:
+  - input:
+      context_id: "CTX-{{DOMAIN}}-EXAMPLE"
+      trace_id: "TRACE-{{DOMAIN}}-EXAMPLE"
+      input_artifact_refs: []
+      mode: "{{MODE1}}"
+      objective: "{{EXAMPLE_OBJECTIVE}}"
+      constraints: ["{{EXAMPLE_CONSTRAINT}}"]
+      acceptance: ["{{EXAMPLE_ACCEPTANCE}}"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy:
+        allowed_module_root: "<MODULE_ROOT>"
+        forbidden_paths: ["/sys", "/error", "/util", "/vote"]
+        max_change_scope: "minimal"
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+    output:
+      summary: "{{EXAMPLE_SUMMARY}}"
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "example impact tree"
+      risks:
+        - level: "low"
+          why: "template example"
+          impact: "minimal"
+          mitigation: "review"
+          rollback: "revert"
+      next_actions: ["handoff A1-A4"]

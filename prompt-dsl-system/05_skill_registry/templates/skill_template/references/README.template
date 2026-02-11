@@ -1,0 +1,15 @@
+# references/
+
+Place reference documents for this skill here.
+
+Rules:
+- Files >100 lines MUST include a TOC at the top.
+- Agent reads references via `read_refs: ["references/<filename>"]` in skill parameters.
+- Use Progressive Disclosure: agent loads TOC first, then reads specific sections on demand.
+
+Example structure:
+```
+references/
+  domain_knowledge.md
+  api_mapping.md
+```

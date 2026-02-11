@@ -1,0 +1,152 @@
+run:
+  pipeline: "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md"
+  context_id: "ctx-1e12ed31edf8"
+  trace_id: "trace-65017e9c75294b54a8e3e8596bb5598b"
+  generated_at: "2026-02-09T10:41:48+00:00"
+  profile:
+    path: "prompt-dsl-system/company_profile.yaml"
+    applied: true
+    injected_defaults:
+      execution_tool: "disql"
+      require_precheck_gate: true
+      schema_strategy: "login-default"
+steps:
+  - step: 1
+    skill: "skill_hongzhi_universal_ops"
+    skill_path: "prompt-dsl-system/05_skill_registry/skills/universal/skill_hongzhi_universal_ops.yaml"
+    parameters:
+      context_id: "ctx-1e12ed31edf8"
+      trace_id: "trace-65017e9c75294b54a8e3e8596bb5598b"
+      input_artifact_refs: []
+      acceptance:
+        - "A1 impact tree"
+        - "A2 route A/B tradeoff"
+      boundary_policy: "allowed_module_root: \"{{allowed_module_root}}\"\nforbidden_paths:\n- \"/sys\"\n- \"/error\"\n- \"/util\"\n- \"/vote\"\nmax_change_scope: \"minimal\""
+      constraints:
+        - "if allowed_module_root is missing, scan-only"
+        - "dependency order: compat > self-contained > minimal-invasive"
+      decision_policy: "dependency_strategy_order:\n- \"compat\"\n- \"self-contained\"\n- \"minimal-invasive\"\nchoose_best_route_with_tradeoff: true"
+      execution_tool: "disql"
+      fact_policy: "require_scan_before_change: true\nunknown_requires_user: true"
+      forbidden:
+        - "禁止改 /sys,/error,/util,/vote"
+        - "禁止臆测命名/字段/逻辑"
+      mode: "governance"
+      module_path: "{{allowed_module_root}}"
+      objective: "{{objective}}；refs_hint: sql portability audit；先扫描并输出影响树与路线A/B。"
+      require_precheck_gate: true
+      schema_strategy: "login-default"
+      self_monitor_policy: "loop_detection: true\nauto_rollback_on_loop: true"
+      sql_policy: "prefer_portable_sql: true\ndual_sql_when_needed:\n- \"oracle\"\n- \"mysql\""
+      target_db: "dm8"
+    expects:
+      artifacts:
+        - "A1"
+        - "A2"
+      notes: "Artifacts must be numbered A1/A2/... per SKILL_SPEC."
+    handoff: "来自下一步引用：A1, A2（来自上一步 artifacts）"
+  - step: 2
+    skill: "skill_hongzhi_universal_ops"
+    skill_path: "prompt-dsl-system/05_skill_registry/skills/universal/skill_hongzhi_universal_ops.yaml"
+    parameters:
+      context_id: "ctx-1e12ed31edf8"
+      trace_id: "trace-65017e9c75294b54a8e3e8596bb5598b"
+      input_artifact_refs:
+        - "A1"
+        - "A2"
+      acceptance:
+        - "A* converted sql"
+        - "A* change ledger"
+      boundary_policy: "allowed_module_root: \"{{allowed_module_root}}\"\nforbidden_paths: [\"/sys\", \"/error\", \"/util\", \"/vote\"]\nmax_change_scope: \"minimal\""
+      constraints:
+        - "portable SQL first"
+        - "when not portable, produce oracle/mysql dual sql"
+      decision_policy: "{dependency_strategy_order: [\"compat\", \"self-contained\", \"minimal-invasive\"], choose_best_route_with_tradeoff: true}"
+      execution_tool: "disql"
+      fact_policy: "{require_scan_before_change: true, unknown_requires_user: true}"
+      forbidden:
+        - "禁止改 /sys,/error,/util,/vote"
+        - "禁止臆测命名/字段/逻辑"
+      mode: "sql"
+      module_path: "{{allowed_module_root}}"
+      objective: "{{objective}}；refs_hint: skill_sql_convert_oracle_to_dm8；执行可移植优先转换。"
+      require_precheck_gate: true
+      schema_strategy: "login-default"
+      self_monitor_policy: "{loop_detection: true, auto_rollback_on_loop: true}"
+      sql_policy: "{prefer_portable_sql: true, dual_sql_when_needed: [\"oracle\", \"mysql\"]}"
+      target_db: "dm8"
+    expects:
+      artifacts:
+        - "A1"
+        - "A2"
+      notes: "Artifacts must be numbered A1/A2/... per SKILL_SPEC."
+    handoff: "来自下一步引用：A2（来自上一步 artifacts）"
+  - step: 3
+    skill: "skill_hongzhi_universal_ops"
+    skill_path: "prompt-dsl-system/05_skill_registry/skills/universal/skill_hongzhi_universal_ops.yaml"
+    parameters:
+      context_id: "ctx-1e12ed31edf8"
+      trace_id: "trace-65017e9c75294b54a8e3e8596bb5598b"
+      input_artifact_refs:
+        - "A2"
+      acceptance:
+        - "A* rollback plan"
+        - "A* migration notes"
+      boundary_policy: "allowed_module_root: \"{{allowed_module_root}}\"\nforbidden_paths: [\"/sys\", \"/error\", \"/util\", \"/vote\"]\nmax_change_scope: \"minimal\""
+      constraints:
+        - "minimal-invasive changes"
+      decision_policy: "{dependency_strategy_order: [\"compat\", \"self-contained\", \"minimal-invasive\"], choose_best_route_with_tradeoff: true}"
+      execution_tool: "disql"
+      fact_policy: "{require_scan_before_change: true, unknown_requires_user: true}"
+      forbidden:
+        - "禁止改 /sys,/error,/util,/vote"
+        - "禁止臆测命名/字段/逻辑"
+      mode: "sql"
+      module_path: "{{allowed_module_root}}"
+      objective: "{{objective}}；refs_hint: index review + migration plan；输出索引建议与迁移批次。"
+      require_precheck_gate: true
+      schema_strategy: "login-default"
+      self_monitor_policy: "{loop_detection: true, auto_rollback_on_loop: true}"
+      sql_policy: "{prefer_portable_sql: true, dual_sql_when_needed: [\"oracle\", \"mysql\"]}"
+      target_db: "dm8"
+    expects:
+      artifacts:
+        - "A1"
+        - "A2"
+      notes: "Artifacts must be numbered A1/A2/... per SKILL_SPEC."
+    handoff: "来自下一步引用：A3（来自上一步 artifacts）"
+  - step: 4
+    skill: "skill_hongzhi_universal_ops"
+    skill_path: "prompt-dsl-system/05_skill_registry/skills/universal/skill_hongzhi_universal_ops.yaml"
+    parameters:
+      context_id: "ctx-1e12ed31edf8"
+      trace_id: "trace-65017e9c75294b54a8e3e8596bb5598b"
+      input_artifact_refs:
+        - "A3"
+      acceptance:
+        - "A* impact tree"
+        - "A* change ledger"
+        - "A* rollback plan"
+        - "A* cleanup report"
+      boundary_policy: "allowed_module_root: \"{{allowed_module_root}}\"\nforbidden_paths: [\"/sys\", \"/error\", \"/util\", \"/vote\"]\nmax_change_scope: \"minimal\""
+      constraints:
+        - "closure required"
+      decision_policy: "{dependency_strategy_order: [\"compat\", \"self-contained\", \"minimal-invasive\"], choose_best_route_with_tradeoff: true}"
+      execution_tool: "disql"
+      fact_policy: "{require_scan_before_change: true, unknown_requires_user: true}"
+      forbidden:
+        - "禁止改 /sys,/error,/util,/vote"
+        - "禁止臆测命名/字段/逻辑"
+      mode: "docs"
+      module_path: "{{allowed_module_root}}"
+      objective: "{{objective}}；输出作业日志、回滚说明、清理报告。"
+      require_precheck_gate: true
+      schema_strategy: "login-default"
+      self_monitor_policy: "{loop_detection: true, auto_rollback_on_loop: true}"
+      sql_policy: "{prefer_portable_sql: true, dual_sql_when_needed: [\"oracle\", \"mysql\"]}"
+    expects:
+      artifacts:
+        - "A1"
+        - "A2"
+      notes: "Artifacts must be numbered A1/A2/... per SKILL_SPEC."
+    handoff: "Final step."

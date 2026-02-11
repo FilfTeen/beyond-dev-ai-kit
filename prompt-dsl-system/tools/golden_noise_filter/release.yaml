@@ -1,0 +1,19 @@
+profile: release
+enabled: true
+notes:
+  - Release profile is strict: only timestamp-like fields are dropped.
+  - trace_id/context_id are normalized (not dropped) so identity presence remains auditable.
+  - Semantic governance fields (for example budgets/gates) must be preserved.
+drop_paths:
+  - generated_at
+  - timestamp
+normalize_basename_paths:
+  - paths.*
+normalize_id_paths:
+  - trace_id
+  - context_id
+list_sort_paths:
+  - changed
+  - added
+  - removed
+list_sort_object_key: path

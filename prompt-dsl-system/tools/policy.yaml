@@ -1,0 +1,63 @@
+# Prompt DSL Tools Policy Pack
+# Priority: CLI overrides > repo overrides (.prompt-dsl-policy.yaml/.json) > this file > hardcoded defaults.
+# This file is human-editable. validate will refresh machine-readable policy.json/policy_effective.json.
+
+policy_version: "1.0.0"
+
+paths:
+  tools_dir: "prompt-dsl-system/tools"
+  snapshots_dir: "prompt-dsl-system/tools/snapshots"
+  deliveries_dir: "prompt-dsl-system/tools/deliveries"
+  trace_history: "prompt-dsl-system/tools/trace_history.jsonl"
+  validate_report: "prompt-dsl-system/tools/validate_report.json"
+  health_report_json: "prompt-dsl-system/tools/health_report.json"
+  health_report_md: "prompt-dsl-system/tools/health_report.md"
+  health_runbook_md: "prompt-dsl-system/tools/health_runbook.md"
+  health_runbook_sh: "prompt-dsl-system/tools/health_runbook.sh"
+  snapshot_index_json: "prompt-dsl-system/tools/snapshot_index.json"
+  trace_index_json: "prompt-dsl-system/tools/trace_index.json"
+
+gates:
+  verify_gate:
+    enabled: true
+    fail_on_fail: true
+    allow_ack_on_fail: false
+  loop_gate:
+    enabled: true
+    window: 6
+    fail_on_loop_high: true
+  guard_gate:
+    enabled: true
+
+health:
+  window: 20
+  runbook_mode: "safe"
+  recommendations_max: 7
+
+snapshots:
+  enabled_on_apply: true
+  max_copy_size_mb: 20
+
+prune:
+  keep_last: 20
+  max_total_size_mb: 1024
+  dry_run_default: true
+
+index:
+  snapshot_limit_md: 500
+  trace_window: 200
+  trace_scan_all: false
+  report_mtime_window_hours: 24
+
+diff:
+  scan_deliveries_default: false
+  deliveries_depth: 2
+  limit_files: 400
+
+bisect:
+  max_steps: 12
+  auto_find_good: true
+  good_verify_top: "PASS"
+
+logging:
+  verbose: false

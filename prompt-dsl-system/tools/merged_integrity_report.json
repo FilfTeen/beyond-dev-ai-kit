@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-02-09T10:08:57.567106+00:00",
+  "trace_id": "trace-c4d7acea934f4bbbb5a8979a1de7051b",
+  "pass": true,
+  "missing_segments": {},
+  "missing_tables": {},
+  "suggested_actions": [
+    "无需动作。"
+  ],
+  "checks": {
+    "required_files": {
+      "pass": true,
+      "missing_files": []
+    },
+    "optional_manifest": {
+      "present": true
+    },
+    "Batch_all_merged.sql": {
+      "present": true,
+      "segment_count_ok": true,
+      "segment_order_ok": true,
+      "contains_public_notice_read_create": true,
+      "segments_found": [
+        "01_drop_tables.sql",
+        "02_create_public_notice.sql",
+        "03_create_public_notice_scope.sql",
+        "04_create_public_notice_cover.sql",
+        "05_create_public_notice_external_source.sql",
+        "07_create_public_notice_read.sql",
+        "06_create_index.sql",
+        "08_upgrade_from_legacy.sql",
+        "10_menu_and_role_config.sql"
+      ],
+      "extra_segments": [],
+      "missing_segments": []
+    },
+    "A1_dm8_sql_merged.sql": {
+      "present": true,
+      "segment_count_ok": true,
+      "segment_order_ok": true,
+      "contains_public_notice_read_create": true,
+      "segments_found": [
+        "01_drop_tables.sql",
+        "02_create_public_notice.sql",
+        "03_create_public_notice_scope.sql",
+        "04_create_public_notice_cover.sql",
+        "05_create_public_notice_external_source.sql",
+        "07_create_public_notice_read.sql",
+        "06_create_index.sql",
+        "08_upgrade_from_legacy.sql",
+        "10_menu_and_role_config.sql"
+      ],
+      "extra_segments": [],
+      "missing_segments": []
+    },
+    "Batch2_core_schema.sql": {
+      "present": true,
+      "missing_tables": [],
+      "pass": true
+    }
+  },
+  "fail_reasons": []
+}

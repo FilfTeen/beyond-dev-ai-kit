@@ -1,0 +1,11 @@
+{
+  "strategy": "rename_suffix",
+  "mappings": [
+    {
+      "src": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "dst": "prompt-dsl-system/tools/_tmp_verify_followup/new/path/FooService.java",
+      "kind": "rename_suffix",
+      "notes": []
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-02-11T01:38:09+00:00",
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "module_path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system",
+  "module_path_normalized": "prompt-dsl-system",
+  "module_path_source": "cli",
+  "generated": true,
+  "generated_reason": "ok",
+  "vcs": "none",
+  "effective_allowlist_prefixes": [
+    "prompt-dsl-system/",
+    "prompt-dsl-system/"
+  ],
+  "items": [],
+  "summary": {
+    "total": 0,
+    "movable": 0,
+    "non_movable": 0,
+    "high_risk": 0
+  },
+  "blockers": [],
+  "move_plan_available": false,
+  "mappings": [],
+  "skipped": []
+}

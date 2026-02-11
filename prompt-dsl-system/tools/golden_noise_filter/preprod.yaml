@@ -1,0 +1,21 @@
+profile: preprod
+enabled: true
+notes:
+  - Preprod keeps more diagnostic evidence than dev while still filtering common volatility.
+  - snapshot_path is preserved for deployment-stage traceability.
+drop_paths:
+  - generated_at
+  - timestamp
+  - trace_id
+  - context_id
+  - uuid
+normalize_basename_paths:
+  - paths.*
+  - deliveries.*
+normalize_id_paths:
+  - '*.request_id'
+list_sort_paths:
+  - changed
+  - added
+  - removed
+list_sort_object_key: path

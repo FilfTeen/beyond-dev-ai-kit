@@ -1,0 +1,428 @@
+{
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "generated_at": "2026-02-10T04:08:47+00:00",
+  "scanner": "rg",
+  "mode": "full",
+  "inputs": {
+    "moves": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools/_tmp_verify_followup/moves_mapping.json",
+    "scan_report": null,
+    "patch_plan": null
+  },
+  "token_groups": {
+    "exact_paths": [
+      "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java"
+    ],
+    "old_dirs": [
+      "prompt-dsl-system/tools/_tmp_verify_followup/old/path"
+    ],
+    "fqcn_hints": []
+  },
+  "summary": {
+    "tokens_total": 2,
+    "tokens_with_hits": 2,
+    "hits_total": 50,
+    "total_hits_estimate": 50,
+    "status": "FAIL"
+  },
+  "top_findings": [
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "hits": 30,
+      "examples": [
+        {
+          "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_pass/followup_verify_report.json",
+          "line": 13,
+          "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+        },
+        {
+          "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_pass/followup_verify_report.json",
+          "line": 16,
+          "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path\""
+        },
+        {
+          "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+          "line": 13,
+          "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+        }
+      ]
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "hits": 20,
+      "examples": [
+        {
+          "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_pass/followup_verify_report.json",
+          "line": 13,
+          "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+        },
+        {
+          "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+          "line": 13,
+          "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+        },
+        {
+          "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+          "line": 35,
+          "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\\\"\""
+        }
+      ]
+    }
+  ],
+  "hits": [
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_pass/followup_verify_report.json",
+      "line": 13,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 13,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 35,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 45,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 50,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 56,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 61,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 68,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 72,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 75,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 79,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 86,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 100,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 15,
+      "snippet": "hits=2"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 18,
+      "snippet": "13` token=`prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java` group=exact_paths :: \"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 19,
+      "snippet": "1` token=`prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java` group=exact_paths :: prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 20,
+      "snippet": "13` token=`prompt-dsl-system/tools/_tmp_verify_followup/old/path` group=old_dirs :: \"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 22,
+      "snippet": "1` token=`prompt-dsl-system/tools/_tmp_verify_followup/old/path` group=old_dirs :: prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/README.md",
+      "line": 1,
+      "snippet": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java",
+      "token_group": "exact_paths",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/src/main/java/com/acme/Test.java",
+      "line": 3,
+      "snippet": "String p = \"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\";"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_pass/followup_verify_report.json",
+      "line": 13,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_pass/followup_verify_report.json",
+      "line": 16,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 13,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 16,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 29,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 35,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 40,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 45,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 50,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 56,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 61,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 68,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 72,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 75,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 79,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 82,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 86,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 89,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 93,
+      "snippet": "\"\\\"prompt-dsl-system/tools/_tmp_verify_followup/old/path\\\"\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 96,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path\","
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.json",
+      "line": 100,
+      "snippet": "\"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 14,
+      "snippet": "hits=3"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 15,
+      "snippet": "hits=2"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 18,
+      "snippet": "13` token=`prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java` group=exact_paths :: \"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 19,
+      "snippet": "1` token=`prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java` group=exact_paths :: prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 20,
+      "snippet": "13` token=`prompt-dsl-system/tools/_tmp_verify_followup/old/path` group=old_dirs :: \"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 21,
+      "snippet": "16` token=`prompt-dsl-system/tools/_tmp_verify_followup/old/path` group=old_dirs :: \"prompt-dsl-system/tools/_tmp_verify_followup/old/path\""
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/out_warn/followup_verify_report.md",
+      "line": 22,
+      "snippet": "1` token=`prompt-dsl-system/tools/_tmp_verify_followup/old/path` group=old_dirs :: prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/README.md",
+      "line": 1,
+      "snippet": "prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java"
+    },
+    {
+      "token": "prompt-dsl-system/tools/_tmp_verify_followup/old/path",
+      "token_group": "old_dirs",
+      "file": "prompt-dsl-system/tools/_tmp_verify_followup/src/main/java/com/acme/Test.java",
+      "line": 3,
+      "snippet": "String p = \"prompt-dsl-system/tools/_tmp_verify_followup/old/path/FooService.java\";"
+    }
+  ],
+  "recommended_actions": [
+    "Run apply-followup-fixes in plan mode, then apply with ACK if needed.",
+    "Prioritize manual cleanup in src/main/java or pages paths.",
+    "Re-run debug-guard and verify-followup-fixes before next run."
+  ]
+}

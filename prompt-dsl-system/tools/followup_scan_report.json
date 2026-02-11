@@ -1,0 +1,37 @@
+{
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "moves_source": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools/move_report.json",
+  "generated_at": "2026-02-10T03:39:03+00:00",
+  "mode": "plan",
+  "scanner": "rg",
+  "use_rg_requested": true,
+  "include_patterns": [
+    "*.java",
+    "*.xml",
+    "*.yml",
+    "*.yaml",
+    "*.properties",
+    "*.json",
+    "*.js",
+    "*.ts",
+    "*.vue",
+    "*.html",
+    "*.xhtml",
+    "*.jsp",
+    "*.sql",
+    "*.md"
+  ],
+  "exclude_dirs": [
+    ".git",
+    "target",
+    ".idea",
+    ".vscode",
+    "node_modules",
+    "dist",
+    "build",
+    "out",
+    "logs"
+  ],
+  "max_hits_per_move": 50,
+  "moves": []
+}

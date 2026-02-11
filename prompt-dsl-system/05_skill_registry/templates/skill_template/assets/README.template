@@ -1,0 +1,14 @@
+# assets/
+
+Place static assets for this skill here (diagrams, configs, sample data).
+
+Rules:
+- Binary files should be small (<1MB each).
+- Include a manifest comment in the skill YAML if assets are required at runtime.
+
+Example structure:
+```
+assets/
+  schema_diagram.png
+  sample_input.json
+```

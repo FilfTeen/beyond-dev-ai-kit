@@ -1,0 +1,42 @@
+{
+  "generated_at": "2026-02-10T03:47:49+00:00",
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "scan_report": "prompt-dsl-system/tools/followup_scan_report.json",
+  "mode": "plan",
+  "confidence_threshold": "high",
+  "max_changes": 100,
+  "include_exts": [
+    ".html",
+    ".java",
+    ".js",
+    ".json",
+    ".jsp",
+    ".md",
+    ".properties",
+    ".ts",
+    ".vue",
+    ".xhtml",
+    ".xml",
+    ".yaml",
+    ".yml"
+  ],
+  "exclude_paths": [
+    "/.git/",
+    "/.idea/",
+    "/.vscode/",
+    "/build/",
+    "/dist/",
+    "/logs/",
+    "/node_modules/",
+    "/out/",
+    "/target/"
+  ],
+  "total_moves": 0,
+  "total_candidates": 0,
+  "selected_candidates": 0,
+  "files_changed": 0,
+  "total_replacements": 0,
+  "truncated": false,
+  "files": [],
+  "skipped_hits": []
+}

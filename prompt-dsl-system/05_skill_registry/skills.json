@@ -1,0 +1,19 @@
+[
+  {
+    "name": "skill_hongzhi_universal_ops",
+    "description": "Universal high-compatibility operational skill covering sql/code/process/frontend/release/governance/docs workflows.",
+    "version": "1.0.0",
+    "domain": "universal",
+    "tags": [
+      "sql",
+      "code",
+      "process",
+      "frontend",
+      "release",
+      "governance",
+      "docs"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/universal/skill_hongzhi_universal_ops.yaml",
+    "status": "deployed"
+  }
+]

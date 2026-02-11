@@ -1,0 +1,812 @@
+{
+  "generated_at": "2026-02-11T01:38:09+00:00",
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "tools_dir": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools",
+  "summary": {
+    "trace_ids": 24,
+    "commands": {
+      "unknown": 11,
+      "run": 13
+    },
+    "failures": {
+      "exit_4": 3,
+      "exit_nonzero": 4
+    }
+  },
+  "items": [
+    {
+      "trace_id": "trace-26cbf701c6894a00ad17cbae11ea5262",
+      "context_id": "ctx-07b98a5c8350",
+      "last_seen_at": "2026-02-11T01:38:09+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-11T01:38:09+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": "prompt-dsl-system/tools/run_plan.yaml",
+        "validate_report": "prompt-dsl-system/tools/validate_report.json",
+        "health_report": "prompt-dsl-system/tools/health_report.json",
+        "verify_report": null,
+        "risk_gate_report": "prompt-dsl-system/tools/risk_gate_report.json",
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-681a5d2cac9c45b38c97a355c32eb20f",
+      "context_id": "ctx-26b8ec53e92e",
+      "last_seen_at": "2026-02-10T14:29:46+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T14:29:46+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-01286ade51704c8b934cd1845df39b3b",
+      "context_id": "ctx-af97c445140a",
+      "last_seen_at": "2026-02-10T14:29:39+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T14:29:39+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-cdfc7f81fa4b40e6b0c6e06cf95737b1",
+      "context_id": "ctx-9d235466db61",
+      "last_seen_at": "2026-02-10T14:29:10+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T14:29:10+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-196e44ff76b4418187417c5d227f9e66",
+      "context_id": "ctx-4e292f930f5c",
+      "last_seen_at": "2026-02-10T14:08:14+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T14:08:14+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-d8d99a59718b439687fc4984b0bedb56",
+      "context_id": "ctx-d9883596dbcd",
+      "last_seen_at": "2026-02-10T06:09:56+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T06:09:56+00:00",
+          "command": "run",
+          "exit_code": 3,
+          "blocked_by": "loop_gate",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 3,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "loop_gate": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-open-hit-case-001",
+      "context_id": "ctx-open-hit-001",
+      "last_seen_at": "2026-02-10T05:31:32+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T05:31:32+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": "prompt-dsl-system/tools/deliveries/trace-open-hit-case-001",
+        "snapshot_paths": [
+          "prompt-dsl-system/tools/snapshots/snapshot_20260210T053132Z_trace-open-hit-c"
+        ],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-bisect-bad-001",
+      "context_id": "ctx-bisect-bad",
+      "last_seen_at": "2026-02-10T05:05:00+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T05:05:00+00:00",
+          "command": "run",
+          "exit_code": 4,
+          "blocked_by": "verify_gate",
+          "verify_status": "FAIL",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 4,
+        "latest_verify_status": "FAIL",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "verify_gate": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-bisect-good-001",
+      "context_id": "ctx-bisect-good",
+      "last_seen_at": "2026-02-10T05:00:00+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T05:00:00+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-dc6cd01395f14cd2b762229630586cda",
+      "context_id": "ctx-71685d00ccdd",
+      "last_seen_at": "2026-02-10T04:41:10+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:41:10+00:00",
+          "command": "run",
+          "exit_code": 4,
+          "blocked_by": "verify_gate",
+          "verify_status": "FAIL",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": "prompt-dsl-system/tools/followup_verify_report.json",
+        "risk_gate_report": null,
+        "risk_gate_token": "prompt-dsl-system/tools/RISK_GATE_TOKEN.json"
+      },
+      "highlights": {
+        "latest_exit_code": 4,
+        "latest_verify_status": "FAIL",
+        "bypass_attempt": true,
+        "blocked_by_counts": {
+          "verify_gate": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-f4a2312641ad4c8d819eb00f2014bad1",
+      "context_id": "ctx-fba7bb0b49b9",
+      "last_seen_at": "2026-02-10T04:41:04+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:41:04+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "FAIL",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "FAIL",
+        "bypass_attempt": true,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-d3b32ceae1204ebebcf3f12f0f271efe",
+      "context_id": "ctx-55de3eefc658",
+      "last_seen_at": "2026-02-10T04:40:57+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:40:57+00:00",
+          "command": "run",
+          "exit_code": 4,
+          "blocked_by": "verify_gate",
+          "verify_status": "FAIL",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 4,
+        "latest_verify_status": "FAIL",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "verify_gate": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-4809681ab83e47fa90bc68cc40111c9f",
+      "context_id": "ctx-63dff9ae5532",
+      "last_seen_at": "2026-02-10T04:40:33+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:40:33+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "FAIL",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "FAIL",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-6de85b3c7ec94f2e9d279987d0f4f0d7",
+      "context_id": "ctx-deb35c0d56d7",
+      "last_seen_at": "2026-02-10T04:23:21+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:23:21+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-b93f74a414634145b73eaf2051669ed0",
+      "context_id": "ctx-e7a4392f53e8",
+      "last_seen_at": "2026-02-10T04:23:21+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:23:21+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-d2f815a24eab48ab9f8b38ec4900ac14",
+      "context_id": "ctx-6655cd5708a7",
+      "last_seen_at": "2026-02-10T04:23:20+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:23:20+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-dac5625f4d534fd7a597e7fbabcab883",
+      "context_id": "ctx-f7cd52f6c4f2",
+      "last_seen_at": "2026-02-10T04:21:48+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:21:48+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-5ac0d6274a704a3f816f2db24aa559da",
+      "context_id": "ctx-8367a579eb38",
+      "last_seen_at": "2026-02-10T04:21:47+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:21:47+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-157fab95c58b49b3b40ad1178d449e94",
+      "context_id": "ctx-747dc82c7366",
+      "last_seen_at": "2026-02-10T04:20:21+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:20:21+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-7dd8265b49d0428ebec0bfa528711c7a",
+      "context_id": "ctx-eaf5c6dce850",
+      "last_seen_at": "2026-02-10T04:20:11+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:20:11+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-fc511e26034b4a83be3168299ad63450",
+      "context_id": "ctx-c835cc7c40aa",
+      "last_seen_at": "2026-02-10T04:20:02+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:20:02+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-260b8fc4e9334dcd8e7af879d13ad4a9",
+      "context_id": "ctx-697a96f34c0e",
+      "last_seen_at": "2026-02-10T04:19:55+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T04:19:55+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-d11e21adea8241c2afdc3aa8ed91fa22",
+      "context_id": "ctx-c8be289455ea",
+      "last_seen_at": "2026-02-10T02:46:48+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T02:46:48+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
+    {
+      "trace_id": "trace-254e6aa281874f0fb3d559268c9003d4",
+      "context_id": "ctx-8abbafc1eeb0",
+      "last_seen_at": "2026-02-10T02:46:43+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-10T02:46:43+00:00",
+          "command": "unknown",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "MISSING",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": null,
+        "health_report": null,
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "MISSING",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+# DEPRECATED: replaced by skill_hongzhi_universal_ops
+# Suggested mode: governance
+# Mapping hints: Use mode=governance; put refs_hint=skill_governance_db_merged_integrity_gate in objective/constraints; preserve legacy acceptance checks.
+# Original name: skill_governance_db_merged_integrity_gate
+name: "skill_governance_db_merged_integrity_gate"
+description: "Define and enforce pre-release integrity gate rules for merged and batch SQL artifacts to prevent missing segments, missing key tables, and incomplete delivery sets. Use before DB release handoff for Oracle/DM8 style batch deliveries."
+version: "1.0.0"
+domain: "governance"
+tags:
+  - "governance"
+  - "db"
+  - "sql"
+  - "integrity-gate"
+  - "release"
+  - "quality"
+parameters:
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Repository-relative or absolute scope for integrity gate outputs."
+  - name: "objective"
+    type: "string"
+    required: true
+    description: "Concrete integrity gate objective and acceptance constraints."
+  - name: "required_files"
+    type: "array"
+    required: true
+    items: string
+    description: "Required file set for release integrity (e.g., [\"Batch_all_merged.sql\", \"Batch2_core_schema.sql\"])."
+  - name: "required_segments"
+    type: "array"
+    required: true
+    items: string
+    description: "Required ordered segment labels (e.g., [\"01_drop_tables.sql\", ...])."
+  - name: "required_tables"
+    type: "array"
+    required: true
+    items: string
+    description: "Required key table names that must appear in CREATE TABLE statements."
+  - name: "allow_partial"
+    type: "boolean"
+    required: false
+    description: "Whether partial pass is acceptable; default false."
+  - name: "tool_mode"
+    type: "string"
+    required: true
+    description: "Execution mode: doc-only|script-assisted."
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Pipeline-run context identifier for cross-step linkage."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Unique trace id for the run (recommended)."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Artifact ids from previous steps (e.g., [\"A1\", \"A2\"])."
+prompt_template: |
+  You are the enterprise delivery assistant.
+  Skill: skill_governance_db_merged_integrity_gate
+  Goal: Build a pre-release integrity gate for merged/batch SQL artifacts.
+
+  Input:
+  - module_path: {{module_path}}
+  - objective: {{objective}}
+  - required_files: {{required_files}}
+  - required_segments: {{required_segments}}
+  - required_tables: {{required_tables}}
+  - allow_partial: {{allow_partial}}
+  - tool_mode: {{tool_mode}}
+  - context_id: {{context_id}}
+  - trace_id: {{trace_id}}
+  - input_artifact_refs: {{input_artifact_refs}}
+
+  Execution focus:
+  - Define deterministic integrity checks for files, segment coverage/order, and critical table coverage.
+  - Produce outputs usable as both human release checklist and machine gate rule reference.
+  - Keep outputs generic and reusable across projects.
+
+  Artifact handoff requirements:
+  - Number artifacts as A1, A2, A3...
+  - Must include:
+    - A1_integrity_checklist.md (human-readable checklist).
+    - A2_integrity_ruleset.md (machine-readable rules including order/table/file constraints).
+    - A3_command_template.md (CI/local execution templates for doc-only or script-assisted mode).
+
+  Upstream artifact reference rule:
+  - If input_artifact_refs is provided, read and cite those artifact ids before generating new artifacts.
+
+  Return ONLY the unified output structure:
+  - summary
+  - artifacts[]
+  - risks[]
+  - next_actions[]
+output_contract:
+  summary: "Concise integrity gate outcome with pass criteria and enforcement scope."
+  artifacts:
+    - id: "A1"
+      name: "A1_integrity_checklist"
+      description: "Human-readable integrity checklist for pre-release signoff."
+    - id: "A2"
+      name: "A2_integrity_ruleset"
+      description: "Machine-oriented ruleset for required files, ordered segments, and required tables/indexes."
+    - id: "A3"
+      name: "A3_command_template"
+      description: "Command template for local/CI execution in doc-only or script-assisted mode."
+  risks:
+    - "Known risks for false pass/fail and incomplete rule coverage."
+  next_actions:
+    - "Ordered follow-ups to integrate gate checks into release process."
+examples:
+  - input:
+      module_path: "<MODULE_PATH>"
+      objective: |
+        inputs: "merged sql + batch sql + delivery manifest"
+        constraints: "block release when required segments/tables are missing"
+        acceptance: "produce A1/A2/A3 gate outputs"
+        forbidden: "do not include environment secrets"
+      required_files:
+        - "Batch_all_merged.sql"
+        - "Batch2_core_schema.sql"
+      required_segments:
+        - "01_drop_tables.sql"
+        - "02_create_public_notice.sql"
+      required_tables:
+        - "PUBLIC_NOTICE_READ"
+      allow_partial: false
+      tool_mode: "script-assisted"
+      context_id: "CTX-INTEGRITY-GATE"
+      trace_id: "TRACE-INTEGRITY-GATE"
+      input_artifact_refs:
+        - "A2"
+    output:
+      summary: "Integrity gate template completed with enforceable pre-release criteria."
+      artifacts:
+        - id: "A1"
+          name: "A1_integrity_checklist"
+          description: "Operator checklist for release signoff."
+        - id: "A2"
+          name: "A2_integrity_ruleset"
+          description: "Ruleset for required files/segments/tables."
+        - id: "A3"
+          name: "A3_command_template"
+          description: "Local and CI command templates for gate execution."
+      risks:
+        - "Ruleset drift can reduce gate effectiveness if not maintained."
+      next_actions:
+        - "Bind integrity gate into CI release pipeline before deployment step."

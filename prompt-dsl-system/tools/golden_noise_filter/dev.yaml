@@ -1,0 +1,24 @@
+profile: dev
+enabled: true
+notes:
+  - Dev profile is relaxed to suppress unstable runtime fields and focus on semantic drift.
+  - Dynamic paths and ids are normalized/dropped to reduce false positives during rapid iteration.
+drop_paths:
+  - generated_at
+  - timestamp
+  - trace_id
+  - context_id
+  - uuid
+  - hash
+  - snapshot_path
+normalize_basename_paths:
+  - paths.*
+  - deliveries.*
+  - '*.report_path'
+normalize_id_paths:
+  - '*.request_id'
+list_sort_paths:
+  - changed
+  - added
+  - removed
+list_sort_object_key: path

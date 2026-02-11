@@ -1,0 +1,1226 @@
+{
+  "generated_at": "2026-02-11T01:37:57+00:00",
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "scope": {
+    "effective_module_path": null,
+    "module_path_source": "none",
+    "guard_report_path": "prompt-dsl-system/tools/guard_report.json",
+    "guard_messages": [],
+    "guard_decision_reason": "vcs unsupported; guard ran in non-blocking mode"
+  },
+  "profile": {
+    "path": "prompt-dsl-system/company_profile.yaml",
+    "found": true,
+    "parsed": true,
+    "applied_possible": true,
+    "effective_defaults": {
+      "schema_strategy": "login-default",
+      "execution_tool": {
+        "dm8": "disql",
+        "oracle": "navicat"
+      },
+      "require_precheck_gate": true
+    },
+    "warnings": []
+  },
+  "registry": {
+    "path": "prompt-dsl-system/05_skill_registry/skills.json",
+    "exists": true,
+    "errors": [],
+    "entry_count": 1,
+    "missing_skill_files": []
+  },
+  "pipelines": [
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bpmn_state_audit_testgen.md",
+      "exists": true,
+      "yaml_block_count": 4,
+      "step_count": 4,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 4,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    },
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bugfix_min_scope_with_tree.md",
+      "exists": true,
+      "yaml_block_count": 4,
+      "step_count": 4,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 4,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    },
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_db_delivery_batch_and_runbook.md",
+      "exists": true,
+      "yaml_block_count": 3,
+      "step_count": 3,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "target_db",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "target_db",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    },
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_module_migration.md",
+      "exists": true,
+      "yaml_block_count": 6,
+      "step_count": 6,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 4,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 5,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 6,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    },
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_ownercommittee_audit_fix.md",
+      "exists": true,
+      "yaml_block_count": 5,
+      "step_count": 5,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 4,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 5,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    },
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_project_bootstrap.md",
+      "exists": true,
+      "yaml_block_count": 5,
+      "step_count": 5,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 4,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 5,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    },
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_skill_creator.md",
+      "exists": true,
+      "yaml_block_count": 5,
+      "step_count": 5,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 4,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 5,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    },
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_skill_promote.md",
+      "exists": true,
+      "yaml_block_count": 3,
+      "step_count": 3,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    },
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md",
+      "exists": true,
+      "yaml_block_count": 4,
+      "step_count": 4,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "target_db",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "target_db",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "target_db",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 4,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "pipelines_checked": 9,
+    "total_errors": 0,
+    "total_warnings": 0,
+    "ok": true
+  },
+  "policy": {
+    "version": "1.0.0",
+    "sources": {
+      "default": "hardcoded",
+      "files": [
+        {
+          "path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools/policy.yaml",
+          "kind": "tools_policy_yaml",
+          "loaded": true
+        }
+      ],
+      "cli_overrides": {}
+    },
+    "effective_path": "prompt-dsl-system/tools/policy_effective.json",
+    "sources_path": "prompt-dsl-system/tools/policy_sources.json",
+    "machine_path": "prompt-dsl-system/tools/policy.json",
+    "errors": []
+  }
+}

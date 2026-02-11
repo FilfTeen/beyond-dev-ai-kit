@@ -1,0 +1,518 @@
+{
+  "generated_at": "2026-02-09T10:21:59Z",
+  "skills_count": 28,
+  "skills_name_path": [
+    {
+      "name": "skill_sql_convert_oracle_to_dm8",
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_convert_oracle_to_dm8.yaml"
+    },
+    {
+      "name": "skill_sql_portability_audit",
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_portability_audit.yaml"
+    },
+    {
+      "name": "skill_sql_generate_dm8_ddl_from_schema",
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_generate_dm8_ddl_from_schema.yaml"
+    },
+    {
+      "name": "skill_sql_index_review",
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_index_review.yaml"
+    },
+    {
+      "name": "skill_sql_data_migration_plan",
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_data_migration_plan.yaml"
+    },
+    {
+      "name": "skill_code_refactor_java_service",
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_refactor_java_service.yaml"
+    },
+    {
+      "name": "skill_code_fix_type_mismatch",
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_fix_type_mismatch.yaml"
+    },
+    {
+      "name": "skill_code_dependency_trace",
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_dependency_trace.yaml"
+    },
+    {
+      "name": "skill_code_generate_change_ledger",
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_generate_change_ledger.yaml"
+    },
+    {
+      "name": "skill_code_security_hardening",
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_security_hardening.yaml"
+    },
+    {
+      "name": "skill_process_parse_bpmn_to_nodes",
+      "path": "prompt-dsl-system/05_skill_registry/skills/process/skill_process_parse_bpmn_to_nodes.yaml"
+    },
+    {
+      "name": "skill_process_state_mapping_audit",
+      "path": "prompt-dsl-system/05_skill_registry/skills/process/skill_process_state_mapping_audit.yaml"
+    },
+    {
+      "name": "skill_process_generate_test_cases",
+      "path": "prompt-dsl-system/05_skill_registry/skills/process/skill_process_generate_test_cases.yaml"
+    },
+    {
+      "name": "skill_docs_generate_module_readme",
+      "path": "prompt-dsl-system/05_skill_registry/skills/docs/skill_docs_generate_module_readme.yaml"
+    },
+    {
+      "name": "skill_docs_generate_api_contract",
+      "path": "prompt-dsl-system/05_skill_registry/skills/docs/skill_docs_generate_api_contract.yaml"
+    },
+    {
+      "name": "skill_docs_generate_db_dictionary",
+      "path": "prompt-dsl-system/05_skill_registry/skills/docs/skill_docs_generate_db_dictionary.yaml"
+    },
+    {
+      "name": "skill_frontend_trace_page_api_calls",
+      "path": "prompt-dsl-system/05_skill_registry/skills/frontend/skill_frontend_trace_page_api_calls.yaml"
+    },
+    {
+      "name": "skill_frontend_fix_layui_form_binding",
+      "path": "prompt-dsl-system/05_skill_registry/skills/frontend/skill_frontend_fix_layui_form_binding.yaml"
+    },
+    {
+      "name": "skill_frontend_publish_page_online",
+      "path": "prompt-dsl-system/05_skill_registry/skills/frontend/skill_frontend_publish_page_online.yaml"
+    },
+    {
+      "name": "skill_release_build_package_checklist",
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_build_package_checklist.yaml"
+    },
+    {
+      "name": "skill_release_smoke_test_plan",
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_smoke_test_plan.yaml"
+    },
+    {
+      "name": "skill_release_rollback_plan",
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_rollback_plan.yaml"
+    },
+    {
+      "name": "skill_governance_role_project_linkage_audit",
+      "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_role_project_linkage_audit.yaml"
+    },
+    {
+      "name": "skill_governance_data_boundary_rules",
+      "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_data_boundary_rules.yaml"
+    },
+    {
+      "name": "skill_release_db_batch_packaging",
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_db_batch_packaging.yaml"
+    },
+    {
+      "name": "skill_release_db_execution_runbook",
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_db_execution_runbook.yaml"
+    },
+    {
+      "name": "skill_governance_db_merged_integrity_gate",
+      "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_db_merged_integrity_gate.yaml"
+    },
+    {
+      "name": "skill_governance_read_company_profile",
+      "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_read_company_profile.yaml"
+    }
+  ],
+  "skills_json_backup": [
+    {
+      "name": "skill_sql_convert_oracle_to_dm8",
+      "description": "Convert Oracle SQL patterns to DM8-compatible SQL.",
+      "version": "1.0.0",
+      "domain": "sql",
+      "tags": [
+        "sql",
+        "oracle",
+        "dm8",
+        "migration",
+        "compatibility"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_convert_oracle_to_dm8.yaml"
+    },
+    {
+      "name": "skill_sql_portability_audit",
+      "description": "Audit SQL portability risks across Oracle, DM8, and MySQL targets.",
+      "version": "1.0.0",
+      "domain": "sql",
+      "tags": [
+        "sql",
+        "portability",
+        "audit",
+        "oracle",
+        "dm8",
+        "mysql"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_portability_audit.yaml"
+    },
+    {
+      "name": "skill_sql_generate_dm8_ddl_from_schema",
+      "description": "Generate DM8 DDL from logical or Oracle-style schema definitions.",
+      "version": "1.0.0",
+      "domain": "sql",
+      "tags": [
+        "sql",
+        "ddl",
+        "dm8",
+        "schema",
+        "generation"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_generate_dm8_ddl_from_schema.yaml"
+    },
+    {
+      "name": "skill_sql_index_review",
+      "description": "Review index strategy for query workload and maintenance cost.",
+      "version": "1.0.0",
+      "domain": "sql",
+      "tags": [
+        "sql",
+        "index",
+        "performance",
+        "review",
+        "tuning"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_index_review.yaml"
+    },
+    {
+      "name": "skill_sql_data_migration_plan",
+      "description": "Build phased SQL data migration plan with rollback safeguards.",
+      "version": "1.0.0",
+      "domain": "sql",
+      "tags": [
+        "sql",
+        "data",
+        "migration",
+        "plan",
+        "rollback"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_data_migration_plan.yaml"
+    },
+    {
+      "name": "skill_code_refactor_java_service",
+      "description": "Refactor Java service layer while preserving behavior contracts.",
+      "version": "1.0.0",
+      "domain": "code",
+      "tags": [
+        "code",
+        "java",
+        "refactor",
+        "service",
+        "maintainability"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_refactor_java_service.yaml"
+    },
+    {
+      "name": "skill_code_fix_type_mismatch",
+      "description": "Locate and fix type mismatch issues across compile and runtime boundaries.",
+      "version": "1.0.0",
+      "domain": "code",
+      "tags": [
+        "code",
+        "typing",
+        "bugfix",
+        "compatibility",
+        "java"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_fix_type_mismatch.yaml"
+    },
+    {
+      "name": "skill_code_dependency_trace",
+      "description": "Trace module dependency chain and identify coupling risks.",
+      "version": "1.0.0",
+      "domain": "code",
+      "tags": [
+        "code",
+        "dependency",
+        "trace",
+        "architecture",
+        "impact"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_dependency_trace.yaml"
+    },
+    {
+      "name": "skill_code_generate_change_ledger",
+      "description": "Generate structured change ledger for delivery and audit handoff.",
+      "version": "1.0.0",
+      "domain": "code",
+      "tags": [
+        "code",
+        "change",
+        "ledger",
+        "audit",
+        "delivery"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_generate_change_ledger.yaml"
+    },
+    {
+      "name": "skill_code_security_hardening",
+      "description": "Apply secure-by-default hardening actions to code changes.",
+      "version": "1.0.0",
+      "domain": "code",
+      "tags": [
+        "code",
+        "security",
+        "hardening",
+        "compliance",
+        "risk"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_security_hardening.yaml"
+    },
+    {
+      "name": "skill_process_parse_bpmn_to_nodes",
+      "description": "Parse BPMN process definitions into executable node maps.",
+      "version": "1.0.0",
+      "domain": "process",
+      "tags": [
+        "process",
+        "bpmn",
+        "parsing",
+        "nodes",
+        "mapping"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/process/skill_process_parse_bpmn_to_nodes.yaml"
+    },
+    {
+      "name": "skill_process_state_mapping_audit",
+      "description": "Audit state transition mapping consistency across process implementations.",
+      "version": "1.0.0",
+      "domain": "process",
+      "tags": [
+        "process",
+        "state",
+        "mapping",
+        "audit",
+        "consistency"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/process/skill_process_state_mapping_audit.yaml"
+    },
+    {
+      "name": "skill_process_generate_test_cases",
+      "description": "Generate process test cases from workflow paths and edge states.",
+      "version": "1.0.0",
+      "domain": "process",
+      "tags": [
+        "process",
+        "test-cases",
+        "workflow",
+        "quality",
+        "coverage"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/process/skill_process_generate_test_cases.yaml"
+    },
+    {
+      "name": "skill_docs_generate_module_readme",
+      "description": "Generate module README aligned with architecture and run instructions.",
+      "version": "1.0.0",
+      "domain": "docs",
+      "tags": [
+        "docs",
+        "readme",
+        "module",
+        "handoff",
+        "documentation"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/docs/skill_docs_generate_module_readme.yaml"
+    },
+    {
+      "name": "skill_docs_generate_api_contract",
+      "description": "Generate API contract documentation with request/response and error model.",
+      "version": "1.0.0",
+      "domain": "docs",
+      "tags": [
+        "docs",
+        "api",
+        "contract",
+        "specification",
+        "interface"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/docs/skill_docs_generate_api_contract.yaml"
+    },
+    {
+      "name": "skill_docs_generate_db_dictionary",
+      "description": "Generate database dictionary from schema and usage context.",
+      "version": "1.0.0",
+      "domain": "docs",
+      "tags": [
+        "docs",
+        "database",
+        "dictionary",
+        "schema",
+        "metadata"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/docs/skill_docs_generate_db_dictionary.yaml"
+    },
+    {
+      "name": "skill_frontend_trace_page_api_calls",
+      "description": "Trace frontend page API call graph including trigger and payload path.",
+      "version": "1.0.0",
+      "domain": "frontend",
+      "tags": [
+        "frontend",
+        "api",
+        "trace",
+        "page",
+        "debug"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/frontend/skill_frontend_trace_page_api_calls.yaml"
+    },
+    {
+      "name": "skill_frontend_fix_layui_form_binding",
+      "description": "Fix Layui form binding defects in dynamic or nested forms.",
+      "version": "1.0.0",
+      "domain": "frontend",
+      "tags": [
+        "frontend",
+        "layui",
+        "form",
+        "binding",
+        "bugfix"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/frontend/skill_frontend_fix_layui_form_binding.yaml"
+    },
+    {
+      "name": "skill_frontend_publish_page_online",
+      "description": "Prepare frontend page for production publish with dependency checks.",
+      "version": "1.0.0",
+      "domain": "frontend",
+      "tags": [
+        "frontend",
+        "publish",
+        "online",
+        "release",
+        "verification"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/frontend/skill_frontend_publish_page_online.yaml"
+    },
+    {
+      "name": "skill_release_build_package_checklist",
+      "description": "Generate build and package checklist for release readiness.",
+      "version": "1.0.0",
+      "domain": "release",
+      "tags": [
+        "release",
+        "build",
+        "package",
+        "checklist",
+        "qa"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_build_package_checklist.yaml"
+    },
+    {
+      "name": "skill_release_smoke_test_plan",
+      "description": "Generate release smoke test plan for critical user journeys.",
+      "version": "1.0.0",
+      "domain": "release",
+      "tags": [
+        "release",
+        "smoke-test",
+        "plan",
+        "qa",
+        "verification"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_smoke_test_plan.yaml"
+    },
+    {
+      "name": "skill_release_rollback_plan",
+      "description": "Generate rollback execution plan with trigger conditions and validation.",
+      "version": "1.0.0",
+      "domain": "release",
+      "tags": [
+        "release",
+        "rollback",
+        "plan",
+        "recovery",
+        "sre"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_rollback_plan.yaml"
+    },
+    {
+      "name": "skill_governance_role_project_linkage_audit",
+      "description": "Audit linkage consistency between roles, projects, and permissions.",
+      "version": "1.0.0",
+      "domain": "governance",
+      "tags": [
+        "governance",
+        "role",
+        "project",
+        "audit",
+        "permission"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_role_project_linkage_audit.yaml"
+    },
+    {
+      "name": "skill_governance_data_boundary_rules",
+      "description": "Define and audit data boundary rules across modules and teams.",
+      "version": "1.0.0",
+      "domain": "governance",
+      "tags": [
+        "governance",
+        "data-boundary",
+        "rules",
+        "compliance",
+        "security"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_data_boundary_rules.yaml"
+    },
+    {
+      "name": "skill_release_db_batch_packaging",
+      "description": "Package SQL delivery inputs into executable Batch0~BatchN artifacts with manifest and optional run entry.",
+      "version": "1.0.0",
+      "domain": "release",
+      "tags": [
+        "release",
+        "db",
+        "sql",
+        "batch",
+        "packaging",
+        "oracle",
+        "dm8"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_db_batch_packaging.yaml"
+    },
+    {
+      "name": "skill_release_db_execution_runbook",
+      "description": "Generate minimal operator runbook for direct DB execution windows with schema-noise reduction strategies.",
+      "version": "1.0.0",
+      "domain": "release",
+      "tags": [
+        "release",
+        "db",
+        "sql",
+        "runbook",
+        "oracle",
+        "dm8",
+        "execution"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_db_execution_runbook.yaml"
+    },
+    {
+      "name": "skill_governance_db_merged_integrity_gate",
+      "description": "Define and enforce pre-release integrity gate for merged/batch SQL artifact coverage and critical object checks.",
+      "version": "1.0.0",
+      "domain": "governance",
+      "tags": [
+        "governance",
+        "db",
+        "sql",
+        "integrity-gate",
+        "release",
+        "quality"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_db_merged_integrity_gate.yaml"
+    },
+    {
+      "name": "skill_governance_read_company_profile",
+      "description": "Read company execution profile and emit sanitized strategy defaults for pipeline injection and runbook self-check.",
+      "version": "1.0.0",
+      "domain": "governance",
+      "tags": [
+        "governance",
+        "company-profile",
+        "defaults",
+        "release",
+        "db"
+      ],
+      "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_read_company_profile.yaml"
+    }
+  ]
+}

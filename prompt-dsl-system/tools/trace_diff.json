@@ -1,0 +1,122 @@
+{
+  "generated_at": "2026-02-10T05:38:31+00:00",
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "a": {
+    "trace_id": "trace-open-hit-case-001",
+    "context_id": "ctx-open-hit-001",
+    "last_seen_at": "2026-02-10T05:31:32+00:00",
+    "command_counts": {
+      "run": 1
+    },
+    "latest_command": "run",
+    "latest_exit_code": 0,
+    "blocked_by_counts": {
+      "none": 1
+    },
+    "verify_status_counts": {
+      "PASS": 1
+    },
+    "ack_used_counts": {
+      "none": 1
+    },
+    "verify_top": "PASS",
+    "ack_total": 0,
+    "bypass_attempt": false,
+    "paths": {
+      "deliveries_dir": "prompt-dsl-system/tools/deliveries/trace-open-hit-case-001",
+      "snapshot_paths": [
+        "prompt-dsl-system/tools/snapshots/snapshot_20260210T053132Z_trace-open-hit-c"
+      ],
+      "snapshot_count": 1,
+      "risk_gate_report": null,
+      "risk_gate_token": null,
+      "verify_report": null,
+      "health_report": "prompt-dsl-system/tools/health_report.json",
+      "run_plan": null,
+      "validate_report": "prompt-dsl-system/tools/validate_report.json"
+    }
+  },
+  "b": {
+    "trace_id": "trace-dc6cd01395f14cd2b762229630586cda",
+    "context_id": "ctx-71685d00ccdd",
+    "last_seen_at": "2026-02-10T04:41:10+00:00",
+    "command_counts": {
+      "run": 1
+    },
+    "latest_command": "run",
+    "latest_exit_code": 4,
+    "blocked_by_counts": {
+      "verify_gate": 1
+    },
+    "verify_status_counts": {
+      "FAIL": 1
+    },
+    "ack_used_counts": {
+      "none": 1
+    },
+    "verify_top": "FAIL",
+    "ack_total": 0,
+    "bypass_attempt": true,
+    "paths": {
+      "deliveries_dir": null,
+      "snapshot_paths": [],
+      "snapshot_count": 0,
+      "risk_gate_report": "prompt-dsl-system/tools/risk_gate_report.json",
+      "risk_gate_token": "prompt-dsl-system/tools/RISK_GATE_TOKEN.json",
+      "verify_report": "prompt-dsl-system/tools/followup_verify_report.json",
+      "health_report": null,
+      "run_plan": null,
+      "validate_report": null
+    }
+  },
+  "diff": {
+    "latest_exit_code": {
+      "a": 0,
+      "b": 4,
+      "changed": true
+    },
+    "blocked_by": {
+      "added": {
+        "verify_gate": 1
+      },
+      "removed": {
+        "none": 1
+      },
+      "net": {
+        "none": -1,
+        "verify_gate": 1
+      }
+    },
+    "verify_status": {
+      "a_top": "PASS",
+      "b_top": "FAIL",
+      "changed": true
+    },
+    "ack_usage": {
+      "a_ack_total": 0,
+      "b_ack_total": 0
+    },
+    "paths": {
+      "deliveries_dir_changed": true,
+      "snapshots_delta": -1,
+      "reports_missing_in_b": [
+        "validate_report",
+        "health_report"
+      ]
+    },
+    "deliveries_files": {
+      "enabled": true,
+      "added": [],
+      "removed": [
+        "README.txt"
+      ],
+      "common_count": 0,
+      "truncated": false
+    }
+  },
+  "recommended_actions": [
+    "B 出现 verify FAIL（A 无 FAIL）：先执行 trace-open 定位，再跑 verify-followup-fixes 与 apply-followup-fixes(plan) 收敛残留引用。",
+    "阻断型 gate 增加或成功执行减少：优先运行 debug-guard，并减少同一问题的反复推进尝试。",
+    "B 最新退出码非 0（A 为 0）：先看 B 的 health_report 与 risk_gate_report，再决定是否继续 run/apply。"
+  ]
+}

@@ -1,0 +1,192 @@
+{
+  "generated_at": "2026-02-11T09:37:58+08:00",
+  "mode": "safe",
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "source_health_report": "prompt-dsl-system/tools/health_report.json",
+  "include_ack_flows": true,
+  "placeholders": {
+    "REPO_ROOT": {
+      "default": ".",
+      "example": ".",
+      "hint": "仓库根路径，通常用 '.'。"
+    },
+    "MODULE_PATH": {
+      "default": "",
+      "example": "prompt-dsl-system",
+      "hint": "模块边界目录（绝对路径或相对 REPO_ROOT）。"
+    },
+    "PIPELINE_PATH": {
+      "default": "",
+      "example": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md",
+      "hint": "目标 pipeline markdown 路径。"
+    },
+    "MOVES_JSON": {
+      "default": "",
+      "example": "prompt-dsl-system/tools/moves_mapping_rename_suffix.json",
+      "hint": "move mapping / move report 路径（verify-followup-fixes 输入）。"
+    },
+    "SCAN_REPORT_JSON": {
+      "default": "",
+      "example": "prompt-dsl-system/tools/followup_scan_report_rename_suffix.json",
+      "hint": "followup 扫描报告路径（apply-followup-fixes 输入）。"
+    }
+  },
+  "decision_context": {
+    "validate_errors": 0,
+    "validate_warnings": 0,
+    "verify_fail_count": 5,
+    "verify_fail_ratio": 0.25,
+    "bypass_attempt_count": 2,
+    "dominant_block_type": "verify_gate",
+    "exit_code_distribution": {
+      "0": 8,
+      "unknown": 8,
+      "4": 3,
+      "3": 1
+    },
+    "top_triggers": [
+      {
+        "id": "release_gate_bypass_attempt",
+        "count": 2
+      }
+    ]
+  },
+  "health_summary": {
+    "build_integrity": {
+      "validate_report": "prompt-dsl-system/tools/validate_report.json",
+      "registry_entries": 1,
+      "pipelines_checked": 9,
+      "errors": 0,
+      "warnings": 0,
+      "validate_status": "PASS",
+      "yaml_json_parity": null,
+      "skills_versions": {
+        "1.0.0": 1
+      },
+      "skills_versions_top3": [
+        {
+          "version": "1.0.0",
+          "count": 1
+        }
+      ]
+    },
+    "execution_signals": {
+      "trace_history": "prompt-dsl-system/tools/trace_history.jsonl",
+      "trace_files_considered": [
+        "prompt-dsl-system/tools/trace_history.jsonl"
+      ],
+      "window_records": 20,
+      "total_runs": 20,
+      "command_distribution": {
+        "run": 12,
+        "unknown": 8
+      },
+      "exit_code_distribution": {
+        "0": 8,
+        "unknown": 8,
+        "4": 3,
+        "3": 1
+      },
+      "blocked_by_distribution": {
+        "none": 16,
+        "verify_gate": 3,
+        "loop_gate": 1
+      },
+      "verify_status_distribution": {
+        "MISSING": 8,
+        "PASS": 7,
+        "FAIL": 5
+      },
+      "ack_used_distribution": {
+        "none": 18,
+        "ack-latest": 2
+      },
+      "overall_risk_distribution": {},
+      "risk_proxy": {
+        "verify_fail_count": 5,
+        "exit4_count": 3,
+        "guard_gate_blocks": 0,
+        "risk_gate_blocks": 0,
+        "verify_gate_blocks": 3,
+        "loop_gate_blocks": 1
+      }
+    },
+    "risk_triggers": {
+      "loop_level": "NONE",
+      "top_triggers": [
+        {
+          "id": "release_gate_bypass_attempt",
+          "count": 2
+        }
+      ],
+      "bypass_attempt_count": 2
+    }
+  },
+  "steps": [
+    {
+      "id": 1,
+      "title": "Verify Residual References",
+      "purpose": "先把 verify FAIL 收敛到 PASS，终止 bypass 风险升级。",
+      "command": "./prompt-dsl-system/tools/run.sh verify-followup-fixes -r \"${REPO_ROOT}\" --moves \"${MOVES_JSON}\"",
+      "expected_output": "生成/更新 followup_verify_report.json，目标 status=PASS。",
+      "if_blocked": "先确认 MOVES_JSON 正确；若 risk gate 阻断，查看 prompt-dsl-system/tools/RISK_GATE_TOKEN.json，然后手动重试并追加 --ack-latest（必要时追加 --ack-note）。",
+      "placeholders": [
+        "MOVES_JSON"
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Run Plan (No ACK Auto)",
+      "purpose": "仅做计划生成，验证当前是否还能无风险推进。",
+      "command": "./prompt-dsl-system/tools/run.sh run -r \"${REPO_ROOT}\" -m \"${MODULE_PATH}\" --pipeline \"${PIPELINE_PATH}\"",
+      "expected_output": "生成 run_plan.yaml 或被 gate 阻断并给出 token。",
+      "if_blocked": "不要直接强推；先把 verify FAIL 修复到 PASS 后再考虑 ACK。",
+      "placeholders": [
+        "MODULE_PATH",
+        "PIPELINE_PATH"
+      ]
+    },
+    {
+      "id": 3,
+      "title": "ACK Note Guidance",
+      "purpose": "如确需临时放行，先记录人工理由保证审计可追溯。",
+      "command": null,
+      "expected_output": "建议命令示例：... --ack-latest --ack-note \"<reason>\"",
+      "if_blocked": "仅在业务窗口紧急且影响已评估时使用。",
+      "placeholders": []
+    },
+    {
+      "id": 4,
+      "title": "Verify Until PASS",
+      "purpose": "持续验证残留引用，直到 verify 报告为 PASS。",
+      "command": "./prompt-dsl-system/tools/run.sh verify-followup-fixes -r \"${REPO_ROOT}\" --moves \"${MOVES_JSON}\"",
+      "expected_output": "followup_verify_report.json 状态收敛到 PASS。",
+      "if_blocked": "若报告 FAIL/WARN，继续下一步补丁 plan。",
+      "placeholders": [
+        "MOVES_JSON"
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Generate Follow-up Patch Plan",
+      "purpose": "只生成补丁计划，不直接改文件。",
+      "command": "./prompt-dsl-system/tools/run.sh apply-followup-fixes -r \"${REPO_ROOT}\" --scan-report \"${SCAN_REPORT_JSON}\" --mode plan",
+      "expected_output": "生成 followup_patch_plan.* 与 followup_patch.diff。",
+      "if_blocked": "修正 SCAN_REPORT_JSON 路径后重试。",
+      "placeholders": [
+        "SCAN_REPORT_JSON"
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Re-Verify",
+      "purpose": "再次验证补丁计划后的残留状态。",
+      "command": "./prompt-dsl-system/tools/run.sh verify-followup-fixes -r \"${REPO_ROOT}\" --moves \"${MOVES_JSON}\"",
+      "expected_output": "目标 status=PASS；FAIL 则回到补丁 plan 循环。",
+      "if_blocked": "持续 FAIL 时先做 debug-guard + move plan 收敛边界问题。",
+      "placeholders": [
+        "MOVES_JSON"
+      ]
+    }
+  ]
+}

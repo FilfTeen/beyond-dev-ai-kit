@@ -1,0 +1,46 @@
+{
+  "timestamp": "2026-02-10T05:07:25+00:00",
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "mode": "validate",
+  "advisory": false,
+  "vcs": "none",
+  "unsupported_vcs": true,
+  "module_path": null,
+  "module_path_normalized": null,
+  "module_path_source": "none",
+  "effective_allowlist_prefixes": [
+    "prompt-dsl-system/"
+  ],
+  "changed_files": [],
+  "ignored_files": [],
+  "ignore_patterns": [
+    "**/target/**",
+    "**/node_modules/**",
+    "**/.DS_Store",
+    "**/*.log"
+  ],
+  "effective_rules": {
+    "forbidden_patterns": [
+      "**/sys/**",
+      "**/error/**",
+      "**/util/**",
+      "**/vote/**",
+      "**/.git/**",
+      "**/target/**",
+      "**/node_modules/**"
+    ],
+    "allow_prompt_dsl_system": true,
+    "require_module_path_for_project_changes": true
+  },
+  "warnings": [
+    "No git/svn metadata found; guard runs in non-blocking mode."
+  ],
+  "errors": [],
+  "violations": [],
+  "decision": "pass",
+  "decision_reason": "vcs unsupported; guard ran in non-blocking mode",
+  "suggestions": [
+    "建议传入 -m/--module-path 以启用更精确边界检查"
+  ],
+  "exit_code": 0
+}

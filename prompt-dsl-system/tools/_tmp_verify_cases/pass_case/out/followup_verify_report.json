@@ -1,0 +1,34 @@
+{
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "generated_at": "2026-02-10T04:09:34+00:00",
+  "scanner": "rg",
+  "mode": "full",
+  "inputs": {
+    "moves": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools/_tmp_verify_cases/pass_case/moves.json",
+    "scan_report": null,
+    "patch_plan": null
+  },
+  "token_groups": {
+    "exact_paths": [
+      "prompt-dsl-system/tools/_tmp_verify_cases/pass_case/legacy/path/UserSvc.java"
+    ],
+    "old_dirs": [
+      "prompt-dsl-system/tools/_tmp_verify_cases/pass_case/legacy/path"
+    ],
+    "fqcn_hints": []
+  },
+  "summary": {
+    "tokens_total": 2,
+    "tokens_with_hits": 0,
+    "hits_total": 0,
+    "total_hits_estimate": 0,
+    "status": "PASS"
+  },
+  "top_findings": [],
+  "hits": [],
+  "recommended_actions": [
+    "No residual old references found.",
+    "Re-run debug-guard for boundary confirmation.",
+    "Run validate and continue pipeline."
+  ]
+}

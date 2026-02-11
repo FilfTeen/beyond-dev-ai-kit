@@ -1,0 +1,45 @@
+# Notice Module — Declared Profile (Layer1)
+# Why: 公告模块需要从 Oracle 迁移到 MySQL+DM8 双栈，SQL portability 是核心目标。
+# How: 通过 pipeline_module_migration 生成 staging skills，逐步 promote。
+
+profile_kind: "declared"
+profile_version: "1.0"
+
+identity:
+  project_key: "xywygl"
+  module_key: "notice"
+  module_name: "公告模块"
+  profile_id: "xywygl/notice"
+
+scope:
+  allowed_module_root: "prompt-dsl-system"  # skill/pipeline 生成在此目录内
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+
+db:
+  source_dialect: "oracle"
+  dialects: ["oracle", "mysql", "dm8"]
+
+integration_points:
+  declared:
+    - "controller"
+    - "service"
+    - "mapper"
+    - "sql_script"
+    - "ui_pages"
+    - "dto"
+    - "vo"
+
+migration_objectives:
+  goals:
+    - "sql_portability"                     # Oracle→MySQL+DM8 SQL 兼容
+    - "api_parity"                          # API 接口一致性
+  risk_budget: "low"
+
+discovery_hints:
+  grep_patterns: ["Notice", "notice", "public_notice", "PUBLIC_NOTICE"]
+  include_globs: ["**/*.java", "**/*.xml", "**/*.html", "**/*.sql", "**/*.vue"]
+  exclude_globs: ["**/node_modules/**", "**/target/**", "**/dist/**"]

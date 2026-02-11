@@ -1,0 +1,47 @@
+# Owner Committee Module — Declared Profile (Layer1)
+# Why: 业委会备案模块涉及 Activiti 工作流 + 前端页面 + SQL，需要跨方言和流程一致性。
+# How: 通过 pipeline_module_migration 生成 staging skills，覆盖 workflow/UI/SQL。
+
+profile_kind: "declared"
+profile_version: "1.0"
+
+identity:
+  project_key: "xywygl"
+  module_key: "ownercommittee"
+  module_name: "业委会备案模块"
+  profile_id: "xywygl/ownercommittee"
+
+scope:
+  allowed_module_root: "prompt-dsl-system"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+
+db:
+  source_dialect: "oracle"
+  dialects: ["oracle", "mysql", "dm8"]
+
+integration_points:
+  declared:
+    - "controller"
+    - "service"
+    - "mapper"
+    - "sql_script"
+    - "ui_pages"
+    - "workflow_activiti"
+    - "dto"
+    - "vo"
+
+migration_objectives:
+  goals:
+    - "sql_portability"
+    - "workflow_parity"                     # Activiti 流程定义一致性
+    - "ui_parity"                           # 前端页面一致性
+  risk_budget: "medium"
+
+discovery_hints:
+  grep_patterns: ["OwnerCommittee", "ownercommittee", "owner_committee", "HOC", "hocrecord"]
+  include_globs: ["**/*.java", "**/*.xml", "**/*.html", "**/*.sql", "**/*.bpmn"]
+  exclude_globs: ["**/node_modules/**", "**/target/**", "**/dist/**"]

@@ -1,0 +1,748 @@
+name: "skill_hongzhi_universal_ops"
+description: "Company-domain universal super skill for hongzhi tasks. It enforces boundary control, fact-first execution, loop self-monitoring, SQL compatibility strategy, and standardized artifact handoff across sql/code/process/frontend/release/governance/docs modes."
+version: "1.0.0"
+domain: "universal"
+tags:
+  - "sql"
+  - "code"
+  - "process"
+  - "frontend"
+  - "release"
+  - "governance"
+  - "docs"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "mode"
+    type: "string"
+    required: true
+    enum: ["sql", "code", "process", "frontend", "release", "governance", "docs", "meta"]
+    description: "Execution mode selector."
+  - name: "objective"
+    type: "string"
+    required: true
+    description: "Task objective using inputs/constraints/acceptance/forbidden template."
+  - name: "constraints"
+    type: "array"
+    required: true
+    items: string
+    description: "Execution constraints and boundaries."
+  - name: "acceptance"
+    type: "array"
+    required: true
+    items: string
+    description: "Acceptance criteria list."
+  - name: "forbidden"
+    type: "array"
+    required: true
+    items: string
+    description: "Forbidden actions list."
+  - name: "boundary_policy"
+    type: "object"
+    required: true
+    description: "Boundary policy with allowed_module_root, forbidden_paths, and max_change_scope."
+  - name: "fact_policy"
+    type: "object"
+    required: true
+    description: "Fact policy: require_scan_before_change=true, unknown_requires_user=true."
+  - name: "self_monitor_policy"
+    type: "object"
+    required: true
+    description: "Self-monitor policy: loop_detection=true, auto_rollback_on_loop=true."
+  - name: "decision_policy"
+    type: "object"
+    required: true
+    description: "Decision policy: dependency_strategy_order and route tradeoff requirement."
+  - name: "sql_policy"
+    type: "object"
+    required: true
+    description: "SQL policy: portable-first, dual SQL output for Oracle/MySQL when needed."
+  - name: "module_path"
+    type: "string"
+    required: false
+    description: "Alias for allowed_module_root. If both are provided, allowed_module_root takes precedence. At least one of module_path or boundary_policy.allowed_module_root must be present."
+  - name: "input_files"
+    type: "array"
+    required: false
+    items: string
+    description: "Input files for scan and evidence."
+  - name: "target_db"
+    type: "string"
+    required: false
+    enum: ["oracle", "dm8", "mysql"]
+    description: "DB target when mode requires SQL/database handling."
+  - name: "execution_tool"
+    type: "string"
+    required: false
+    enum: ["navicat", "disql", "dbeaver", "generic"]
+    description: "Preferred execution tool."
+  - name: "schema_strategy"
+    type: "string"
+    required: false
+    enum: ["auto", "login-default", "embed-header", "run-entry"]
+    description: "Schema handling strategy for SQL execution."
+  - name: "output_mode"
+    type: "string"
+    required: false
+    enum: ["file", "inline", "both"]
+    description: "Artifact output mode."
+  - name: "safety_level"
+    type: "string"
+    required: false
+    enum: ["conservative", "balanced", "aggressive"]
+    description: "Risk posture for change scope."
+prompt_template: |
+  You are the hongzhi company universal operations assistant.
+  Skill: skill_hongzhi_universal_ops
+
+  1) Objective standard template (inputs/constraints/acceptance/forbidden)
+  - mode: {{mode}}
+  - objective: {{objective}}
+  - constraints: {{constraints}}
+  - acceptance: {{acceptance}}
+  - forbidden: {{forbidden}}
+  - boundary_policy: {{boundary_policy}}
+  - fact_policy: {{fact_policy}}
+  - self_monitor_policy: {{self_monitor_policy}}
+  - decision_policy: {{decision_policy}}
+  - sql_policy: {{sql_policy}}
+  - module_path: {{module_path}}
+  - input_files: {{input_files}}
+  - target_db: {{target_db}}
+  - execution_tool: {{execution_tool}}
+  - schema_strategy: {{schema_strategy}}
+  - output_mode: {{output_mode}}
+  - safety_level: {{safety_level}}
+
+  2) Artifact numbering and handoff contract
+  - Always produce numbered artifacts `A1`, `A2`, `A3`...
+  - Prioritize `input_artifact_refs`; state explicit handoff from consumed artifacts to new artifacts.
+  - Mandatory artifact set in every run:
+    - `A*_impact_tree.md`
+    - `A*_change_ledger.md`
+    - `A*_rollback_plan.md`
+    - `A*_cleanup_report.md` (if none, explicitly state "none")
+
+  3) Meta mode (skill/registry/baseline operations)
+  - When mode=meta, you are authorized to:
+    - Generate new skill YAML files under prompt-dsl-system/05_skill_registry/skills/<domain>/
+    - Update prompt-dsl-system/05_skill_registry/skills.json (registry)
+    - Update prompt-dsl-system/00_conventions/FACT_BASELINE.md (baseline counts/distribution)
+    - Generate pipeline example files under prompt-dsl-system/04_ai_pipeline_orchestration/
+  - Meta mode constraints:
+    - New skill YAML must comply with SKILL_SPEC.md required schema
+    - Registry entries must map 1:1 to YAML skill files
+    - Must not modify or delete existing active skills unless explicitly requested
+    - Must not modify deprecated skills archive
+    - All generated files must stay within prompt-dsl-system/**
+  - Template-based skill creation (low freedom):
+    - Copy template from prompt-dsl-system/05_skill_registry/templates/skill_template/
+    - Fill {{PLACEHOLDER}} values from upstream scan/generation artifacts
+    - Create references/scripts/assets subdirectories from template READMEs
+    - Validate filled YAML against SKILL_SPEC.md Required YAML Schema
+  - Progressive Disclosure for references:
+    - When read_refs is provided, load TOC (first 20 lines) of each file first
+    - Navigate to specific sections only when objective requires them
+    - Output a navigation index (file → TOC summary) rather than full content
+    - Never expand all reference files into working context
+    - NavIndex output contract (mandatory when read_refs is non-empty):
+      - Produce R*_ref_nav_index.md as an artifact
+      - Each entry: filename → TOC summary + grep patterns + target paragraph line ranges
+      - Format: see SKILL_SPEC.md §Progressive Disclosure > NavIndex Output Format
+
+  3.5) Parameter alias consistency rule
+  - `module_path` is an alias for `boundary_policy.allowed_module_root`.
+  - If both are provided, `allowed_module_root` takes precedence.
+  - If only `module_path` is provided, treat it as `allowed_module_root`.
+  - Validation: when generating output, always report the effective root in `boundary_policy.allowed_module_root`.
+  - This is a documentation-level contract; pipeline_runner.py does not enforce alias resolution at runtime.
+
+  4) Fact-first and anti-hallucination policy
+  - Must scan provided files/artifacts before proposing modifications.
+  - If any critical fact is unknown, return a `required_additional_information` checklist and stop speculative edits.
+  - Never invent names/fields/routes/tables/logic.
+  - If loop condition is detected (same file >3 edits or same failure >2), trigger rollback plan first, then re-scan.
+
+  Return ONLY:
+  - summary
+  - artifacts[]
+  - risks[]
+  - next_actions[]
+output_contract:
+  summary: "Execution summary with boundary status, decision path, and acceptance result."
+  artifacts:
+    - id: "A1"
+      name: "A1_impact_tree.md"
+      description: "Tree analysis of direct and indirect impact before/after change."
+      path: "optional"
+      content: "optional"
+    - id: "A2"
+      name: "A2_change_ledger.md"
+      description: "Change ledger with file/action/reason/evidence."
+      path: "optional"
+      content: "optional"
+    - id: "A3"
+      name: "A3_rollback_plan.md"
+      description: "Rollback triggers, steps, and verification points."
+      path: "optional"
+      content: "optional"
+    - id: "A4"
+      name: "A4_cleanup_report.md"
+      description: "Cleanup report; use 'none' when no cleanup needed."
+      path: "optional"
+      content: "optional"
+  risks:
+    - level: "medium"
+      why: "Execution may face uncertain dependencies or hidden constraints."
+      impact: "Incorrect scope or unstable output quality."
+      mitigation: "Use boundary/fact policies and route A/B comparison before edits."
+      rollback: "Apply A3 rollback plan and resume in conservative mode."
+  next_actions:
+    - "Handoff numbered artifacts via input_artifact_refs to the next step."
+examples:
+  - input:
+      context_id: "CTX-SQL-CONVERT"
+      trace_id: "TRACE-SQL-CONVERT"
+      input_artifact_refs: ["A1"]
+      mode: "sql"
+      objective: |
+        inputs: "oracle sql files"
+        constraints: "syntax conversion only"
+        acceptance: "dm8-compatible output + impact tree"
+        forbidden: "no schema semantic change"
+      constraints: ["refs_hint: oracle->dm8 conversion"]
+      acceptance: ["produce converted sql and migration notes"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy:
+        allowed_module_root: "<MODULE_ROOT>"
+        forbidden_paths: ["/sys", "/error", "/util", "/vote"]
+        max_change_scope: "minimal"
+      fact_policy:
+        require_scan_before_change: true
+        unknown_requires_user: true
+      self_monitor_policy:
+        loop_detection: true
+        auto_rollback_on_loop: true
+      decision_policy:
+        dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"]
+        choose_best_route_with_tradeoff: true
+      sql_policy:
+        prefer_portable_sql: true
+        dual_sql_when_needed: ["oracle", "mysql"]
+      target_db: "dm8"
+      execution_tool: "disql"
+      schema_strategy: "login-default"
+      output_mode: "both"
+      safety_level: "balanced"
+    output:
+      summary: "Portable SQL-first conversion delivered with boundary-safe plan."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "conversion impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "converted file ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "rollback on conversion failure"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "none"
+      risks:
+        - level: "medium"
+          why: "vendor syntax edge cases"
+          impact: "runtime SQL errors"
+          mitigation: "dry run + dual check"
+          rollback: "revert to original sql"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-SQL-DUAL"
+      trace_id: "TRACE-SQL-DUAL"
+      input_artifact_refs: ["A2"]
+      mode: "sql"
+      objective: |
+        inputs: "non-portable sql requirements"
+        constraints: "dual output required"
+        acceptance: "oracle/mysql versions"
+        forbidden: "no single-dialect lock-in"
+      constraints: ["refs_hint: dual sql strategy"]
+      acceptance: ["oracle and mysql scripts both generated"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy:
+        allowed_module_root: "<MODULE_ROOT>"
+        forbidden_paths: ["/sys", "/error", "/util", "/vote"]
+        max_change_scope: "minimal"
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      target_db: "mysql"
+      output_mode: "file"
+      safety_level: "conservative"
+    output:
+      summary: "Dual SQL package generated under non-portable constraints."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "dialect impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "dual SQL generation ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "fallback to portable subset"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "temp scripts removed"
+      risks:
+        - level: "low"
+          why: "dialect branch maintenance"
+          impact: "future drift"
+          mitigation: "shared template anchors"
+          rollback: "disable dialect branch"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-SQL-INDEX"
+      trace_id: "TRACE-SQL-INDEX"
+      input_artifact_refs: ["A2"]
+      mode: "sql"
+      objective: |
+        inputs: "query workload + schema"
+        constraints: "review and suggest"
+        acceptance: "index review report"
+        forbidden: "no blind index creation"
+      constraints: ["refs_hint: index review"]
+      acceptance: ["critical index gaps identified"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      output_mode: "inline"
+      safety_level: "balanced"
+    output:
+      summary: "Index review produced with bounded recommendations."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "index impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "index proposal ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "index rollback order"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "none"
+      risks:
+        - level: "medium"
+          why: "stale workload sample"
+          impact: "mis-prioritized indexes"
+          mitigation: "sample refresh"
+          rollback: "defer optional indexes"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-BUGFIX-FUZZY"
+      trace_id: "TRACE-BUGFIX-FUZZY"
+      input_artifact_refs: []
+      mode: "code"
+      objective: |
+        inputs: "fuzzy bug report"
+        constraints: "minimal patch only"
+        acceptance: "impact tree + patch + rollback"
+        forbidden: "no broad refactor"
+      constraints: ["refs_hint: min-scope bugfix", "route A/B compare required"]
+      acceptance: ["scan first then patch"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      output_mode: "both"
+      safety_level: "conservative"
+    output:
+      summary: "Fuzzy bug converted into bounded patch plan with loop guard."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "bugfix impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "minimal patch ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "loop-aware rollback"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "none"
+      risks:
+        - level: "high"
+          why: "fuzzy input ambiguity"
+          impact: "wrong-file edits"
+          mitigation: "require scan evidence"
+          rollback: "revert patch and rescan"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-CODE-TRACE"
+      trace_id: "TRACE-CODE-TRACE"
+      input_artifact_refs: ["A1"]
+      mode: "code"
+      objective: |
+        inputs: "module call chain"
+        constraints: "analyze only"
+        acceptance: "dependency tree"
+        forbidden: "no code edits"
+      constraints: ["refs_hint: dependency trace"]
+      acceptance: ["direct and indirect dependency map"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      output_mode: "inline"
+      safety_level: "conservative"
+    output:
+      summary: "Dependency trace generated without edits."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "call-chain tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "analysis-only ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "no-op rollback"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "none"
+      risks:
+        - level: "low"
+          why: "runtime dynamic branches"
+          impact: "partial tree"
+          mitigation: "augment with logs"
+          rollback: "none"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-FRONTEND-LAYUI"
+      trace_id: "TRACE-FRONTEND-LAYUI"
+      input_artifact_refs: ["A1"]
+      mode: "frontend"
+      objective: |
+        inputs: "layui form page"
+        constraints: "binding bug only"
+        acceptance: "binding fix + smoke list"
+        forbidden: "no visual redesign"
+      constraints: ["refs_hint: layui form binding fix"]
+      acceptance: ["event/data binding stable"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      output_mode: "both"
+      safety_level: "balanced"
+    output:
+      summary: "LayUI binding fix plan and bounded patch produced."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "frontend event/data impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "binding fix ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "rollback to previous component behavior"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "none"
+      risks:
+        - level: "medium"
+          why: "async event race"
+          impact: "intermittent UI issues"
+          mitigation: "event order checks"
+          rollback: "restore previous handlers"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-FRONTEND-TRACE"
+      trace_id: "TRACE-FRONTEND-TRACE"
+      input_artifact_refs: ["A2"]
+      mode: "frontend"
+      objective: |
+        inputs: "page + api logs"
+        constraints: "trace and publish readiness"
+        acceptance: "api path map + publish checklist"
+        forbidden: "no backend schema assumption"
+      constraints: ["refs_hint: trace api calls + publish page"]
+      acceptance: ["critical calls documented"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      output_mode: "file"
+      safety_level: "conservative"
+    output:
+      summary: "Frontend API trace and publish checklist completed."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "frontend call-path impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "trace findings ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "publish rollback sequence"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "temporary trace files removed"
+      risks:
+        - level: "low"
+          why: "log sample incompleteness"
+          impact: "partial call map"
+          mitigation: "repeat trace run"
+          rollback: "no-op"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-PROCESS-ACTIVITI"
+      trace_id: "TRACE-PROCESS-ACTIVITI"
+      input_artifact_refs: []
+      mode: "process"
+      objective: |
+        inputs: "activiti bpmn"
+        constraints: "parse + mapping audit"
+        acceptance: "state map and anomalies"
+        forbidden: "no invented workflow states"
+      constraints: ["refs_hint: bpmn parse + state mapping"]
+      acceptance: ["node and transition evidence"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      output_mode: "both"
+      safety_level: "balanced"
+    output:
+      summary: "Activiti BPMN audit output produced with evidence links."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "process impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "process findings ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "audit rollback path"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "none"
+      risks:
+        - level: "medium"
+          why: "workflow/impl drift"
+          impact: "invalid state assumptions"
+          mitigation: "bind each state to source"
+          rollback: "revert to scan-only report"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-PROCESS-TEST"
+      trace_id: "TRACE-PROCESS-TEST"
+      input_artifact_refs: ["A2"]
+      mode: "process"
+      objective: |
+        inputs: "state audit output"
+        constraints: "generate tests"
+        acceptance: "normal/exception/boundary paths"
+        forbidden: "no fake expected results"
+      constraints: ["refs_hint: process test generation"]
+      acceptance: ["coverage matrix delivered"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      output_mode: "inline"
+      safety_level: "balanced"
+    output:
+      summary: "Process test cases generated from audited states."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "test impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "test-case generation ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "rollback to baseline test set"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "none"
+      risks:
+        - level: "low"
+          why: "state coverage drift"
+          impact: "missing edge cases"
+          mitigation: "refresh from latest model"
+          rollback: "retain previous stable suite"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-GOV-ROLE"
+      trace_id: "TRACE-GOV-ROLE"
+      input_artifact_refs: ["A1", "A2"]
+      mode: "governance"
+      objective: |
+        inputs: "role/project linkage data"
+        constraints: "audit only"
+        acceptance: "linkage anomalies and policy actions"
+        forbidden: "no fabricated governance evidence"
+      constraints: ["refs_hint: role-project linkage audit"]
+      acceptance: ["anomaly list and mitigation"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      output_mode: "both"
+      safety_level: "conservative"
+    output:
+      summary: "Governance linkage audit completed with policy-safe recommendations."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "governance impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "audit ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "rollback to previous policy baseline"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "none"
+      risks:
+        - level: "medium"
+          why: "incomplete role mapping"
+          impact: "false negatives"
+          mitigation: "cross-source reconciliation"
+          rollback: "revert governance recommendation set"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-RELEASE-BATCH"
+      trace_id: "TRACE-RELEASE-BATCH"
+      input_artifact_refs: ["A2", "A3"]
+      mode: "release"
+      objective: |
+        inputs: "batch sql + merged sql"
+        constraints: "delivery packaging with gate"
+        acceptance: "batch set + integrity checks"
+        forbidden: "no release without gate"
+      constraints: ["refs_hint: batch packaging + merged integrity gate"]
+      acceptance: ["batch manifest and gate commands"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      target_db: "dm8"
+      execution_tool: "disql"
+      output_mode: "file"
+      safety_level: "balanced"
+    output:
+      summary: "Release batch package and gate-ready artifacts prepared."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "release impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "batch/gate change ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "release rollback checkpoints"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "temporary merge files cleaned"
+      risks:
+        - level: "high"
+          why: "missing segment risk in merged outputs"
+          impact: "release failure"
+          mitigation: "enforce guard before execute"
+          rollback: "restore previous batch package"
+      next_actions: ["handoff A1-A4"]
+
+  - input:
+      context_id: "CTX-DOCS-CLOSE"
+      trace_id: "TRACE-DOCS-CLOSE"
+      input_artifact_refs: ["A2"]
+      mode: "docs"
+      objective: |
+        inputs: "change outputs and module notes"
+        constraints: "closure docs only"
+        acceptance: "readme + ledger + cleanup report"
+        forbidden: "no undocumented closure"
+      constraints: ["refs_hint: module readme/api contract/db dictionary"]
+      acceptance: ["closure artifacts complete"]
+      forbidden: ["禁止改 /sys,/error,/util,/vote", "禁止臆测命名/字段/逻辑"]
+      boundary_policy: {allowed_module_root: "<MODULE_ROOT>", forbidden_paths: ["/sys", "/error", "/util", "/vote"], max_change_scope: "minimal"}
+      fact_policy: {require_scan_before_change: true, unknown_requires_user: true}
+      self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
+      decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
+      sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+      output_mode: "both"
+      safety_level: "conservative"
+    output:
+      summary: "Closure documentation package generated."
+      artifacts:
+        - id: "A1"
+          name: "A1_impact_tree.md"
+          description: "doc impact tree"
+        - id: "A2"
+          name: "A2_change_ledger.md"
+          description: "closure ledger"
+        - id: "A3"
+          name: "A3_rollback_plan.md"
+          description: "doc rollback path"
+        - id: "A4"
+          name: "A4_cleanup_report.md"
+          description: "cleaned temporary notes"
+      risks:
+        - level: "low"
+          why: "missing doc links"
+          impact: "handoff confusion"
+          mitigation: "link validation"
+          rollback: "restore previous docs snapshot"
+      next_actions: ["handoff A1-A4"]

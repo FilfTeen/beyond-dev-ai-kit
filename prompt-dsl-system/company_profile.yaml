@@ -1,0 +1,17 @@
+company:
+  name: "hongzhi-work-dev"
+  scope: "beyond-dev-ai-kit"
+db_execution:
+  default_schema_strategy: "login-default"
+  preferred_dm_tool: "disql"
+  preferred_oracle_tool: "navicat"
+  require_precheck_gate: true
+  allow_embed_schema_header: true
+  allow_run_entry: true
+security:
+  never_print_secrets: true
+  redact_fields: ["password", "pwd", "token", "secret", "jdbc", "conn", "dsn"]
+defaults:
+  trace_id_prefix: "trace-"
+  context_id_prefix: "ctx-"
+  artifact_id_format: "A{n}"

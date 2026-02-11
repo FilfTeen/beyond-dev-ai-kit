@@ -1,0 +1,15 @@
+# scripts/
+
+Place helper scripts for this skill here.
+
+Rules:
+- Scripts must be idempotent and non-destructive by default.
+- Include `--dry-run` flag for any write operations.
+- Scripts should be executable: `chmod +x <script>`.
+
+Example structure:
+```
+scripts/
+  validate.sh
+  migrate.py
+```

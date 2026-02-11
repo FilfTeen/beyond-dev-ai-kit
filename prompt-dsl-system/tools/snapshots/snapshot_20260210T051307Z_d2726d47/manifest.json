@@ -1,0 +1,45 @@
+{
+  "snapshot_id": "snapshot_20260210T051307Z_d2726d47",
+  "created_at": "2026-02-10T05:13:07+00:00",
+  "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
+  "context_id": null,
+  "trace_id": null,
+  "label": "test-restore-guide",
+  "vcs": {
+    "type": "none",
+    "details": {
+      "type": "none",
+      "detected_by": "svn unavailable for repo",
+      "error": "svn: E155007: '/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit' is not a working copy"
+    }
+  },
+  "artifacts": {
+    "status": "status.txt",
+    "changed_files": "changed_files.txt",
+    "diff": "diff.patch",
+    "inputs_dir": "inputs/",
+    "inputs_copied": [
+      "prompt-dsl-system/tools/move_report.json",
+      "prompt-dsl-system/tools/guard_report.json",
+      "prompt-dsl-system/tools/rollback_report.json",
+      "prompt-dsl-system/tools/risk_gate_report.json",
+      "prompt-dsl-system/tools/RISK_GATE_TOKEN.json",
+      "prompt-dsl-system/tools/followup_verify_report.json",
+      "prompt-dsl-system/tools/followup_patch_plan.json",
+      "prompt-dsl-system/tools/conflict_plan.json",
+      "prompt-dsl-system/tools/health_report.json"
+    ],
+    "changed_files_count": 0
+  },
+  "skipped": {
+    "missing_inputs": [],
+    "skipped_large_files": [],
+    "copy_errors": [],
+    "diff_unavailable_reason": "no vcs detected"
+  },
+  "restore_hints": [
+    "git reset --hard && git clean -fd",
+    "svn revert -R .",
+    "Rollback single file: git restore -- <path> or svn revert <path>"
+  ]
+}

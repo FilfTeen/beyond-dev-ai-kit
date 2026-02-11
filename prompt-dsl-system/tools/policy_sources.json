@@ -1,0 +1,11 @@
+{
+  "default": "hardcoded",
+  "files": [
+    {
+      "path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools/policy.yaml",
+      "kind": "tools_policy_yaml",
+      "loaded": true
+    }
+  ],
+  "cli_overrides": {}
+}

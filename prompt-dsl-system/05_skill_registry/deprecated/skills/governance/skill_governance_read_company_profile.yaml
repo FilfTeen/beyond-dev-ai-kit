@@ -1,0 +1,104 @@
+# DEPRECATED: replaced by skill_hongzhi_universal_ops
+# Suggested mode: governance
+# Mapping hints: Use mode=governance; put refs_hint=skill_governance_read_company_profile in objective/constraints; preserve legacy acceptance checks.
+# Original name: skill_governance_read_company_profile
+name: "skill_governance_read_company_profile"
+description: "Read company-level execution profile and output sanitized strategy defaults for pipeline/runbook self-check and default-parameter injection visibility."
+version: "1.0.0"
+domain: "governance"
+tags:
+  - "governance"
+  - "company-profile"
+  - "defaults"
+  - "release"
+  - "db"
+parameters:
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Repository-relative or absolute module scope for generated profile artifacts."
+  - name: "objective"
+    type: "string"
+    required: true
+    description: "Self-check objective and disclosure constraints for profile summary output."
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Pipeline-run context identifier for cross-step linkage."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Unique trace id for the run (recommended)."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Artifact ids from previous steps (e.g., [\"A1\", \"A2\"])."
+prompt_template: |
+  You are the enterprise governance assistant.
+  Skill: skill_governance_read_company_profile
+  Goal: Read company execution profile and publish sanitized effective defaults for pipeline injection.
+
+  Input:
+  - module_path: {{module_path}}
+  - objective: {{objective}}
+  - context_id: {{context_id}}
+  - trace_id: {{trace_id}}
+  - input_artifact_refs: {{input_artifact_refs}}
+
+  Execution steps:
+  - Read profile file: prompt-dsl-system/company_profile.yaml.
+  - Summarize only strategy and policy fields; never output account, connection, or secret-like values.
+  - If any sensitive field appears, mask its value as "***".
+
+  Artifact handoff requirements:
+  - Number artifacts as A1, A2, A3...
+  - Must include:
+    - A1_company_profile_summary.md (sanitized strategy summary only).
+    - A2_effective_defaults.yaml (effective injected defaults such as schema_strategy/execution_tool/require_precheck_gate).
+
+  Upstream artifact reference rule:
+  - If input_artifact_refs is provided, read and cite those artifact ids before generating new artifacts.
+
+  Return ONLY the unified output structure:
+  - summary
+  - artifacts[]
+  - risks[]
+  - next_actions[]
+output_contract:
+  summary: "Sanitized company profile summary and effective default injection values."
+  artifacts:
+    - id: "A1"
+      name: "A1_company_profile_summary"
+      description: "Profile strategy summary with sensitive values masked as ***."
+    - id: "A2"
+      name: "A2_effective_defaults"
+      description: "Effective defaults used for step parameter injection (schema_strategy/execution_tool/require_precheck_gate)."
+  risks:
+    - "Profile drift can produce inconsistent defaults across pipelines if not version-controlled."
+  next_actions:
+    - "Re-run profile summary after any company_profile.yaml policy update."
+examples:
+  - input:
+      module_path: "<MODULE_PATH>"
+      objective: |
+        inputs: "prompt-dsl-system/company_profile.yaml"
+        constraints: "mask sensitive fields and list injectable defaults"
+        acceptance: "produce A1/A2 artifacts"
+        forbidden: "no secret leakage"
+      context_id: "CTX-COMPANY-PROFILE"
+      trace_id: "TRACE-COMPANY-PROFILE"
+      input_artifact_refs: []
+    output:
+      summary: "Company profile parsed and sanitized defaults prepared for runner injection."
+      artifacts:
+        - id: "A1"
+          name: "A1_company_profile_summary"
+          description: "Policy-only profile summary with masked sensitive fields."
+        - id: "A2"
+          name: "A2_effective_defaults"
+          description: "Injectable defaults list for pipeline steps."
+      risks:
+        - "Missing profile file results in fallback to explicit parameters only."
+      next_actions:
+        - "Validate runner profile detection in validate_report and run_plan outputs."
