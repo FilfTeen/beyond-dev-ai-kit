@@ -1,4 +1,4 @@
-# Compliance Matrix (Original 15 Requirements + R16 -> Current Implementation)
+# Compliance Matrix (Original 15 Requirements + R16~R18 -> Current Implementation)
 
 ## Validation Snapshot
 
@@ -23,6 +23,8 @@
 | R14 | 回滚说明必须交付 | constitution Rule 15; super skill mandatory `A*_rollback_plan.md` | release/docs closure | Met |
 | R15 | 规范可执行化（闸门/工具/pipeline） | constitution + pipeline alignment + super skill + `ops_guard.py` | `validate`, `run`, `ops_guard`, `merged_guard` | Met |
 | R16 | bypass 环境变量治理 | `HONGZHI_COMPANY_CONSTITUTION.md` Rule 16; `pipeline_skill_creator.md` NOTE | change ledger audit + team review | Met |
+| R17 | Plugin governance 不退化（disabled-by-default + deny/allow/token） | `HONGZHI_COMPANY_CONSTITUTION.md` Rule 17; `hongzhi_plugin.py` governance gate | regression Phase18/19 | Met |
+| R18 | Capability Registry + Smart Incremental + 禁用态不写 state | `HONGZHI_COMPANY_CONSTITUTION.md` Rule 18; `hongzhi_plugin.py`; `hongzhi_ai_kit/capability_store.py`; `hongzhi_ai_kit/paths.py` | regression Phase20/21/22 | Met |
 
 ## File Mapping (Core)
 
@@ -43,17 +45,26 @@
   - `prompt-dsl-system/00_conventions/CPP_STYLE_NAMING.md`
   - `prompt-dsl-system/00_conventions/SQL_COMPAT_STRATEGY.md`
   - `prompt-dsl-system/00_conventions/PROJECT_PROFILE_SPEC.md`
-  - `prompt-dsl-system/00_conventions/MODULE_PROFILE_SPEC.md` (3-layer: declared + discovered + merge)
+  - `prompt-dsl-system/00_conventions/MODULE_PROFILE_SPEC.md` (3-layer: declared + discovered + merge + multi-root + Layer2R + Layer2S)
 - Templates:
   - `prompt-dsl-system/05_skill_registry/templates/skill_template/` (skill.yaml.template + references/scripts/assets READMEs)
 - Resource Convention: SKILL_SPEC.md §Bundled Resources Convention + §Progressive Disclosure + §NavIndex Output Format
 - Skill Status Lifecycle: SKILL_SPEC.md §Skill Status Lifecycle (staging/deployed/deprecated + promotion flow)
 - Tools:
-  - `prompt-dsl-system/tools/ops_guard.py` (+VCS strict: HONGZHI_GUARD_REQUIRE_VCS)
+  - `prompt-dsl-system/tools/ops_guard.py` (+VCS strict: HONGZHI_GUARD_REQUIRE_VCS + multi-path + robust ignore patterns)
   - `prompt-dsl-system/tools/pipeline_runner.py`
   - `prompt-dsl-system/tools/merged_guard.py`
   - `prompt-dsl-system/tools/skill_template_audit.py` (--scope, --fail-on-empty, registry↔fs consistency)
-  - `prompt-dsl-system/tools/pipeline_contract_lint.py` (--fail-on-empty, module_root + NavIndex + profile template check + strict TODO reject)
-  - `prompt-dsl-system/tools/golden_path_regression.sh` (end-to-end regression + profile smoke + guard strict)
-  - `prompt-dsl-system/tools/module_profile_scanner.py` (Layer2 discovered profile generator + fingerprint)
+  - `prompt-dsl-system/tools/pipeline_contract_lint.py` (--fail-on-empty, module_root + NavIndex + profile template check + strict TODO reject + identity hints)
+  - `prompt-dsl-system/tools/golden_path_regression.sh` (37 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner & governance + Phase20-22 capability registry/smart reuse/no-state-write)
+  - `prompt-dsl-system/tools/module_profile_scanner.py` (Layer2 + fingerprint + multi-root + concurrent + incremental + --out-root/--read-only/--workspace-root)
+  - `prompt-dsl-system/tools/module_roots_discover.py` (Layer2R + identity hints + structure fallback + optional --module-key + --out-root/--read-only)
+  - `prompt-dsl-system/tools/structure_discover.py` v2 (Layer2S + endpoint v2 + per-file incremental cache + --out-root/--read-only/--workspace-root)
+  - `prompt-dsl-system/tools/cross_project_structure_diff.py` v2 (endpoint signature comparison + --read-only)
+  - `prompt-dsl-system/tools/auto_module_discover.py` (module discovery without --module-key + scoring + --read-only)
+  - `prompt-dsl-system/tools/hongzhi_plugin.py` (v3.0.0 runner: discover/diff/profile/migrate/status/clean, governance, smart incremental, capabilities.json v3, capability index/latest/run_meta)
+  - `prompt-dsl-system/tools/hongzhi_ai_kit` (installable package wrapper)
+  - `prompt-dsl-system/tools/hongzhi_ai_kit/capability_store.py` (atomic capability index persistence helpers)
+  - `prompt-dsl-system/tools/hongzhi_ai_kit/paths.py` (workspace/global-state root resolution)
+  - `prompt-dsl-system/tools/PLUGIN_RUNNER.md` (plugin runner documentation)
   - `prompt-dsl-system/tools/README.md`

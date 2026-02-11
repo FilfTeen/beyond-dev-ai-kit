@@ -3,13 +3,16 @@
 # How: 通过 pipeline_module_migration 生成 staging skills，覆盖 workflow/UI/SQL。
 
 profile_kind: "declared"
-profile_version: "1.0"
+profile_version: "1.1"
 
 identity:
   project_key: "xywygl"
   module_key: "ownercommittee"
   module_name: "业委会备案模块"
   profile_id: "xywygl/ownercommittee"
+  backend_package_hint: "com.indihx.ownercommittee"
+  web_path_hint: "backstage/ownercommittee"
+  keywords: ["业委会", "HOC", "hocrecord"]
 
 scope:
   allowed_module_root: "prompt-dsl-system"

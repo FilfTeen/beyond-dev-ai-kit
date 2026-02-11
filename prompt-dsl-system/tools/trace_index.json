@@ -1,19 +1,52 @@
 {
-  "generated_at": "2026-02-11T01:38:09+00:00",
+  "generated_at": "2026-02-11T02:00:18+00:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
   "tools_dir": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools",
   "summary": {
-    "trace_ids": 24,
+    "trace_ids": 25,
     "commands": {
       "unknown": 11,
-      "run": 13
+      "run": 14
     },
     "failures": {
       "exit_4": 3,
-      "exit_nonzero": 4
+      "exit_nonzero": 5
     }
   },
   "items": [
+    {
+      "trace_id": "trace-1f6e3027456843c1a8a40ef56360a28b",
+      "context_id": "ctx-3ae79fe189f9",
+      "last_seen_at": "2026-02-11T02:00:18+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-11T02:00:18+00:00",
+          "command": "run",
+          "exit_code": 2,
+          "blocked_by": "guard_gate",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": null,
+        "validate_report": "prompt-dsl-system/tools/validate_report.json",
+        "health_report": "prompt-dsl-system/tools/health_report.json",
+        "verify_report": null,
+        "risk_gate_report": null,
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 2,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "guard_gate": 1
+        }
+      }
+    },
     {
       "trace_id": "trace-26cbf701c6894a00ad17cbae11ea5262",
       "context_id": "ctx-07b98a5c8350",
@@ -32,8 +65,8 @@
         "deliveries_dir": null,
         "snapshot_paths": [],
         "run_plan": "prompt-dsl-system/tools/run_plan.yaml",
-        "validate_report": "prompt-dsl-system/tools/validate_report.json",
-        "health_report": "prompt-dsl-system/tools/health_report.json",
+        "validate_report": null,
+        "health_report": null,
         "verify_report": null,
         "risk_gate_report": "prompt-dsl-system/tools/risk_gate_report.json",
         "risk_gate_token": null

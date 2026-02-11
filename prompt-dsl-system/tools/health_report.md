@@ -1,5 +1,5 @@
 # Health Report
-- Generated at: 2026-02-11T09:37:58+08:00
+- Generated at: 2026-02-11T09:50:21+08:00
 - Repo root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit
 - Window: last 20 traces
 
@@ -10,10 +10,10 @@
 - Skills versions: 1.0.0 x1
 
 ## Execution Signals (last N)
-- Commands: run=12, unknown=8
-- Exit codes: 0=8, unknown=8, 4=3, 3=1
+- Commands: run=13, unknown=7
+- Exit codes: 0=9, unknown=7, 4=3, 3=1
 - Blocked by: none=16, verify_gate=3, loop_gate=1
-- Verify status: MISSING=8, PASS=7, FAIL=5
+- Verify status: PASS=8, MISSING=7, FAIL=5
 - Ack usage: none=18, ack-latest=2
 
 ## Risk Triggers

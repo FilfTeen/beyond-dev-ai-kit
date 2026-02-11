@@ -1,17 +1,37 @@
 {
-  "timestamp": "2026-02-11T01:38:09+00:00",
+  "timestamp": "2026-02-11T02:00:18+00:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
-  "mode": "debug-guard",
-  "advisory": true,
-  "vcs": "none",
-  "unsupported_vcs": true,
+  "mode": "run",
+  "advisory": false,
+  "vcs": "git",
+  "unsupported_vcs": false,
   "module_path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system",
   "module_path_normalized": "prompt-dsl-system",
   "module_path_source": "cli",
   "effective_allowlist_prefixes": [
     "prompt-dsl-system/"
   ],
-  "changed_files": [],
+  "changed_files": [
+    "_regression_tmp/",
+    "prompt-dsl-system/00_conventions/COMPLIANCE_MATRIX.md",
+    "prompt-dsl-system/00_conventions/FACT_BASELINE.md",
+    "prompt-dsl-system/00_conventions/MODULE_PROFILE_SPEC.md",
+    "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_module_migration.md",
+    "prompt-dsl-system/module_profiles/template/module_profile.yaml",
+    "prompt-dsl-system/module_profiles/xywygl/notice.discovered.yaml",
+    "prompt-dsl-system/module_profiles/xywygl/notice.yaml",
+    "prompt-dsl-system/module_profiles/xywygl/ownercommittee.yaml",
+    "prompt-dsl-system/tools/golden_path_regression.sh",
+    "prompt-dsl-system/tools/guard_report.json",
+    "prompt-dsl-system/tools/health_report.json",
+    "prompt-dsl-system/tools/health_report.md",
+    "prompt-dsl-system/tools/health_runbook.json",
+    "prompt-dsl-system/tools/health_runbook.md",
+    "prompt-dsl-system/tools/module_profile_scanner.py",
+    "prompt-dsl-system/tools/module_roots_discover.py",
+    "prompt-dsl-system/tools/pipeline_contract_lint.py",
+    "prompt-dsl-system/tools/validate_report.json"
+  ],
   "ignored_files": [],
   "ignore_patterns": [
     "**/target/**",
@@ -32,13 +52,21 @@
     "allow_prompt_dsl_system": true,
     "require_module_path_for_project_changes": true
   },
-  "warnings": [
-    "No git/svn metadata found; guard runs in non-blocking mode."
-  ],
+  "warnings": [],
   "errors": [],
-  "violations": [],
-  "decision": "pass",
-  "decision_reason": "vcs unsupported; guard ran in non-blocking mode",
-  "suggestions": [],
-  "exit_code": 0
+  "violations": [
+    {
+      "file": "_regression_tmp/",
+      "rule": "out_of_allowed_scope",
+      "type": "outside_module",
+      "reason": "changed file is outside module_path/** and prompt-dsl-system/**",
+      "suggestion": "Move change under module_path/** or revert out-of-scope edits."
+    }
+  ],
+  "decision": "fail",
+  "decision_reason": "violation: out_of_allowed_scope (_regression_tmp/)",
+  "suggestions": [
+    "回退越界文件或将改动迁回 module_path/**"
+  ],
+  "exit_code": 2
 }

@@ -132,6 +132,24 @@ def main():
             except OSError:
                 pass
 
+    # Identity hint check: declared profiles should have at least one of backend_package_hint or web_path_hint
+    if profiles_dir.is_dir():
+        for yaml_file in sorted(profiles_dir.rglob("*.yaml")):
+            if yaml_file.name.endswith(".discovered.yaml") or "template" in str(yaml_file.relative_to(profiles_dir)):
+                continue
+            try:
+                content = yaml_file.read_text(encoding="utf-8")
+                has_backend = "backend_package_hint" in content and "TODO" not in content.split("backend_package_hint:", 1)[1].split("\n")[0]
+                has_web = "web_path_hint" in content and "TODO" not in content.split("web_path_hint:", 1)[1].split("\n")[0]
+                if not has_backend and not has_web:
+                    rel_profile = yaml_file.relative_to(repo_root)
+                    if strict:
+                        all_issues.append(f"  {rel_profile}: missing identity hints (backend_package_hint or web_path_hint) (strict: FAIL)")
+                    else:
+                        print(f"[pipeline_contract_lint][WARN] {rel_profile}: missing identity hints (backend_package_hint or web_path_hint)")
+            except (OSError, IndexError):
+                pass
+
     if all_issues:
         print("[pipeline_contract_lint] FAIL")
         for issue in all_issues:

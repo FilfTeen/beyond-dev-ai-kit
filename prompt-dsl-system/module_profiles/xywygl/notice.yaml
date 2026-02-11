@@ -3,13 +3,16 @@
 # How: 通过 pipeline_module_migration 生成 staging skills，逐步 promote。
 
 profile_kind: "declared"
-profile_version: "1.0"
+profile_version: "1.1"
 
 identity:
   project_key: "xywygl"
   module_key: "notice"
   module_name: "公告模块"
   profile_id: "xywygl/notice"
+  backend_package_hint: "com.indihx.notice"
+  web_path_hint: "backstage/notice"
+  keywords: ["notice", "公告"]
 
 scope:
   allowed_module_root: "prompt-dsl-system"  # skill/pipeline 生成在此目录内

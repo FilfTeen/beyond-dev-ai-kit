@@ -28,7 +28,7 @@ Scope: `prompt-dsl-system/**`
 - `pipeline_skill_creator.md`: `5` steps, all reference `skill_hongzhi_universal_ops` (modes: governance/meta/meta/meta/docs)
 - `pipeline_project_bootstrap.md`: `5` steps, all reference `skill_hongzhi_universal_ops` — batch skill generation + profile input
 - `pipeline_skill_promote.md`: `3` steps, all reference `skill_hongzhi_universal_ops` — staging→deployed promotion + mandatory ledger
-- `pipeline_module_migration.md`: `6` steps, all reference `skill_hongzhi_universal_ops` — single-module migration assembly line + materialize_skills switch
+- `pipeline_module_migration.md`: `7` steps (Step0–Step5 + acceptance), all reference `skill_hongzhi_universal_ops` — single-module migration assembly line + materialize_skills switch + Step0 auto-discovery
 
 ## 3) Current Tools Boundary
 
@@ -41,15 +41,22 @@ Scope: `prompt-dsl-system/**`
   - supports company profile default injection (`schema_strategy/execution_tool/require_precheck_gate`)
 - `merged_guard.py`: merged/batch SQL integrity gate for trace delivery
 - `path_diff_guard.py`: path diff + violation detection + VCS strict fail (HONGZHI_VALIDATE_STRICT/HONGZHI_GUARD_REQUIRE_VCS)
-- `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS)
+- `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS) + multi-path + ignore patterns
 - `skill_template_audit.py`: post-validate audit (placeholder + schema + registry↔fs consistency + --scope + --fail-on-empty)
-- `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject)
-- `golden_path_regression.sh`: end-to-end regression (validate→bootstrap→validate→promote→validate + migration smoke + profile smoke + guard strict)
-- `module_profile_scanner.py`: generates discovered profile (Layer2) by scanning filesystem + grep patterns + fingerprint
+- `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject + identity hints)
+- `golden_path_regression.sh`: end-to-end regression (37 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write)
+- `module_profile_scanner.py`: generates discovered profile (Layer2) — scanning + grep + fingerprint + multi-root + concurrent + incremental + `--out-root`/`--read-only`/`--workspace-root`
+- `module_roots_discover.py`: auto-discovers module roots from identity hints + structure fallback + optional `--module-key` (auto-discover) + `--out-root`/`--read-only` (Layer2R)
+- `structure_discover.py` v2: auto-identifies module structure — endpoint v2, per-file incremental cache, `--out-root`/`--read-only`/`--workspace-root` (Layer2S)
+- `cross_project_structure_diff.py` v2: compares endpoint signatures, reports added/removed/changed, `--read-only`
+- `auto_module_discover.py`: discovers module candidates without `--module-key` — package prefix clustering, scoring, top-k, `--read-only`
+- `hongzhi_plugin.py`: v3.0.0 plugin runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental flags, capability registry, capabilities contract v3
+- `hongzhi_ai_kit`: Installable python package wrapper for `hongzhi_plugin.py`
+- `PLUGIN_RUNNER.md`: plugin runner documentation (usage, governance, status command, workspace layout, exit codes)
 
 ## 4) Conventions Documents
 
-- `HONGZHI_COMPANY_CONSTITUTION.md`: 16 rules, company-domain governance
+- `HONGZHI_COMPANY_CONSTITUTION.md`: 18 rules, company-domain governance
 - `SKILL_SPEC.md`: YAML schema, registry contract, trace parameters, template generation, bundled resources, progressive disclosure + NavIndex, skill status lifecycle (staging/deployed/deprecated)
 - `COMPLIANCE_MATRIX.md`: 15 requirements mapped to implementation
 - `ROLLBACK_INSTRUCTIONS.md`: rollback procedure
@@ -57,7 +64,7 @@ Scope: `prompt-dsl-system/**`
 - `CPP_STYLE_NAMING.md`: C++ style naming conventions for Java8+SpringBoot
 - `SQL_COMPAT_STRATEGY.md`: SQL dual-stack delivery specification
 - `PROJECT_PROFILE_SPEC.md`: project profile input contract for pipeline_project_bootstrap
-- `MODULE_PROFILE_SPEC.md`: three-layer module profile model (declared + discovered + merge rules)
+- `MODULE_PROFILE_SPEC.md`: three-layer module profile model (declared + discovered + merge rules + multi-root + Layer2R)
 - `SKILL_SPEC.md` extended sections:
   - Skill Template Generation Contract
   - Bundled Resources Convention (references/scripts/assets)
@@ -90,7 +97,24 @@ Note: the 15 points below are mapped from the user-provided original requirement
 | R14 | Rollback plan artifact mandatory | Met | Skill mandatory `A*_rollback_plan.md`; `CONSTITUTION.md` Rule 15; `ROLLBACK_INSTRUCTIONS.md` |
 | R15 | Enforceable gates/tools + compliance matrix mapping | Met | `ops_guard.py`, `merged_guard.py`, `run.sh validate`; `COMPLIANCE_MATRIX.md` |
 
-## 7) Baseline Validate Gate
+## 7) Capability Registry & Smart Incremental (R16)
+
+- Capability registry global root is separated from per-run workspace root.
+- New global files:
+  - `capability_index.json` (cross-project capability summary)
+  - `<fingerprint>/latest.json` (latest successful run pointer)
+  - `<fingerprint>/runs/<run_id>/run_meta.json` (auditable run metadata)
+- Smart incremental flags available for `discover/profile/diff/migrate`:
+  - `--smart`
+  - `--smart-max-age-seconds`
+  - `--smart-min-cache-hit`
+  - `--smart-max-fingerprint-drift`
+- Governance non-degradation:
+  - disabled by default remains enforced (exit 10/11/12)
+  - denied runs do not write global capability state
+  - business repo remains read-only by default, guarded by snapshot-diff (exit 3 on mutation)
+
+## 8) Baseline Validate Gate
 
 - Command: `./prompt-dsl-system/tools/run.sh validate --repo-root .`
 - Result: `Errors=0`, `Warnings=0`

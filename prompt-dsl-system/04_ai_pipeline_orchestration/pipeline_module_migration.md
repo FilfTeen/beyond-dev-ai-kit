@@ -24,12 +24,43 @@
 
 1. **Layer0** — 读取 `projects/<project_key>/profile.yaml`（项目全局默认，若存在）。
 2. **Layer1** — 读取 `module_profiles/<project_key>/<module_key>.yaml`（declared profile，必须存在，否则输出 checklist）。
-3. **Layer2** — 读取 `module_profiles/<project_key>/<module_key>.discovered.yaml`（discovered profile，若存在则加载；若不存在，建议先运行 `module_profile_scanner.py`）。
-4. **合并规则** — `Effective Profile = merge(Layer0, Layer1, Layer2)`。discovered 仅能覆盖 `discovery.*` 字段，不可改变 scope/objectives/identity。
+3. **Layer2R** — 读取 `module_profiles/<project_key>/<module_key>.roots.discovered.yaml`（roots discovered，若不存在，先运行 Step0 `module_roots_discover.py`）。
+4. **Layer2** — 读取 `module_profiles/<project_key>/<module_key>.discovered.yaml`（discovered profile，若不存在，先运行 Step0 `module_profile_scanner.py`）。
+5. **合并规则** — `Effective Profile = merge(Layer0, Layer1, Layer2R, Layer2)`。discovered 仅能覆盖 `discovery.*` 字段，不可改变 scope/objectives/identity。`allowed_module_roots` 由 Layer2R 提供。
 
 ## 缺失边界时的硬规则
 
 - 若未提供 `allowed_module_root`：仅扫描现有 skill registry，不得创建/修改任何文件。
+
+## Step 0 — 自动发现（Pre-Discovery）
+
+**Freedom: none** — 确定性工具调用
+
+> [!NOTE]
+> Step0 在 Step1 前自动运行 `module_roots_discover.py` 和 `module_profile_scanner.py`，
+> 生成 `roots.discovered.yaml` 和 `discovered.yaml`。如已存在且未过期，可跳过。
+
+```yaml
+skill: skill_hongzhi_universal_ops
+parameters:
+  mode: "meta"
+  module_path: "{{allowed_module_root}}"
+  allowed_module_root: "{{allowed_module_root}}"
+  objective: "运行自动发现工具：(1) module_roots_discover.py --project-key={{project_key}} --module-key={{module_key}} 生成 roots.discovered.yaml；(2) module_profile_scanner.py --project-key={{project_key}} --module-key={{module_key}} 读取 roots 生成 discovered.yaml。"
+  constraints:
+    - "tool-call only, no creative output"
+    - "if Layer1 declared profile missing: STOP, output required_additional_information"
+    - "if identity hints (backend_package_hint / web_path_hint) both missing: WARN"
+  acceptance:
+    - "A0_roots.discovered.yaml exists"
+    - "A0_discovered.yaml exists"
+  forbidden:
+    - "禁止手动编写 discovered 文件内容"
+  boundary_policy:
+    allowed_module_root: "{{allowed_module_root}}"
+    forbidden_paths: ["/sys", "/error", "/util", "/vote"]
+  trace_id: "{{trace_id}}"
+```
 
 ## Step 1 — 模块画像解析 + 迁移计划
 

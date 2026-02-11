@@ -1,0 +1,3 @@
+[skill_template_audit] registry stats: staging=2, deployed=1
+[skill_template_audit] scanned 3 skill YAML(s) (scope=all)
+[skill_template_audit] PASS

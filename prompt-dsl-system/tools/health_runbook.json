@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-11T09:37:58+08:00",
+  "generated_at": "2026-02-11T09:50:21+08:00",
   "mode": "safe",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
   "source_health_report": "prompt-dsl-system/tools/health_report.json",
@@ -39,8 +39,8 @@
     "bypass_attempt_count": 2,
     "dominant_block_type": "verify_gate",
     "exit_code_distribution": {
-      "0": 8,
-      "unknown": 8,
+      "0": 9,
+      "unknown": 7,
       "4": 3,
       "3": 1
     },
@@ -78,12 +78,12 @@
       "window_records": 20,
       "total_runs": 20,
       "command_distribution": {
-        "run": 12,
-        "unknown": 8
+        "run": 13,
+        "unknown": 7
       },
       "exit_code_distribution": {
-        "0": 8,
-        "unknown": 8,
+        "0": 9,
+        "unknown": 7,
         "4": 3,
         "3": 1
       },
@@ -93,8 +93,8 @@
         "loop_gate": 1
       },
       "verify_status_distribution": {
-        "MISSING": 8,
-        "PASS": 7,
+        "PASS": 8,
+        "MISSING": 7,
         "FAIL": 5
       },
       "ack_used_distribution": {

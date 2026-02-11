@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 DEFAULT_FORBIDDEN = ["/sys", "/error", "/util", "/vote"]
+IGNORE_PATTERNS = ["_regression_tmp/", ".structure_cache/", ".discovered.yaml",
+                    "_tmp_structure_cases/", "generated-sources/", "generated-test-sources/"]
 REPORT_REL_PATH = "prompt-dsl-system/tools/ops_guard_report.json"
 import os
 
@@ -67,6 +69,14 @@ def is_forbidden(rel_path: str, forbidden_paths: List[str]) -> bool:
     for rule in forbidden_paths:
         token = rule.rstrip("/")
         if test == token or test.startswith(token + "/") or (token + "/") in test:
+            return True
+    return False
+
+
+def should_ignore(rel_path: str) -> bool:
+    """Check if path should be ignored by guard."""
+    for pattern in IGNORE_PATTERNS:
+        if pattern in rel_path:
             return True
     return False
 
@@ -196,6 +206,8 @@ def write_report(repo_root: Path, report: Dict[str, object]) -> Path:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Company ops guard for scope and forbidden-path checks")
     parser.add_argument("--allowed-root", required=True, help="Allowed module root path (absolute or repo-relative)")
+    parser.add_argument("--module-paths", default=None,
+                        help="Comma-separated additional module paths (multi-root support)")
     parser.add_argument("--repo-root", default=".", help="Repository root path")
     parser.add_argument(
         "--forbidden-paths",

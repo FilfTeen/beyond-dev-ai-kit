@@ -137,3 +137,37 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
   - Periodic audit: team lead reviews bypass usage in change ledgers quarterly.
 - Escalation: unauthorized bypass usage => immediate rollback + incident report.
 - Rollback: revert all changes made under unauthorized bypass and re-run with proper boundary.
+
+## Rule 17 - Plugin Runner Governance
+
+- Rule: `hongzhi_plugin.py` is **disabled by default** and requires explicit enable.
+- Enable methods:
+  - Environment variable: `HONGZHI_PLUGIN_ENABLE=1`
+  - Policy file: `policy.yaml` with `plugin.enabled: true`
+- If disabled: all commands (except `clean`) exit code **10** with instructions.
+- Read-only contract:
+  - Default behavior: **no writes** into target project repository.
+  - Enforcement: snapshot-diff guard (before/after comparison of relpath, size, mtime_ns).
+  - Violation: exit code **3** with list of changed files.
+  - Override: `--write-ok` flag (must be logged in closure artifacts).
+- Audit requirement:
+  - When `--write-ok` is used, closure artifacts must record: "write-ok=true, reason=<justification>, changed_files=<list>".
+- Escalation: unintended writes without `--write-ok` => investigate, rollback, incident report.
+- Rollback: remove workspace outputs; target project should be unchanged (read-only default).
+
+## Rule 18 - Capability Registry Isolation
+
+- Rule: Capability Registry may only write to hongzhi-ai-kit owned state directories, never business repo paths.
+- Write scope:
+  - Global: `capability_index.json`, `<fp>/latest.json`, `<fp>/runs/<run_id>/run_meta.json`
+  - Workspace: per-run artifacts under resolved workspace root
+- Prohibited:
+  - Any write under target `repo_root` unless `--write-ok` is explicitly enabled
+  - Any write to repository-local `out/` for plugin runtime state
+- Governance coupling:
+  - If plugin execution is blocked by governance (exit 10/11/12), capability registry write is forbidden.
+- Check:
+  - Regression Phase20/21 validates registry + smart behavior
+  - Regression Phase22 validates disabled-state no-write behavior
+- Escalation: detected repo contamination or disabled-state write => immediate incident and rollback.
+- Rollback: remove newly created global/workspace state files and restore prior capability index snapshot if available.

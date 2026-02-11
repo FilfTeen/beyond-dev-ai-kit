@@ -1,0 +1,80 @@
+name: "skill_governance_plugin_discover"
+description: "Bridge skill to execute Hongzhi Plugin (v3) discover command in a governed, read-only manner. Used by other agents to inspect project structure."
+version: "3.0.0"
+domain: "governance"
+tags:
+  - "plugin"
+  - "discover"
+  - "governance"
+  - "read-only"
+parameters:
+  - name: "repo_root"
+    type: "string"
+    required: true
+    description: "Target project root path (must be allowed by policy.yaml)."
+  - name: "permit_token"
+    type: "string"
+    required: false
+    description: "One-time override token if repo_root is in deny_roots."
+  - name: "keywords"
+    type: "string"
+    required: false
+    description: "Keywords to disambiguate modules (comma-separated)."
+  - name: "max_files"
+    type: "integer"
+    required: false
+    default: 50000
+    description: "Max files to snapshot (safety limit)."
+
+mode: "governance"
+boundary_policy:
+  allowed_module_root: "prompt-dsl-system"
+  forbidden_paths:
+    - "/"
+  max_change_scope: "none"
+
+fact_policy:
+  require_scan_before_change: false
+  unknown_requires_user: true
+
+prompt_template: |
+  Execute governed plugin discovery for {{repo_root}} and return machine-readable outputs.
+
+output_contract:
+  summary: "string"
+  capabilities_path: "string"
+  governance_state: "string"
+  warnings: "list"
+
+examples:
+  - input:
+      repo_root: "/workspace/demo-repo"
+      keywords: "notice"
+      max_files: 50000
+    output:
+      summary: "discover completed in governed read-only mode"
+      capabilities_path: "/tmp/hongzhi-ai-kit/<fp>/<run_id>/capabilities.json"
+      governance_state: "enabled"
+      warnings: []
+
+implementation:
+  type: "function_call" 
+  tool_name: "run_command"
+  template: |
+    Execute the hongzhi_plugin discover command with governance checks.
+
+    1. First, verify governance status:
+       python3 prompt-dsl-system/tools/hongzhi_plugin.py status --repo-root "{{repo_root}}" {{#permit_token}}--permit-token "{{permit_token}}"{{/permit_token}}
+    
+    2. If status is ALLOWED/ENABLED, proceed to discover:
+       HONGZHI_PLUGIN_ENABLE=1 python3 prompt-dsl-system/tools/hongzhi_plugin.py discover \
+         --repo-root "{{repo_root}}" \
+         {{#keywords}}--keywords "{{keywords}}"{{/keywords}} \
+         {{#max_files}}--max-files {{max_files}}{{/max_files}} \
+         {{#permit_token}}--permit-token "{{permit_token}}"{{/permit_token}}
+    
+    3. Return the path to the generate capabilities.json from stdout summary line.
+
+outputs:
+  - name: "capabilities_path"
+    description: "Path to the generated capabilities.json artifact."

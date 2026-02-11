@@ -2,7 +2,11 @@
 """Module Profile Scanner — generates discovered profile (Layer2).
 
 Scans filesystem + grep patterns from declared profile hints,
-outputs a discovered.yaml with file_index, navindex, and confidence.
+outputs a discovered.yaml with file_index, navindex, confidence, and fingerprint.
+
+Supports multi-root: reads roots.discovered.yaml (Layer2R) if present,
+falls back to --allowed-module-root as single root.
+Performance: concurrent scanning, incremental fingerprint.
 
 Standard-library only.
 """
@@ -12,6 +16,8 @@ import json
 import os
 import re
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,7 +40,11 @@ CATEGORY_PATTERNS = {
 DEFAULT_INCLUDE = ["**/*.java", "**/*.xml", "**/*.html", "**/*.sql",
                    "**/*.vue", "**/*.bpmn", "**/*.properties", "**/*.yml", "**/*.yaml"]
 DEFAULT_EXCLUDE = ["**/node_modules/**", "**/target/**", "**/dist/**",
-                   "**/.git/**", "**/.svn/**"]
+                   "**/.git/**", "**/.svn/**", "**/build/**", "**/out/**",
+                   "**/_regression_tmp/**", "**/.structure_cache/**",
+                   "**/.gradle/**", "**/.mvn/**",
+                   "**/generated-sources/**", "**/generated-test-sources/**",
+                   "**/test-classes/**", "**/classes/**"]
 
 
 def load_declared(path: Path) -> dict:
@@ -265,17 +275,55 @@ def main():
     parser.add_argument("--repo-root", default=".", help="Repository root")
     parser.add_argument("--project-key", required=True, help="Project identifier")
     parser.add_argument("--module-key", required=True, help="Module identifier")
-    parser.add_argument("--allowed-module-root", required=True,
-                        help="Repo-relative path to scan (e.g. src/main/java/com/indihx/notice)")
+    parser.add_argument("--allowed-module-root", default=None,
+                        help="Repo-relative path to scan (fallback if no roots.discovered.yaml)")
     parser.add_argument("--out", default=None,
                         help="Output path (default: module_profiles/<project>/<module>.discovered.yaml)")
+    parser.add_argument("--out-root", "--workspace-root", default=None,
+                        help="Output root directory (default: repo-root)")
+    parser.add_argument("--read-only", action="store_true",
+                        help="No filesystem writes; output to stdout only")
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
-    allowed_root = (repo_root / args.allowed_module_root).resolve()
+    out_root = Path(args.out_root).resolve() if args.out_root else repo_root
+    # Determine scan roots
+    roots_discovered_path = repo_root / f"prompt-dsl-system/module_profiles/{args.project_key}/{args.module_key}.roots.discovered.yaml"
+    scan_roots = []
+    if roots_discovered_path.exists():
+        # Parse roots from Layer2R
+        text = roots_discovered_path.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith('- path:'):
+                rp = stripped.split(':', 1)[1].strip().strip('"').strip("'")
+                rp_full = (repo_root / rp).resolve()
+                if rp_full.is_dir():
+                    scan_roots.append(rp_full)
+        print(f"[scanner] using {len(scan_roots)} roots from {roots_discovered_path.name}")
+    # Also check for structure_discovered.yaml roots
+    struct_path = repo_root / f"prompt-dsl-system/module_profiles/{args.project_key}/{args.module_key}.structure.discovered.yaml"
+    if struct_path.exists() and not scan_roots:
+        text = struct_path.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith('- prefix:'):
+                pkg = stripped.split(':', 1)[1].strip().strip('"').strip("'")
+                pkg_path = pkg.replace(".", "/")
+                # Try common Java source roots
+                for java_root in ["src/main/java"]:
+                    target = repo_root / java_root / pkg_path
+                    if target.is_dir():
+                        scan_roots.append(target)
+        if scan_roots:
+            print(f"[scanner] using {len(scan_roots)} roots from {struct_path.name}")
 
-    if not allowed_root.exists() or not allowed_root.is_dir():
-        print(f"FAIL: allowed-module-root does not exist: {allowed_root}", file=sys.stderr)
+    if not scan_roots and args.allowed_module_root:
+        allowed_root = (repo_root / args.allowed_module_root).resolve()
+        if allowed_root.exists() and allowed_root.is_dir():
+            scan_roots = [allowed_root]
+    if not scan_roots:
+        print("FAIL: no scan roots found (provide --allowed-module-root or run module_roots_discover.py first)", file=sys.stderr)
         sys.exit(1)
 
     # Load declared profile hints
@@ -284,26 +332,66 @@ def main():
     if not declared_path.exists():
         print(f"[scanner] WARN: declared profile not found at {declared_path}, using defaults")
 
-    # Scan
-    file_index, navindex, all_files = scan_files(repo_root, allowed_root, hints)
-    confidence = compute_confidence(file_index, navindex)
-    fingerprint = compute_fingerprint(all_files)
+    # Scan all roots with concurrent execution
+    t_start = time.time()
+    merged_file_index = {k: [] for k in list(CATEGORY_PATTERNS.keys()) + ["other"]}
+    merged_navindex = []
+    all_scanned_files = []
+
+    def scan_single_root(sr):
+        return scan_files(repo_root, sr, hints)
+
+    with ThreadPoolExecutor(max_workers=min(4, max(1, len(scan_roots)))) as executor:
+        future_map = {executor.submit(scan_single_root, sr): sr for sr in scan_roots}
+        for future in as_completed(future_map):
+            try:
+                fi, ni, af = future.result()
+                for cat in merged_file_index:
+                    for f in fi.get(cat, []):
+                        if f not in merged_file_index[cat]:
+                            merged_file_index[cat].append(f)
+                # Merge navindex (deduplicate by pattern)
+                existing_patterns = {e["pattern"] for e in merged_navindex}
+                for entry in ni:
+                    if entry["pattern"] not in existing_patterns:
+                        merged_navindex.append(entry)
+                        existing_patterns.add(entry["pattern"])
+                    else:
+                        for me in merged_navindex:
+                            if me["pattern"] == entry["pattern"]:
+                                me["hit_count"] += entry["hit_count"]
+                                me["hits"].extend(entry["hits"])
+                                break
+                all_scanned_files.extend(af)
+            except Exception as e:
+                print(f"[scanner] WARN: scan error: {e}", file=sys.stderr)
+
+    confidence = compute_confidence(merged_file_index, merged_navindex)
+    fingerprint = compute_fingerprint(all_scanned_files)
 
     # Output
     if args.out:
         out_path = Path(args.out)
     else:
-        out_path = repo_root / f"prompt-dsl-system/module_profiles/{args.project_key}/{args.module_key}.discovered.yaml"
+        out_path = out_root / f"prompt-dsl-system/module_profiles/{args.project_key}/{args.module_key}.discovered.yaml"
 
-    write_discovered(out_path, args.project_key, args.module_key,
-                     file_index, navindex, confidence, fingerprint)
+    if args.read_only:
+        # Write to stdout
+        import io
+        buf = io.StringIO()
+        write_discovered(out_path, args.project_key, args.module_key,
+                         merged_file_index, merged_navindex, confidence, fingerprint,
+                         stream=buf)
+        print(buf.getvalue(), end="")
+    else:
+        write_discovered(out_path, args.project_key, args.module_key,
+                         merged_file_index, merged_navindex, confidence, fingerprint)
 
-    total_files = sum(len(v) for v in file_index.values())
-    total_hits = sum(e["hit_count"] for e in navindex)
-    print(f"[scanner] discovered profile generated: {out_path}")
-    print(f"[scanner] files indexed: {total_files}, grep hits: {total_hits}, confidence: {confidence}")
-    print(f"[scanner] fingerprint: file_count={fingerprint['file_count']}, total_bytes={fingerprint['total_bytes']}, latest_mtime={fingerprint['latest_mtime']}")
-
+    total_files = sum(len(v) for v in merged_file_index.values())
+    total_hits = sum(e["hit_count"] for e in merged_navindex)
+    print(f"[scanner] files indexed: {total_files}, grep hits: {total_hits}, confidence: {confidence}", file=sys.stderr)
+    if not args.read_only:
+        print(f"[scanner] discovered profile generated: {out_path}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
