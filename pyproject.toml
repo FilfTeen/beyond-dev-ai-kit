@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hongzhi-ai-kit"
+version = "3.1.0"
+description = "Hongzhi AI Kit plugin runner (governed, read-only by default)."
+readme = "prompt-dsl-system/tools/PLUGIN_RUNNER.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+hongzhi-ai-kit = "hongzhi_ai_kit.cli:main"
+hzkit = "hongzhi_ai_kit.cli:main"
+hz = "hongzhi_ai_kit.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "prompt-dsl-system/tools"}
+py-modules = ["hongzhi_plugin"]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["prompt-dsl-system/tools"]
+include = ["hongzhi_ai_kit*"]

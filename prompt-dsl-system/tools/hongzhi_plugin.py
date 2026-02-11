@@ -4,7 +4,7 @@ from __future__ import annotations
 
 """
 Hongzhi AI-Kit Plugin Runner
-Version: 3.0.0 (R16 Agent-Native Capability Layer)
+Version: 4.0.0 (R17 Packaging + Agent Contract v4)
 
 Role:
   1. Standardization: unified entry point for all dsl-tools.
@@ -37,7 +37,7 @@ from hongzhi_ai_kit.paths import resolve_global_state_root, resolve_workspace_ro
 #  Configuration & Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PLUGIN_VERSION = "3.0.0"
+PLUGIN_VERSION = "4.0.0"
 SUMMARY_VERSION = "3.0"
 GOVERNANCE_ENV = "HONGZHI_PLUGIN_ENABLE"
 GOVERNANCE_EXIT_CODE = 10
@@ -506,6 +506,13 @@ def write_capabilities(
             "reused_from_run_id": None,
         },
         "capability_registry": capability_registry or {},
+        "stdout_contract": {
+            "v3_summary_prefix": "hongzhi_ai_kit_summary",
+            "v4_caps_prefix": "HONGZHI_CAPS",
+        },
+        "workspace_journal": {
+            "capabilities_jsonl": str((workspace.parent / "capabilities.jsonl").resolve()),
+        },
     }
     cap_path = workspace / "capabilities.json"
     cap_path.write_text(json.dumps(caps, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -533,6 +540,76 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
         f"scan_time_s={scan_time} "
         f"governance={gov_state}"
     )
+
+
+def print_caps_pointer_line(cap_path: Path) -> None:
+    """Contract v4 machine-readable pointer to capabilities.json."""
+    print(f"HONGZHI_CAPS {cap_path.resolve()}")
+
+
+def append_capabilities_jsonl(
+    workspace: Path,
+    command: str,
+    repo_fp: str,
+    run_id: str,
+    exit_code: int,
+    warnings_count: int,
+    cap_path: Path,
+) -> Path:
+    """
+    Append summary line to workspace-level capabilities.jsonl (append-only).
+
+    Stored under fingerprint workspace root:
+      <workspace>/<fp>/capabilities.jsonl
+    """
+    jsonl_path = workspace.parent / "capabilities.jsonl"
+    record = {
+        "timestamp": utc_now_iso(),
+        "command": command,
+        "repo_fp": repo_fp,
+        "run_id": run_id,
+        "exit_code": int(exit_code),
+        "warnings_count": int(warnings_count),
+        "capabilities_path": str(cap_path.resolve()),
+    }
+    jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    with jsonl_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return jsonl_path
+
+
+def emit_capability_contract_lines(
+    cap_path: Path,
+    command: str,
+    fp: str,
+    run_id: str,
+    smart_info: dict,
+    metrics: dict,
+    governance: dict,
+    workspace: Path,
+    exit_code: int,
+    warnings_count: int,
+) -> Path:
+    """
+    Emit stdout/stderr contract outputs and append capabilities.jsonl.
+
+    v4 additions:
+      - stdout: HONGZHI_CAPS <abs_path>
+      - workspace append-only jsonl summary
+    """
+    jsonl_path = append_capabilities_jsonl(
+        workspace=workspace,
+        command=command,
+        repo_fp=fp,
+        run_id=run_id,
+        exit_code=exit_code,
+        warnings_count=warnings_count,
+        cap_path=cap_path,
+    )
+    print(f"[plugin] capabilities_jsonl: {jsonl_path}", file=sys.stderr)
+    print_caps_pointer_line(cap_path)
+    print_summary_line(command, fp, run_id, smart_info, metrics, governance)
+    return jsonl_path
 
 
 def resolve_global_state(args) -> Path:
@@ -918,7 +995,18 @@ def cmd_discover(args):
                             smart_info,
                             capability_registry,
                         )
-                        print_summary_line("discover", fp, run_id, smart_info, metrics, gov_info)
+                        emit_capability_contract_lines(
+                            cap_path=cap_path,
+                            command="discover",
+                            fp=fp,
+                            run_id=run_id,
+                            smart_info=smart_info,
+                            metrics=metrics,
+                            governance=gov_info,
+                            workspace=ws,
+                            exit_code=2,
+                            warnings_count=len(warnings_list),
+                        )
                         return 2
 
         # Write candidates
@@ -1067,7 +1155,18 @@ def cmd_discover(args):
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
-    print_summary_line("discover", fp, run_id, smart_info, metrics, gov_info)
+    emit_capability_contract_lines(
+        cap_path=cap_path,
+        command="discover",
+        fp=fp,
+        run_id=run_id,
+        smart_info=smart_info,
+        metrics=metrics,
+        governance=gov_info,
+        workspace=ws,
+        exit_code=0,
+        warnings_count=len(warnings_list),
+    )
     return 0
 
 
@@ -1244,7 +1343,18 @@ def cmd_diff(args):
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
-    print_summary_line("diff", fp, run_id, smart_info, metrics, gov_info)
+    emit_capability_contract_lines(
+        cap_path=cap_path,
+        command="diff",
+        fp=fp,
+        run_id=run_id,
+        smart_info=smart_info,
+        metrics=metrics,
+        governance=gov_info,
+        workspace=ws,
+        exit_code=0,
+        warnings_count=len(warnings_list),
+    )
     return 0
 
 
@@ -1386,7 +1496,18 @@ def cmd_profile(args):
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
-    print_summary_line("profile", fp, run_id, smart_info, metrics, gov_info)
+    emit_capability_contract_lines(
+        cap_path=cap_path,
+        command="profile",
+        fp=fp,
+        run_id=run_id,
+        smart_info=smart_info,
+        metrics=metrics,
+        governance=gov_info,
+        workspace=ws,
+        exit_code=0,
+        warnings_count=len(warnings_list),
+    )
     return 0
 
 
@@ -1505,7 +1626,18 @@ def cmd_migrate(args):
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
-    print_summary_line("migrate", fp, run_id, smart_info, metrics, gov_info)
+    emit_capability_contract_lines(
+        cap_path=cap_path,
+        command="migrate",
+        fp=fp,
+        run_id=run_id,
+        smart_info=smart_info,
+        metrics=metrics,
+        governance=gov_info,
+        workspace=ws,
+        exit_code=0,
+        warnings_count=len(warnings_list),
+    )
     return 0
 
 
@@ -1685,20 +1817,31 @@ def main():
         parser.print_help()
         sys.exit(0)
 
+    args._run_command = args.command
+
     # ── Governance gate (skip for clean/status/help) ──
     if args.command not in ("clean", "status"):
         allowed, exit_code, reason, gov_info = check_governance_full(args)
         if not allowed:
+            machine_reason = "governance_blocked"
             if exit_code == GOVERNANCE_EXIT_CODE:
+                machine_reason = "plugin_disabled"
                 print(f"[plugin] DISABLED: plugin runner requires explicit enable.", file=sys.stderr)
                 print(f"[plugin] To enable: export {GOVERNANCE_ENV}=1", file=sys.stderr)
                 print(f"[plugin] Or policy.yaml: plugin.enabled: true", file=sys.stderr)
             elif exit_code == GOVERNANCE_DENY_EXIT_CODE:
+                machine_reason = "repo_denied"
                 print(f"[plugin] BLOCKED: {reason}", file=sys.stderr)
                 print(f"[plugin] This repo_root is in the deny_roots list.", file=sys.stderr)
             elif exit_code == GOVERNANCE_ALLOW_EXIT_CODE:
+                machine_reason = "repo_not_allowed"
                 print(f"[plugin] BLOCKED: {reason}", file=sys.stderr)
                 print(f"[plugin] Add repo path to plugin.allow_roots in policy.yaml.", file=sys.stderr)
+            # Contract v4: machine-readable governance rejection line on stdout.
+            print(
+                f"HONGZHI_GOV_BLOCK code={exit_code} reason={machine_reason} "
+                f"command={args.command} detail=\"{reason}\""
+            )
             sys.exit(exit_code)
         # Attach governance info for capabilities.json
         args._gov_info = gov_info

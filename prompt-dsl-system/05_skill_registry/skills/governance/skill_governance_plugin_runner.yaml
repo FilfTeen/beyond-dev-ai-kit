@@ -1,0 +1,120 @@
+name: "skill_governance_plugin_runner"
+description: "Governed plugin runner skill for hongzhi_ai_kit commands (status/discover/diff/profile/migrate) with read-only target repo contract and machine-readable capabilities outputs."
+version: "4.0.0"
+domain: "governance"
+tags:
+  - "plugin"
+  - "runner"
+  - "governance"
+  - "meta"
+  - "docs"
+  - "read-only"
+parameters:
+  - name: "repo_root"
+    type: "string"
+    required: true
+    description: "Target project root path to scan (read-only by default)."
+  - name: "command"
+    type: "string"
+    required: true
+    description: "Plugin subcommand: status|discover|diff|profile|migrate."
+  - name: "old_project_root"
+    type: "string"
+    required: false
+    description: "Required when command=diff (old project root)."
+  - name: "new_project_root"
+    type: "string"
+    required: false
+    description: "Required when command=diff (new project root)."
+  - name: "module_key"
+    type: "string"
+    required: false
+    description: "Optional module key for profile/diff hints."
+  - name: "keywords"
+    type: "string"
+    required: false
+    description: "Optional keywords for module disambiguation."
+  - name: "permit_token"
+    type: "string"
+    required: false
+    description: "Permit token to bypass allow/deny policy when authorized."
+  - name: "workspace_root"
+    type: "string"
+    required: false
+    description: "Override workspace cache root (must not be under target repo_root)."
+  - name: "global_state_root"
+    type: "string"
+    required: false
+    description: "Override global state root for capability index/latest pointer."
+
+mode: "governance"
+boundary_policy:
+  allowed_module_root: "prompt-dsl-system"
+  forbidden_paths:
+    - "/"
+  max_change_scope: "none"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+prompt_template: |
+  Run hongzhi_ai_kit with governance preflight and produce machine-readable capability outputs.
+  Always preserve read-only contract for target repos and stop on governance block.
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  nav_index: "list"
+  governance: "object"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      repo_root: "/workspace/demo-repo"
+      command: "status"
+    output:
+      summary: "status completed"
+      artifacts: []
+      nav_index: []
+      governance:
+        enabled: true
+      risks: []
+      next_actions: []
+  - input:
+      repo_root: "/workspace/demo-repo"
+      command: "discover"
+      keywords: "notice"
+    output:
+      summary: "discover completed with HONGZHI_CAPS output"
+      artifacts: ["/tmp/hongzhi-ai-kit/<fp>/<run_id>/capabilities.json"]
+      nav_index: ["discover/auto_discover.yaml", "discover/<module>.structure.yaml"]
+      governance:
+        enabled: true
+      risks: []
+      next_actions: ["Review capabilities.nav_index and prepare migration plan"]
+
+implementation:
+  type: "function_call"
+  tool_name: "run_command"
+  template: |
+    1) Governance preflight:
+       hongzhi-ai-kit status --repo-root "{{repo_root}}" {{#permit_token}}--permit-token "{{permit_token}}"{{/permit_token}}
+
+    2) Execute command only when governance allows:
+       - discover/profile/migrate:
+         HONGZHI_PLUGIN_ENABLE=1 hongzhi-ai-kit {{command}} --repo-root "{{repo_root}}" {{#module_key}}--module-key "{{module_key}}"{{/module_key}} {{#keywords}}--keywords "{{keywords}}"{{/keywords}} {{#workspace_root}}--workspace-root "{{workspace_root}}"{{/workspace_root}} {{#global_state_root}}--global-state-root "{{global_state_root}}"{{/global_state_root}} {{#permit_token}}--permit-token "{{permit_token}}"{{/permit_token}}
+       - diff:
+         HONGZHI_PLUGIN_ENABLE=1 hongzhi-ai-kit diff --old-project-root "{{old_project_root}}" --new-project-root "{{new_project_root}}" {{#module_key}}--module-key "{{module_key}}"{{/module_key}} {{#keywords}}--keywords "{{keywords}}"{{/keywords}} {{#workspace_root}}--workspace-root "{{workspace_root}}"{{/workspace_root}} {{#global_state_root}}--global-state-root "{{global_state_root}}"{{/global_state_root}} {{#permit_token}}--permit-token "{{permit_token}}"{{/permit_token}}
+
+    3) Parse stdout lines:
+       - governance block line: HONGZHI_GOV_BLOCK ...
+       - capability pointer line: HONGZHI_CAPS <abs_capabilities_json>
+       Then read capabilities.json and output NavIndex from artifacts/roots.
+
+outputs:
+  - name: "capabilities_path"
+    description: "Absolute path emitted by HONGZHI_CAPS line when command succeeds."
+  - name: "nav_index"
+    description: "Extracted discover/profile/diff artifacts for downstream planning."

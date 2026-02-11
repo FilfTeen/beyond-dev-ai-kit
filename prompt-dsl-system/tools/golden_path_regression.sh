@@ -721,6 +721,97 @@ else
   check "Phase22:governance_no_state_write" "FAIL"
 fi
 
+# ─── Phase 23: packaging_and_contract_v4_smoke ───
+echo "[phase 23] packaging_and_contract_v4_smoke"
+if [ -f "$REPO_ROOT/pyproject.toml" ] && [ -f "$PLUGIN" ] && [ -d "$CASE1" ]; then
+  P23_VENV="$REGRESSION_TMP/phase23_venv"
+  P23_PROJ="$REGRESSION_TMP/phase23_proj"
+  P23_WS="$REGRESSION_TMP/phase23_ws"
+  P23_STATE="$REGRESSION_TMP/phase23_state"
+  rm -rf "$P23_VENV" "$P23_PROJ" "$P23_WS" "$P23_STATE"
+  mkdir -p "$P23_PROJ" "$P23_WS" "$P23_STATE"
+
+  set +e
+  "$PYTHON_BIN" -m venv "$P23_VENV" > /dev/null 2>&1
+  P23_VENV_RC=$?
+  if [ "$P23_VENV_RC" -eq 0 ]; then
+    "$P23_VENV/bin/python3" -m pip install --upgrade pip setuptools wheel > /dev/null 2>&1
+    P23_BOOTSTRAP_RC=$?
+  else
+    P23_BOOTSTRAP_RC=1
+  fi
+  if [ "$P23_VENV_RC" -eq 0 ] && [ "$P23_BOOTSTRAP_RC" -eq 0 ]; then
+    "$P23_VENV/bin/python3" -m pip install -e "$REPO_ROOT" > /dev/null 2>&1
+    P23_PIP_RC=$?
+  else
+    P23_PIP_RC=1
+  fi
+  set -e
+
+  if [ "$P23_VENV_RC" -ne 0 ] || [ "$P23_BOOTSTRAP_RC" -ne 0 ] || [ "$P23_PIP_RC" -ne 0 ]; then
+    check "Phase23:package_import_smoke" "FAIL"
+    check "Phase23:console_entry_smoke" "FAIL"
+    check "Phase23:governance_disabled_no_outputs" "FAIL"
+    check "Phase23:capabilities_stdout_contract" "FAIL"
+  else
+    set +e
+    HONGZHI_PLUGIN_ENABLE=1 "$P23_VENV/bin/python3" -m hongzhi_ai_kit status --repo-root "$P23_PROJ" > /dev/null 2>&1
+    P23_MOD_RC=$?
+    set -e
+    if [ "$P23_MOD_RC" -eq 0 ]; then
+      check "Phase23:package_import_smoke" "PASS"
+    else
+      check "Phase23:package_import_smoke" "FAIL"
+    fi
+
+    set +e
+    HONGZHI_PLUGIN_ENABLE=1 "$P23_VENV/bin/hongzhi-ai-kit" status --repo-root "$P23_PROJ" > /dev/null 2>&1
+    P23_CON_RC=$?
+    set -e
+    if [ "$P23_CON_RC" -eq 0 ]; then
+      check "Phase23:console_entry_smoke" "PASS"
+    else
+      check "Phase23:console_entry_smoke" "FAIL"
+    fi
+
+    rm -rf "$P23_WS" "$P23_STATE"
+    mkdir -p "$P23_WS" "$P23_STATE"
+    set +e
+    unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+    "$P23_VENV/bin/python3" -m hongzhi_ai_kit discover \
+      --repo-root "$CASE1" --workspace-root "$P23_WS" --global-state-root "$P23_STATE" > /dev/null 2>&1
+    P23_BLOCK_RC=$?
+    set -e
+    P23_BLOCK_FILES=$(find "$P23_WS" "$P23_STATE" -type f \
+      \( -name "capabilities.json" -o -name "capabilities.jsonl" -o -name "capability_index.json" -o -name "latest.json" -o -name "run_meta.json" \) | wc -l | tr -d ' ')
+    if [ "$P23_BLOCK_RC" -eq 10 ] && [ "$P23_BLOCK_FILES" = "0" ]; then
+      check "Phase23:governance_disabled_no_outputs" "PASS"
+    else
+      check "Phase23:governance_disabled_no_outputs" "FAIL"
+    fi
+
+    rm -rf "$P23_WS" "$P23_STATE"
+    mkdir -p "$P23_WS" "$P23_STATE"
+    set +e
+    P23_OUT=$(HONGZHI_PLUGIN_ENABLE=1 "$P23_VENV/bin/python3" -m hongzhi_ai_kit discover \
+      --repo-root "$CASE1" --workspace-root "$P23_WS" --global-state-root "$P23_STATE" 2>/dev/null)
+    P23_DISC_RC=$?
+    set -e
+    P23_CAP_LINE=$(printf '%s\n' "$P23_OUT" | grep '^HONGZHI_CAPS ' || true)
+    P23_CAP_PATH=$(printf '%s\n' "$P23_CAP_LINE" | awk '{print $2}')
+    if [ "$P23_DISC_RC" -eq 0 ] && [ -n "$P23_CAP_PATH" ] && [ -f "$P23_CAP_PATH" ]; then
+      check "Phase23:capabilities_stdout_contract" "PASS"
+    else
+      check "Phase23:capabilities_stdout_contract" "FAIL"
+    fi
+  fi
+else
+  check "Phase23:package_import_smoke" "FAIL"
+  check "Phase23:console_entry_smoke" "FAIL"
+  check "Phase23:governance_disabled_no_outputs" "FAIL"
+  check "Phase23:capabilities_stdout_contract" "FAIL"
+fi
+
 
 # ─── Phase 8: guard strict consistency (no-VCS strict should FAIL) ───
 echo "[phase 8] guard strict consistency"

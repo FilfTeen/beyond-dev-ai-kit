@@ -1,6 +1,6 @@
 # Golden Path Regression Report
 
-Generated: 2026-02-11T04:39:12Z
+Generated: 2026-02-11T06:01:14Z
 Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit
 
 ## Results
@@ -44,10 +44,14 @@ Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-
 | 34 | Phase21:smart_reused_summary | PASS |
 | 35 | Phase21:smart_reuse_effective | PASS |
 | 36 | Phase22:governance_no_state_write | PASS |
-| 37 | Phase8:guard_strict_no_vcs_fails | PASS |
+| 37 | Phase23:package_import_smoke | PASS |
+| 38 | Phase23:console_entry_smoke | PASS |
+| 39 | Phase23:governance_disabled_no_outputs | PASS |
+| 40 | Phase23:capabilities_stdout_contract | PASS |
+| 41 | Phase8:guard_strict_no_vcs_fails | PASS |
 
 ## Summary
 
-**37 / 37** checks passed.
+**41 / 41** checks passed.
 
 **OVERALL: PASS**

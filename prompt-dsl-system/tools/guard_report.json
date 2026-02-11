@@ -1,41 +1,65 @@
 {
-  "timestamp": "2026-02-11T02:00:18+00:00",
+  "timestamp": "2026-02-11T06:00:58+00:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
-  "mode": "run",
+  "mode": "validate",
   "advisory": false,
   "vcs": "git",
   "unsupported_vcs": false,
-  "module_path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system",
-  "module_path_normalized": "prompt-dsl-system",
-  "module_path_source": "cli",
+  "module_path": null,
+  "module_path_normalized": null,
+  "module_path_source": "none",
   "effective_allowlist_prefixes": [
     "prompt-dsl-system/"
   ],
   "changed_files": [
-    "_regression_tmp/",
     "prompt-dsl-system/00_conventions/COMPLIANCE_MATRIX.md",
     "prompt-dsl-system/00_conventions/FACT_BASELINE.md",
-    "prompt-dsl-system/00_conventions/MODULE_PROFILE_SPEC.md",
     "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_module_migration.md",
-    "prompt-dsl-system/module_profiles/template/module_profile.yaml",
-    "prompt-dsl-system/module_profiles/xywygl/notice.discovered.yaml",
-    "prompt-dsl-system/module_profiles/xywygl/notice.yaml",
-    "prompt-dsl-system/module_profiles/xywygl/ownercommittee.yaml",
+    "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_plugin_discover.md",
+    "prompt-dsl-system/05_skill_registry/skills.json",
+    "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_plugin_runner.yaml",
+    "prompt-dsl-system/tools/PLUGIN_RUNNER.md",
+    "prompt-dsl-system/tools/__pycache__/hongzhi_plugin.cpython-314.pyc",
+    "prompt-dsl-system/tools/artifacts/A1_R17_impact_tree.md",
+    "prompt-dsl-system/tools/artifacts/A2_R17_change_ledger.md",
+    "prompt-dsl-system/tools/artifacts/A3_R17_rollback_plan.md",
+    "prompt-dsl-system/tools/artifacts/R17_install_notes.md",
     "prompt-dsl-system/tools/golden_path_regression.sh",
     "prompt-dsl-system/tools/guard_report.json",
+    "prompt-dsl-system/tools/guardrails.yaml",
     "prompt-dsl-system/tools/health_report.json",
     "prompt-dsl-system/tools/health_report.md",
     "prompt-dsl-system/tools/health_runbook.json",
     "prompt-dsl-system/tools/health_runbook.md",
-    "prompt-dsl-system/tools/module_profile_scanner.py",
-    "prompt-dsl-system/tools/module_roots_discover.py",
-    "prompt-dsl-system/tools/pipeline_contract_lint.py",
-    "prompt-dsl-system/tools/validate_report.json"
+    "prompt-dsl-system/tools/hongzhi_ai_kit.egg-info/",
+    "prompt-dsl-system/tools/hongzhi_ai_kit/__init__.py",
+    "prompt-dsl-system/tools/hongzhi_ai_kit/__pycache__/__init__.cpython-314.pyc",
+    "prompt-dsl-system/tools/hongzhi_ai_kit/__pycache__/cli.cpython-314.pyc",
+    "prompt-dsl-system/tools/hongzhi_ai_kit/cli.py",
+    "prompt-dsl-system/tools/hongzhi_plugin.py",
+    "prompt-dsl-system/tools/path_diff_guard.py",
+    "prompt-dsl-system/tools/validate_report.json",
+    "pyproject.toml",
+    "setup.py"
   ],
-  "ignored_files": [],
+  "ignored_files": [
+    "_regression_tmp/no_vcs_root/prompt-dsl-system/tools/guard_report.json",
+    "_regression_tmp/phase1_audit.log",
+    "_regression_tmp/phase1_lint.log",
+    "_regression_tmp/phase23_state/",
+    "_regression_tmp/phase23_venv/",
+    "_regression_tmp/phase23_ws/",
+    "_regression_tmp/phase3_audit.log",
+    "_regression_tmp/phase3_lint.log",
+    "_regression_tmp/phase5_audit.log",
+    "_regression_tmp/phase6_lint.log",
+    "_regression_tmp/regression_report.md",
+    "_regression_tmp/skills.json.bak"
+  ],
   "ignore_patterns": [
     "**/target/**",
     "**/node_modules/**",
+    "**/_regression_tmp/**",
     "**/.DS_Store",
     "**/*.log"
   ],
@@ -54,19 +78,11 @@
   },
   "warnings": [],
   "errors": [],
-  "violations": [
-    {
-      "file": "_regression_tmp/",
-      "rule": "out_of_allowed_scope",
-      "type": "outside_module",
-      "reason": "changed file is outside module_path/** and prompt-dsl-system/**",
-      "suggestion": "Move change under module_path/** or revert out-of-scope edits."
-    }
-  ],
-  "decision": "fail",
-  "decision_reason": "violation: out_of_allowed_scope (_regression_tmp/)",
+  "violations": [],
+  "decision": "pass",
+  "decision_reason": "all changed files are within allowed scope",
   "suggestions": [
-    "回退越界文件或将改动迁回 module_path/**"
+    "建议传入 -m/--module-path 以启用更精确边界检查"
   ],
-  "exit_code": 2
+  "exit_code": 0
 }

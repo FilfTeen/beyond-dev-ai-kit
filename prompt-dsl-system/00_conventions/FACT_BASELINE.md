@@ -6,11 +6,14 @@ Scope: `prompt-dsl-system/**`
 ## 1) Current Skills Baseline
 
 - Active registry file: `prompt-dsl-system/05_skill_registry/skills.json`
-- Active skills count: `1`
-- Domain distribution: `universal=1`
+- Active skills count: `3`
+- Domain distribution: `universal=1, governance=2`
 - Universal/super skill status: `present`
   - `skill_hongzhi_universal_ops` (modes: sql/code/process/frontend/release/governance/docs/meta)
   - meta mode: supports template-based skill creation + progressive disclosure
+- Governance plugin skills:
+  - `skill_governance_plugin_discover` (staging)
+  - `skill_governance_plugin_runner` (staging, contract v4-aware)
 - Skill templates: `prompt-dsl-system/05_skill_registry/templates/skill_template/`
   - Files: `skill.yaml.template`, `references/README.template`, `scripts/README.template`, `assets/README.template`
 - Deprecated skills status:
@@ -19,7 +22,7 @@ Scope: `prompt-dsl-system/**`
 
 ## 2) Current Pipelines Baseline
 
-- Pipeline files (`pipeline_*.md`) count: `9`
+- Pipeline files (`pipeline_*.md`) count: `10`
 - `pipeline_sql_oracle_to_dm8.md`: `4` steps, all reference `skill_hongzhi_universal_ops`
 - `pipeline_ownercommittee_audit_fix.md`: `5` steps, all reference `skill_hongzhi_universal_ops`
 - `pipeline_bpmn_state_audit_testgen.md`: `5` steps, all reference `skill_hongzhi_universal_ops`
@@ -29,6 +32,7 @@ Scope: `prompt-dsl-system/**`
 - `pipeline_project_bootstrap.md`: `5` steps, all reference `skill_hongzhi_universal_ops` — batch skill generation + profile input
 - `pipeline_skill_promote.md`: `3` steps, all reference `skill_hongzhi_universal_ops` — staging→deployed promotion + mandatory ledger
 - `pipeline_module_migration.md`: `7` steps (Step0–Step5 + acceptance), all reference `skill_hongzhi_universal_ops` — single-module migration assembly line + materialize_skills switch + Step0 auto-discovery
+- `pipeline_plugin_discover.md`: `3` steps (status preflight → discover → capabilities read/suggestion), references `skill_governance_plugin_runner`
 
 ## 3) Current Tools Boundary
 
@@ -44,15 +48,16 @@ Scope: `prompt-dsl-system/**`
 - `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS) + multi-path + ignore patterns
 - `skill_template_audit.py`: post-validate audit (placeholder + schema + registry↔fs consistency + --scope + --fail-on-empty)
 - `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject + identity hints)
-- `golden_path_regression.sh`: end-to-end regression (37 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write)
+- `golden_path_regression.sh`: end-to-end regression (41 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4)
 - `module_profile_scanner.py`: generates discovered profile (Layer2) — scanning + grep + fingerprint + multi-root + concurrent + incremental + `--out-root`/`--read-only`/`--workspace-root`
 - `module_roots_discover.py`: auto-discovers module roots from identity hints + structure fallback + optional `--module-key` (auto-discover) + `--out-root`/`--read-only` (Layer2R)
 - `structure_discover.py` v2: auto-identifies module structure — endpoint v2, per-file incremental cache, `--out-root`/`--read-only`/`--workspace-root` (Layer2S)
 - `cross_project_structure_diff.py` v2: compares endpoint signatures, reports added/removed/changed, `--read-only`
 - `auto_module_discover.py`: discovers module candidates without `--module-key` — package prefix clustering, scoring, top-k, `--read-only`
-- `hongzhi_plugin.py`: v3.0.0 plugin runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental flags, capability registry, capabilities contract v3
-- `hongzhi_ai_kit`: Installable python package wrapper for `hongzhi_plugin.py`
-- `PLUGIN_RUNNER.md`: plugin runner documentation (usage, governance, status command, workspace layout, exit codes)
+- `hongzhi_plugin.py`: v4 contract-capable runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental, capability registry, `HONGZHI_CAPS` line, capabilities.jsonl journal
+- `hongzhi_ai_kit`: installable python package wrapper with module/console entry support
+- `pyproject.toml` (repo root): packaging metadata + console_scripts (`hongzhi-ai-kit`, `hzkit`, `hz`)
+- `PLUGIN_RUNNER.md`: plugin runner documentation (install, governance, v3/v4 contract, workspace/global state)
 
 ## 4) Conventions Documents
 
@@ -119,3 +124,13 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Command: `./prompt-dsl-system/tools/run.sh validate --repo-root .`
 - Result: `Errors=0`, `Warnings=0`
 - Baseline gate status: `PASS`
+
+## 9) Packaging & Contract v4 (R17)
+
+- Packaging:
+  - `pip install -e .` installs `hongzhi_ai_kit` module and `hongzhi-ai-kit` console entry.
+  - Root execution no longer requires manual `PYTHONPATH` editing after install.
+- Agent contract v4 additions:
+  - stdout `HONGZHI_CAPS <abs_path_to_capabilities.json>`
+  - workspace append-only `capabilities.jsonl` run summary journal
+  - blocked governance runs emit machine-readable `HONGZHI_GOV_BLOCK ...` and write no capabilities/state artifacts

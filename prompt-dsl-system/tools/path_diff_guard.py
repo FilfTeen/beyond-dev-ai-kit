@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple
 DEFAULT_IGNORE_PATTERNS = [
     "**/target/**",
     "**/node_modules/**",
+    "**/_regression_tmp/**",
     "**/.DS_Store",
     "**/*.log",
 ]
@@ -43,6 +44,15 @@ DEFAULT_GUARDRAILS = {
         "exit_code": 2,
         "report_path": "prompt-dsl-system/tools/guard_report.json",
     },
+}
+
+# Top-level packaging/docs files that are allowed for toolchain installation work
+# without forcing a business module boundary.
+ALLOWED_TOP_LEVEL_PACKAGING_FILES = {
+    "pyproject.toml",
+    "setup.py",
+    "setup.cfg",
+    "README.md",
 }
 
 
@@ -413,6 +423,8 @@ def evaluate_changes(
         if module_rel is not None:
             if is_allowed_by_module(rel_norm, module_rel):
                 allowed = True
+        elif rel_norm in ALLOWED_TOP_LEVEL_PACKAGING_FILES:
+            allowed = True
         elif require_module and not rel_norm.startswith("prompt-dsl-system/"):
             violations.append(
                 {

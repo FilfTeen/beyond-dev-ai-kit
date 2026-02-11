@@ -1,0 +1,80 @@
+{
+ "src/main/java/com/example/notice/repository/NoticeMapper.java": {
+  "mtime": 1770777447.8655252,
+  "size": 185,
+  "features": {
+   "rel_path": "src/main/java/com/example/notice/repository/NoticeMapper.java",
+   "package": "com.example.notice.repository",
+   "is_controller": false,
+   "is_service": false,
+   "is_repository": true,
+   "is_entity": false,
+   "is_dto": false,
+   "endpoints": [],
+   "endpoint_signatures": [],
+   "class_name": "NoticeMapper"
+  }
+ },
+ "src/main/java/com/example/notice/controller/NoticeController.java": {
+  "mtime": 1770777439.2517397,
+  "size": 401,
+  "features": {
+   "rel_path": "src/main/java/com/example/notice/controller/NoticeController.java",
+   "package": "com.example.notice.controller",
+   "is_controller": true,
+   "is_service": false,
+   "is_repository": false,
+   "is_entity": false,
+   "is_dto": false,
+   "endpoints": [
+    "/notice/notice",
+    "/notice/list",
+    "/notice/save",
+    "/notice/delete/{id}"
+   ],
+   "endpoint_signatures": [
+    {
+     "path": "/notice/notice",
+     "http_method": "ANY",
+     "class": "NoticeController",
+     "method": "NoticeController"
+    },
+    {
+     "path": "/notice/list",
+     "http_method": "GET",
+     "class": "NoticeController",
+     "method": "list"
+    },
+    {
+     "path": "/notice/save",
+     "http_method": "POST",
+     "class": "NoticeController",
+     "method": "save"
+    },
+    {
+     "path": "/notice/delete/{id}",
+     "http_method": "DELETE",
+     "class": "NoticeController",
+     "method": "delete"
+    }
+   ],
+   "class_name": "NoticeController"
+  }
+ },
+ "src/main/java/com/example/notice/service/NoticeService.java": {
+  "mtime": 1770777441.0276802,
+  "size": 220,
+  "features": {
+   "rel_path": "src/main/java/com/example/notice/service/NoticeService.java",
+   "package": "com.example.notice.service",
+   "is_controller": false,
+   "is_service": true,
+   "is_repository": false,
+   "is_entity": false,
+   "is_dto": false,
+   "endpoints": [],
+   "endpoint_signatures": [],
+   "class_name": "NoticeService"
+  }
+ }
+}

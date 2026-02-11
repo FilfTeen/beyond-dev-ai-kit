@@ -1,0 +1,6 @@
+#!/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_venv/bin/python3
+import sys
+from hongzhi_ai_kit.cli import main
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(main())

@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-02-11T01:50:21+00:00",
+  "generated_at": "2026-02-11T06:00:58+00:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
   "scope": {
     "effective_module_path": null,
     "module_path_source": "none",
     "guard_report_path": "prompt-dsl-system/tools/guard_report.json",
     "guard_messages": [],
-    "guard_decision_reason": "no changed files after filtering"
+    "guard_decision_reason": "all changed files are within allowed scope"
   },
   "profile": {
     "path": "prompt-dsl-system/company_profile.yaml",
@@ -27,7 +27,7 @@
     "path": "prompt-dsl-system/05_skill_registry/skills.json",
     "exists": true,
     "errors": [],
-    "entry_count": 1,
+    "entry_count": 3,
     "missing_skill_files": []
   },
   "pipelines": [
@@ -363,8 +363,8 @@
     {
       "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_module_migration.md",
       "exists": true,
-      "yaml_block_count": 6,
-      "step_count": 6,
+      "yaml_block_count": 7,
+      "step_count": 7,
       "errors": [],
       "warnings": [],
       "steps": [
@@ -377,15 +377,11 @@
             "boundary_policy",
             "constraints",
             "context_id",
-            "decision_policy",
-            "fact_policy",
             "forbidden",
             "input_artifact_refs",
             "mode",
             "module_path",
             "objective",
-            "self_monitor_policy",
-            "sql_policy",
             "trace_id"
           ],
           "required_fields_present": {
@@ -510,6 +506,34 @@
         },
         {
           "step": 6,
+          "skill": "skill_hongzhi_universal_ops",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "constraints",
+            "context_id",
+            "decision_policy",
+            "fact_policy",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "self_monitor_policy",
+            "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 7,
           "skill": "skill_hongzhi_universal_ops",
           "parameter_keys": [
             "acceptance",
@@ -671,6 +695,94 @@
             "objective",
             "self_monitor_policy",
             "sql_policy",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        }
+      ]
+    },
+    {
+      "pipeline": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_plugin_discover.md",
+      "exists": true,
+      "yaml_block_count": 3,
+      "step_count": 3,
+      "errors": [],
+      "warnings": [],
+      "steps": [
+        {
+          "step": 1,
+          "skill": "skill_governance_plugin_runner",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "command",
+            "constraints",
+            "context_id",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "repo_root",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 2,
+          "skill": "skill_governance_plugin_runner",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "command",
+            "constraints",
+            "context_id",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "repo_root",
+            "trace_id"
+          ],
+          "required_fields_present": {
+            "context_id": true,
+            "trace_id": true,
+            "input_artifact_refs": true
+          },
+          "sensitive_fields_present": [],
+          "sensitive_values_masked": false
+        },
+        {
+          "step": 3,
+          "skill": "skill_governance_plugin_runner",
+          "parameter_keys": [
+            "acceptance",
+            "allowed_module_root",
+            "boundary_policy",
+            "command",
+            "constraints",
+            "context_id",
+            "forbidden",
+            "input_artifact_refs",
+            "mode",
+            "module_path",
+            "objective",
+            "repo_root",
             "trace_id"
           ],
           "required_fields_present": {
@@ -1200,7 +1312,7 @@
     }
   ],
   "summary": {
-    "pipelines_checked": 9,
+    "pipelines_checked": 10,
     "total_errors": 0,
     "total_warnings": 0,
     "ok": true

@@ -1,0 +1,43 @@
+{
+  "version": "1.0.0",
+  "updated_at": "2026-02-11T06:01:14Z",
+  "projects": {
+    "fe14de08caf3": {
+      "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools/_tmp_structure_cases/case1_standard",
+      "vcs": {
+        "kind": "none",
+        "head": "none"
+      },
+      "last_success": {
+        "run_id": "20260211_060114478550Z",
+        "timestamp": "2026-02-11T06:01:14Z",
+        "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_060114478550Z",
+        "command": "discover"
+      },
+      "metrics": {
+        "java_roots": 1,
+        "module_candidates": 1,
+        "total_packages": 3,
+        "cache_hit_files": 0,
+        "cache_miss_files": 3,
+        "total_scanned_files": 3,
+        "endpoints_notice": 4,
+        "endpoints_total": 4,
+        "scan_time_s": 0.01,
+        "layout": "single-module-java"
+      },
+      "modules": {
+        "notice": {
+          "package_prefix": "com.example.notice",
+          "confidence": 0.95,
+          "roots": [
+            "src/main/java/com/example/notice"
+          ],
+          "endpoints": 4
+        }
+      },
+      "warnings": [],
+      "suggestions": []
+    }
+  }
+}

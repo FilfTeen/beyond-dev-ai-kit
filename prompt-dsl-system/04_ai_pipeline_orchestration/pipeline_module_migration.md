@@ -59,7 +59,9 @@ parameters:
   boundary_policy:
     allowed_module_root: "{{allowed_module_root}}"
     forbidden_paths: ["/sys", "/error", "/util", "/vote"]
+  context_id: "{{context_id}}"
   trace_id: "{{trace_id}}"
+  input_artifact_refs: []
 ```
 
 ## Step 1 — 模块画像解析 + 迁移计划

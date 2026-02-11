@@ -14,6 +14,7 @@ forbidden_path_patterns:
 ignore_path_patterns:
   - "**/target/**"
   - "**/node_modules/**"
+  - "**/_regression_tmp/**"
   - "**/.DS_Store"
   - "**/*.log"
 

@@ -28,5 +28,20 @@
     ],
     "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_plugin_discover.yaml",
     "status": "staging"
+  },
+  {
+    "name": "skill_governance_plugin_runner",
+    "description": "Governed plugin runner wrapper for status/discover/diff/profile/migrate with machine-readable outputs.",
+    "version": "4.0.0",
+    "domain": "governance",
+    "tags": [
+      "plugin",
+      "runner",
+      "governance",
+      "meta",
+      "docs"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_plugin_runner.yaml",
+    "status": "staging"
   }
 ]
