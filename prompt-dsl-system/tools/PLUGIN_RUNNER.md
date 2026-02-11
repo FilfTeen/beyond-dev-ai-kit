@@ -38,6 +38,15 @@ hongzhi-ai-kit discover \
   --min-confidence 0.60 \
   --ambiguity-threshold 0.80 \
   --emit-hints
+
+# Hint loop: strict fails (21) -> apply hints rerun
+hongzhi-ai-kit discover --repo-root /path/to/project --strict
+# read HONGZHI_HINTS <abs_path> from stdout, then:
+hongzhi-ai-kit discover \
+  --repo-root /path/to/project \
+  --apply-hints /abs/workspace/.../discover/hints.json \
+  --hint-strategy aggressive \
+  --strict
 ```
 
 ## Governance & Security
@@ -153,6 +162,12 @@ hongzhi_ai_kit_summary version=3.0 command=discover fp=<...> run_id=<...> smart_
 HONGZHI_CAPS <abs_path_to_capabilities.json> package_version=<...> plugin_version=<...> contract_version=<...>
 ```
 
+1.1 stdout hint bundle pointer line (when emitted):
+
+```text
+HONGZHI_HINTS <abs_path_to_discover/hints.json> package_version=<...> plugin_version=<...> contract_version=<...>
+```
+
 2. status machine line:
 
 ```text
@@ -187,6 +202,8 @@ HONGZHI_STATUS package_version=<...> plugin_version=<...> contract_version=<...>
 - `limits_hit`
 - `limits` (`max_files`, `max_seconds`, reason fields)
 - `scan_stats` (`files_scanned`, cache counters, cache hit rate)
+- `layout_details` (`adapter_used`, roots detection details, fallback reason)
+- `hints` (`emitted`, `applied`, `bundle_path`, `source_path`, `strategy`)
 - `calibration`:
   - `needs_human_hint`
   - `confidence`
@@ -201,6 +218,8 @@ HONGZHI_STATUS package_version=<...> plugin_version=<...> contract_version=<...>
 - `ambiguity_ratio`
 - `exit_hint`
 - `limits_hit` and `limits_reason`
+- `reuse_validated`
+- `hint_applied` and `hint_bundle`
 
 ## Calibration Layer (R20)
 
@@ -215,6 +234,8 @@ New discover flags:
 - `--min-confidence <float>` (default `0.60`)
 - `--ambiguity-threshold <float>` (default `0.80`)
 - `--emit-hints` / `--no-emit-hints`
+- `--apply-hints <path>` (json/yaml hint bundle from workspace)
+- `--hint-strategy conservative|aggressive` (default `conservative`)
 
 Strict behavior:
 
@@ -226,6 +247,18 @@ Backfill flow:
 1. Read `calibration/hints_suggested.yaml`.
 2. Copy minimal values into declared profile identity hints (`backend_package_hint`, `web_path_hint`, `keywords`).
 3. Re-run `discover` with optional `--keywords` to reduce ambiguity.
+
+## Hint Loop + Layout Adapters (R21)
+
+- Strict discover with `needs_human_hint=1` emits:
+  - `HONGZHI_HINTS <abs_path>`
+  - workspace hint bundle: `<workspace>/<fp>/<run_id>/discover/hints.json`
+  - summary fields: `hint_bundle=...` and `hint_applied=0`
+- Rerun with `--apply-hints` will bias module ranking and root inference without writing target repo.
+- Layout adapters v1 extends root detection for:
+  - Maven multi-module (`<root>/<module>/src/main/java`)
+  - Non-standard Java roots (`java/`, `app/src/main/java`, `backend/src/main/java`)
+- Capabilities expose adapter evidence via `layout` + `layout_details`.
 
 ### Capability Index v1 (global state)
 

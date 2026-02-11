@@ -339,6 +339,8 @@ echo "[phase 13] endpoint signature v2 smoke"
 CASE2="$SCRIPT_DIR/_tmp_structure_cases/case2_classlevel"
 CASE4="$SCRIPT_DIR/_tmp_structure_cases/case4_endpoint_miss"
 CASE5="$SCRIPT_DIR/_tmp_structure_cases/case5_ambiguous_two_modules"
+CASE6="$SCRIPT_DIR/_tmp_structure_cases/case6_maven_multi_module"
+CASE7="$SCRIPT_DIR/_tmp_structure_cases/case7_nonstandard_java_root"
 if [ -d "$CASE2" ] && [ -f "$STRUCT_DISCOVER" ]; then
   set +e
   SD_OUT=$("$PYTHON_BIN" "$STRUCT_DISCOVER" --repo-root "$CASE2" --project-key test --module-key order --read-only 2>/dev/null)
@@ -1141,6 +1143,172 @@ else
   check "Phase26:calibration_non_strict_warn_exit0" "FAIL"
   check "Phase26:calibration_outputs_exist_in_workspace" "FAIL"
   check "Phase26:capabilities_contains_calibration_fields" "FAIL"
+fi
+
+# ─── Phase 27: hint_loop_layout_adapters_round21 ───
+echo "[phase 27] hint_loop_layout_adapters_round21"
+if [ -f "$PLUGIN" ] && [ -d "$CASE1" ] && [ -d "$CASE5" ] && [ -d "$CASE6" ] && [ -d "$CASE7" ]; then
+  P27_WS="$REGRESSION_TMP/phase27_ws"
+  P27_STATE="$REGRESSION_TMP/phase27_state"
+  rm -rf "$P27_WS" "$P27_STATE"
+  mkdir -p "$P27_WS" "$P27_STATE"
+
+  # hint_loop_strict_fail_then_apply_pass
+  set +e
+  P27_OUT_FAIL=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P27_WS" --global-state-root "$P27_STATE" \
+    --strict 2>/dev/null)
+  P27_RC_FAIL=$?
+  set -e
+  P27_HINT_LINE=$(printf '%s\n' "$P27_OUT_FAIL" | grep '^HONGZHI_HINTS ' || true)
+  P27_HINT_PATH=$(printf '%s\n' "$P27_HINT_LINE" | awk '{print $2}')
+  set +e
+  P27_OUT_APPLY=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P27_WS" --global-state-root "$P27_STATE" \
+    --strict --apply-hints "$P27_HINT_PATH" --hint-strategy aggressive 2>/dev/null)
+  P27_RC_APPLY=$?
+  set -e
+  if [ "$P27_RC_FAIL" -eq 21 ] && [ -n "$P27_HINT_PATH" ] && [ -f "$P27_HINT_PATH" ] && \
+     [ "$P27_RC_APPLY" -eq 0 ] && echo "$P27_OUT_APPLY" | grep -q "hint_applied=1"; then
+    check "Phase27:hint_loop_strict_fail_then_apply_pass" "PASS"
+  else
+    check "Phase27:hint_loop_strict_fail_then_apply_pass" "FAIL"
+  fi
+
+  # adapter_maven_multi_module_smoke
+  set +e
+  P27_OUT_MAVEN=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE6" --workspace-root "$P27_WS" --global-state-root "$P27_STATE" \
+    --keywords "notice,billing" 2>/dev/null)
+  P27_RC_MAVEN=$?
+  set -e
+  P27_MAVEN_CAP=$(printf '%s\n' "$P27_OUT_MAVEN" | awk '/^HONGZHI_CAPS /{print $2}')
+  P27_MAVEN_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P27_MAVEN_CAP")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    details = data.get("layout_details", {})
+    ok = (data.get("layout") == "multi-module-maven") and bool(details.get("adapter_used"))
+print("1" if ok else "0")
+PY
+)
+  if [ "$P27_RC_MAVEN" -eq 0 ] && [ "$P27_MAVEN_OK" = "1" ]; then
+    check "Phase27:adapter_maven_multi_module_smoke" "PASS"
+  else
+    check "Phase27:adapter_maven_multi_module_smoke" "FAIL"
+  fi
+
+  # adapter_nonstandard_java_root_smoke
+  set +e
+  P27_OUT_NONSTD=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE7" --workspace-root "$P27_WS" --global-state-root "$P27_STATE" \
+    --keywords "asset" 2>/dev/null)
+  P27_RC_NONSTD=$?
+  set -e
+  P27_NONSTD_CAP=$(printf '%s\n' "$P27_OUT_NONSTD" | awk '/^HONGZHI_CAPS /{print $2}')
+  P27_NONSTD_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P27_NONSTD_CAP")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    ok = (data.get("layout") == "nonstandard-java-root")
+print("1" if ok else "0")
+PY
+)
+  if [ "$P27_RC_NONSTD" -eq 0 ] && [ "$P27_NONSTD_OK" = "1" ]; then
+    check "Phase27:adapter_nonstandard_java_root_smoke" "PASS"
+  else
+    check "Phase27:adapter_nonstandard_java_root_smoke" "FAIL"
+  fi
+
+  # reuse_validated_smoke
+  set +e
+  HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P27_WS" --global-state-root "$P27_STATE" > /dev/null 2>&1
+  P27_OUT_REUSE=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P27_WS" --global-state-root "$P27_STATE" \
+    --smart --smart-max-age-seconds 9999 2>/dev/null)
+  P27_RC_REUSE=$?
+  set -e
+  P27_REUSE_CAP=$(printf '%s\n' "$P27_OUT_REUSE" | awk '/^HONGZHI_CAPS /{print $2}')
+  P27_REUSE_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P27_REUSE_CAP")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    smart = data.get("smart", {})
+    ok = bool(smart.get("reused")) and bool(smart.get("reuse_validated"))
+print("1" if ok else "0")
+PY
+)
+  if [ "$P27_RC_REUSE" -eq 0 ] && echo "$P27_OUT_REUSE" | grep -q "reuse_validated=1" && \
+     echo "$P27_OUT_REUSE" | grep -q "smart_reused=1" && [ "$P27_REUSE_OK" = "1" ]; then
+    check "Phase27:reuse_validated_smoke" "PASS"
+  else
+    check "Phase27:reuse_validated_smoke" "FAIL"
+  fi
+
+  # governance_disabled_zero_write
+  P27_WS_GOV="$REGRESSION_TMP/phase27_ws_gov"
+  P27_STATE_GOV="$REGRESSION_TMP/phase27_state_gov"
+  rm -rf "$P27_WS_GOV" "$P27_STATE_GOV"
+  mkdir -p "$P27_WS_GOV" "$P27_STATE_GOV"
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P27_WS_GOV" --global-state-root "$P27_STATE_GOV" > /dev/null 2>&1
+  P27_GOV_RC=$?
+  set -e
+  P27_GOV_FILES=$(find "$P27_WS_GOV" "$P27_STATE_GOV" -type f \
+    \( -name "capabilities.json" -o -name "capabilities.jsonl" -o -name "capability_index.json" -o -name "latest.json" -o -name "run_meta.json" -o -name "hints.json" \) | wc -l | tr -d ' ')
+  if [ "$P27_GOV_RC" -eq 10 ] && [ "$P27_GOV_FILES" = "0" ]; then
+    check "Phase27:governance_disabled_zero_write" "PASS"
+  else
+    check "Phase27:governance_disabled_zero_write" "FAIL"
+  fi
+
+  # capability_index_records_hint_runs
+  P27_HINT_RUNS_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib, sys
+state = pathlib.Path("$P27_STATE")
+plugin_path = pathlib.Path("$PLUGIN")
+repo = pathlib.Path("$CASE5").resolve()
+sys.path.insert(0, str(pathlib.Path("$REPO_ROOT/prompt-dsl-system/tools")))
+import importlib.util
+spec = importlib.util.spec_from_file_location("hongzhi_plugin", str(plugin_path))
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+fp = mod.compute_project_fingerprint(repo)
+idx = state / "capability_index.json"
+ok = False
+if idx.is_file():
+    data = json.loads(idx.read_text(encoding="utf-8"))
+    entry = data.get("projects", {}).get(fp, {})
+    if isinstance(entry, dict):
+        latest = entry.get("latest", {})
+        runs = entry.get("runs", [])
+        latest_hit = bool((latest.get("metrics") or {}).get("hint_applied", False))
+        run_hit = any(bool((r.get("metrics") or {}).get("hint_applied", False)) for r in runs if isinstance(r, dict))
+        ok = latest_hit or run_hit
+print("1" if ok else "0")
+PY
+)
+  if [ "$P27_HINT_RUNS_OK" = "1" ]; then
+    check "Phase27:capability_index_records_hint_runs" "PASS"
+  else
+    check "Phase27:capability_index_records_hint_runs" "FAIL"
+  fi
+else
+  check "Phase27:hint_loop_strict_fail_then_apply_pass" "FAIL"
+  check "Phase27:adapter_maven_multi_module_smoke" "FAIL"
+  check "Phase27:adapter_nonstandard_java_root_smoke" "FAIL"
+  check "Phase27:reuse_validated_smoke" "FAIL"
+  check "Phase27:governance_disabled_zero_write" "FAIL"
+  check "Phase27:capability_index_records_hint_runs" "FAIL"
 fi
 
 

@@ -52,6 +52,7 @@ GOVERNANCE_ALLOW_EXIT_CODE = 12
 LIMIT_EXIT_CODE = 20
 CALIBRATION_EXIT_CODE = 21
 GLOBAL_STATE_ENV = "HONGZHI_PLUGIN_GLOBAL_STATE_ROOT"
+HINT_BUNDLE_VERSION = "1.0.0"
 
 SNAPSHOT_EXCLUDES = {
     ".git", ".idea", ".DS_Store", "target", "build", "node_modules",
@@ -246,6 +247,278 @@ def evaluate_limits(args, metrics: dict, elapsed_s: float) -> Tuple[bool, List[s
     metrics["limits_reason"] = "; ".join(reason_texts) if reason_texts else ""
     metrics["limits_reason_code"] = ",".join(reason_codes) if reason_codes else "-"
     return limits_hit, reason_codes, reason_texts
+
+
+def build_limits_suggestion(reason_codes: List[str], command: str, keywords_used: List[str]) -> str:
+    if not reason_codes:
+        return ""
+    suggestions: List[str] = []
+    if "max_files" in reason_codes:
+        suggestions.append("increase --max-files")
+    if "max_seconds" in reason_codes:
+        suggestions.append("increase --max-seconds")
+    if command == "discover" and not keywords_used:
+        suggestions.append("provide --keywords to narrow scan scope")
+    if command == "discover":
+        suggestions.append("enable --smart for incremental reuse")
+    deduped = []
+    seen = set()
+    for item in suggestions:
+        if item in seen:
+            continue
+        seen.add(item)
+        deduped.append(item)
+    return "; ".join(deduped)
+
+
+def default_hint_state(apply_hints_path: str = "", strategy: str = "conservative") -> dict:
+    return {
+        "emitted": False,
+        "applied": False,
+        "bundle_path": "",
+        "source_path": str(apply_hints_path or ""),
+        "strategy": str(strategy or "conservative"),
+        "identity": {
+            "backend_package_hint": "",
+            "web_path_hint": "",
+            "keywords": [],
+        },
+    }
+
+
+def _parse_hint_yaml_like(path: Path) -> dict:
+    identity = {"backend_package_hint": "", "web_path_hint": "", "keywords": []}
+    in_keywords = False
+    for raw in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("backend_package_hint:"):
+            identity["backend_package_hint"] = line.split(":", 1)[1].strip().strip("\"'")
+            in_keywords = False
+            continue
+        if line.startswith("web_path_hint:"):
+            identity["web_path_hint"] = line.split(":", 1)[1].strip().strip("\"'")
+            in_keywords = False
+            continue
+        if line.startswith("keywords:"):
+            in_keywords = True
+            continue
+        if in_keywords and line.startswith("-"):
+            kw = line[1:].strip().strip("\"'")
+            if kw:
+                identity["keywords"].append(kw)
+            continue
+        in_keywords = False
+    return {"identity": identity}
+
+
+def load_hint_bundle(path_value: str) -> dict:
+    path_obj = Path(path_value).expanduser().resolve()
+    result = {
+        "ok": False,
+        "error": "",
+        "bundle_path": str(path_obj),
+        "identity": {"backend_package_hint": "", "web_path_hint": "", "keywords": []},
+    }
+    if not path_obj.is_file():
+        result["error"] = "hint_bundle_not_found"
+        return result
+
+    payload: dict = {}
+    try:
+        loaded = json.loads(path_obj.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict):
+            payload = loaded
+    except json.JSONDecodeError:
+        try:
+            payload = _parse_hint_yaml_like(path_obj)
+        except OSError:
+            payload = {}
+    except OSError:
+        payload = {}
+
+    identity = payload.get("identity")
+    if not isinstance(identity, dict):
+        identity = payload.get("suggested_hints", {}).get("identity", {}) if isinstance(payload.get("suggested_hints"), dict) else {}
+    if not isinstance(identity, dict):
+        identity = {}
+
+    keywords = identity.get("keywords", [])
+    if isinstance(keywords, str):
+        keywords = [x.strip() for x in keywords.split(",") if x.strip()]
+    if not isinstance(keywords, list):
+        keywords = []
+    keywords = [str(k).strip() for k in keywords if str(k).strip()]
+
+    result["identity"] = {
+        "backend_package_hint": str(identity.get("backend_package_hint", "") or "").strip(),
+        "web_path_hint": str(identity.get("web_path_hint", "") or "").strip(),
+        "keywords": keywords,
+    }
+    result["ok"] = True
+    return result
+
+
+def merge_keywords(base_keywords: List[str], hint_keywords: List[str], strategy: str) -> List[str]:
+    base = [str(k).strip() for k in (base_keywords or []) if str(k).strip()]
+    hinted = [str(k).strip() for k in (hint_keywords or []) if str(k).strip()]
+    if not hinted:
+        return base
+
+    merged: List[str] = []
+    if strategy == "aggressive":
+        ordered = hinted + base
+    else:
+        ordered = base + hinted
+    seen = set()
+    for kw in ordered:
+        low = kw.lower()
+        if low in seen:
+            continue
+        seen.add(low)
+        merged.append(kw)
+    return merged
+
+
+def apply_hint_boost_to_candidates(candidates: List[dict], hint_identity: dict, strategy: str) -> List[dict]:
+    if not candidates:
+        return []
+    backend_hint = str(hint_identity.get("backend_package_hint", "") or "").strip().lower()
+    hint_keywords = [str(x).strip().lower() for x in hint_identity.get("keywords", []) if str(x).strip()]
+    mode = "aggressive" if strategy == "aggressive" else "conservative"
+    boosted: List[dict] = []
+
+    for cand in candidates:
+        if not isinstance(cand, dict):
+            continue
+        c = dict(cand)
+        score = float(c.get("score", 0.0) or 0.0)
+        module_key = str(c.get("module_key", "") or "").strip().lower()
+        package_prefix = str(c.get("package_prefix", "") or "").strip().lower()
+        eff = score
+
+        if backend_hint:
+            if package_prefix == backend_hint or package_prefix.startswith(backend_hint + ".") or package_prefix.startswith(backend_hint):
+                eff *= 2.8 if mode == "aggressive" else 1.8
+            elif backend_hint.startswith(package_prefix + "."):
+                eff *= 1.3 if mode == "aggressive" else 1.15
+
+        for kw in hint_keywords:
+            if not kw:
+                continue
+            if module_key == kw:
+                eff *= 1.9 if mode == "aggressive" else 1.3
+            elif kw in module_key:
+                eff *= 1.4 if mode == "aggressive" else 1.15
+
+        c["_hint_effective_score"] = round(eff, 6)
+        c["score"] = round(eff, 2)
+        boosted.append(c)
+
+    boosted.sort(key=lambda item: float(item.get("_hint_effective_score", 0.0) or 0.0), reverse=True)
+    for item in boosted:
+        item.pop("_hint_effective_score", None)
+    return boosted
+
+
+def emit_hint_bundle(
+    workspace: Path,
+    command: str,
+    repo_fingerprint: str,
+    run_id: str,
+    calibration_report: dict,
+    hint_state: dict,
+    emit_hints: bool,
+    force_emit: bool = False,
+) -> str:
+    should_emit = bool(emit_hints or force_emit)
+    if not should_emit:
+        return ""
+    if command != "discover":
+        return ""
+    if not isinstance(calibration_report, dict):
+        return ""
+
+    discover_dir = workspace / "discover"
+    discover_dir.mkdir(parents=True, exist_ok=True)
+    bundle_path = discover_dir / "hints.json"
+    identity = calibration_report.get("suggested_hints", {}).get("identity", {})
+    if not isinstance(identity, dict):
+        identity = hint_state.get("identity", {}) if isinstance(hint_state.get("identity"), dict) else {}
+
+    payload = {
+        "version": HINT_BUNDLE_VERSION,
+        "timestamp": utc_now_iso(),
+        "repo_fingerprint": repo_fingerprint,
+        "run_id": run_id,
+        "source": {
+            "needs_human_hint": bool(calibration_report.get("needs_human_hint", False)),
+            "confidence": float(calibration_report.get("confidence", 0.0) or 0.0),
+            "confidence_tier": str(calibration_report.get("confidence_tier", "low")),
+            "reasons": calibration_report.get("reasons", []) if isinstance(calibration_report.get("reasons", []), list) else [],
+        },
+        "identity": {
+            "backend_package_hint": str(identity.get("backend_package_hint", "") or ""),
+            "web_path_hint": str(identity.get("web_path_hint", "") or ""),
+            "keywords": identity.get("keywords", []) if isinstance(identity.get("keywords", []), list) else [],
+        },
+        "rerun": {
+            "hint_strategy_default": str(hint_state.get("strategy", "conservative")),
+            "command_template": f"hongzhi-ai-kit discover --repo-root <repo_root> --apply-hints {bundle_path.resolve()}",
+        },
+    }
+    atomic_write_json(bundle_path, payload)
+    return str(bundle_path.resolve())
+
+
+def print_hints_pointer_line(hints_path: str) -> None:
+    versions = version_triplet()
+    print(
+        f"HONGZHI_HINTS {Path(hints_path).resolve()} "
+        f"package_version={versions['package_version']} "
+        f"plugin_version={versions['plugin_version']} "
+        f"contract_version={versions['contract_version']}"
+    )
+
+
+def run_layout_adapters(
+    repo_root: Path,
+    candidates: List[dict],
+    keywords: List[str],
+    hint_identity: dict,
+    fallback_layout: str,
+) -> dict:
+    try:
+        import layout_adapters as la  # local script in prompt-dsl-system/tools
+
+        result = la.analyze_layout(
+            repo_root=repo_root,
+            candidates=candidates,
+            keywords=keywords,
+            hint_identity=hint_identity,
+            fallback_layout=fallback_layout,
+        )
+        if isinstance(result, dict):
+            return result
+    except Exception as exc:
+        print(f"[plugin] WARN: layout_adapters failed: {exc}", file=sys.stderr)
+
+    return {
+        "layout": fallback_layout or "unknown",
+        "roots_entries": [],
+        "java_roots": [],
+        "template_roots": [],
+        "layout_details": {
+            "adapter_used": "layout_adapters_fallback",
+            "candidates_scanned": len(candidates or []),
+            "java_roots_detected": 0,
+            "template_roots_detected": 0,
+            "keywords_used": len(keywords or []),
+            "hint_identity_present": bool(hint_identity),
+            "fallback_reason": "adapter_import_or_runtime_failure",
+        },
+    }
 
 
 def parse_iso_ts(ts: str) -> datetime | None:
@@ -700,6 +973,8 @@ def write_capabilities(
     smart=None,
     capability_registry=None,
     calibration=None,
+    hints=None,
+    layout_details=None,
 ):
     """Write capabilities.json for agent-detectable output (contract v4, backward compatible)."""
     versions = version_triplet()
@@ -720,6 +995,15 @@ def write_capabilities(
         "action_suggestions": calibration_payload.get("action_suggestions", []) if isinstance(calibration_payload.get("action_suggestions", []), list) else [],
         "metrics_snapshot": calibration_payload.get("metrics_snapshot", {}) if isinstance(calibration_payload.get("metrics_snapshot", {}), dict) else {},
     }
+    hints_payload = hints if isinstance(hints, dict) else {}
+    hints_payload = {
+        "emitted": bool(hints_payload.get("emitted", False)),
+        "applied": bool(hints_payload.get("applied", False)),
+        "bundle_path": str(hints_payload.get("bundle_path", "")),
+        "source_path": str(hints_payload.get("source_path", "")),
+        "strategy": str(hints_payload.get("strategy", "conservative")),
+    }
+    layout_details_payload = layout_details if isinstance(layout_details, dict) else {}
     caps = {
         "version": PLUGIN_VERSION,
         "package_version": versions["package_version"],
@@ -734,6 +1018,7 @@ def write_capabilities(
         "module_candidates": as_int(metrics.get("module_candidates", len(roots)), len(roots)),
         "ambiguity_ratio": float(metrics.get("ambiguity_ratio", 0.0) or 0.0),
         "limits_hit": bool(metrics.get("limits_hit", False)),
+        "limits_suggestion": str(metrics.get("limits_suggestion", "")),
         "limits": {
             "max_files": limits.get("max_files"),
             "max_seconds": limits.get("max_seconds"),
@@ -741,6 +1026,8 @@ def write_capabilities(
             "reason_code": metrics.get("limits_reason_code", "-"),
         },
         "scan_stats": scan_stats,
+        "layout_details": layout_details_payload,
+        "hints": hints_payload,
         "calibration": calibration_payload,
         "roots": roots,
         "artifacts": artifacts,
@@ -752,6 +1039,7 @@ def write_capabilities(
             "enabled": False,
             "reused": False,
             "reused_from_run_id": None,
+            "reuse_validated": False,
         },
         "capability_registry": capability_registry or {},
         "stdout_contract": {
@@ -776,6 +1064,7 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
     endpoints = metrics.get("endpoints_total", 0)
     scan_time = metrics.get("scan_time_s", 0)
     reused = 1 if smart_info.get("reused") else 0
+    reuse_validated = 1 if smart_info.get("reuse_validated") else 0
     reused_from = smart_info.get("reused_from_run_id") or "-"
     gov_state = summarize_governance(governance)
     limits_hit = 1 if metrics.get("limits_hit") else 0
@@ -784,6 +1073,8 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
     confidence_tier = metrics.get("confidence_tier", "-")
     ambiguity_ratio = float(metrics.get("ambiguity_ratio", 0.0) or 0.0)
     exit_hint = str(metrics.get("exit_hint", "-") or "-")
+    hint_applied = 1 if metrics.get("hint_applied") else 0
+    hint_bundle = str(metrics.get("hint_bundle", "-") or "-")
     print(
         "hongzhi_ai_kit_summary "
         f"version={SUMMARY_VERSION} "
@@ -794,10 +1085,13 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
         f"fp={fp} "
         f"run_id={run_id} "
         f"smart_reused={reused} "
+        f"reuse_validated={reuse_validated} "
         f"reused_from={reused_from} "
         f"needs_human_hint={needs_human_hint} "
         f"confidence_tier={confidence_tier} "
         f"ambiguity_ratio={ambiguity_ratio:.4f} "
+        f"hint_applied={hint_applied} "
+        f"hint_bundle={hint_bundle} "
         f"exit_hint={exit_hint} "
         f"limits_hit={limits_hit} "
         f"limits_reason={limits_reason_code} "
@@ -831,6 +1125,8 @@ def append_capabilities_jsonl(
     layout: str,
     smart_info: dict,
     calibration: Optional[dict] = None,
+    hints: Optional[dict] = None,
+    layout_details: Optional[dict] = None,
 ) -> Path:
     """
     Append summary line to workspace-level capabilities.jsonl (append-only).
@@ -854,10 +1150,14 @@ def append_capabilities_jsonl(
         "module_candidates": as_int(metrics.get("module_candidates", 0), 0),
         "ambiguity_ratio": float(metrics.get("ambiguity_ratio", 0.0) or 0.0),
         "limits_hit": bool(metrics.get("limits_hit", False)),
+        "limits_suggestion": str(metrics.get("limits_suggestion", "")),
         "limits": metrics.get("limits", {"max_files": None, "max_seconds": None}),
         "scan_stats": build_scan_stats(metrics),
+        "layout_details": layout_details if isinstance(layout_details, dict) else {},
         "smart_reused": bool(smart_info.get("reused", False)),
+        "reuse_validated": bool(smart_info.get("reuse_validated", False)),
         "reused_from_run_id": smart_info.get("reused_from_run_id"),
+        "hints": hints if isinstance(hints, dict) else {},
         "calibration": calibration if isinstance(calibration, dict) else {},
         "needs_human_hint": bool((calibration or {}).get("needs_human_hint", False)),
         "confidence_tier": str((calibration or {}).get("confidence_tier", "-")),
@@ -881,6 +1181,8 @@ def emit_capability_contract_lines(
     warnings_count: int,
     layout: str,
     calibration: Optional[dict] = None,
+    hints: Optional[dict] = None,
+    layout_details: Optional[dict] = None,
 ) -> Path:
     """
     Emit stdout/stderr contract outputs and append capabilities.jsonl.
@@ -896,6 +1198,9 @@ def emit_capability_contract_lines(
             "ambiguity_ratio",
             float(calibration.get("metrics_snapshot", {}).get("ambiguity_ratio", metrics.get("ambiguity_ratio", 0.0)) or 0.0),
         )
+    if isinstance(hints, dict):
+        metrics.setdefault("hint_applied", bool(hints.get("applied", False)))
+        metrics.setdefault("hint_bundle", str(hints.get("bundle_path", "") or "-"))
     jsonl_path = append_capabilities_jsonl(
         workspace=workspace,
         command=command,
@@ -908,9 +1213,13 @@ def emit_capability_contract_lines(
         layout=layout,
         smart_info=smart_info,
         calibration=calibration,
+        hints=hints,
+        layout_details=layout_details,
     )
     print(f"[plugin] capabilities_jsonl: {jsonl_path}", file=sys.stderr)
     print_caps_pointer_line(cap_path)
+    if isinstance(hints, dict) and hints.get("emitted") and hints.get("bundle_path"):
+        print_hints_pointer_line(str(hints.get("bundle_path")))
     print_summary_line(command, fp, run_id, smart_info, metrics, governance)
     return jsonl_path
 
@@ -939,7 +1248,12 @@ def attempt_smart_reuse(command: str, args, repo_root: Path, fp: str, vcs: dict,
     Returns tuple:
       (smart_info, reused_payload, reasons)
     """
-    smart_info = {"enabled": bool(args.smart), "reused": False, "reused_from_run_id": None}
+    smart_info = {
+        "enabled": bool(args.smart),
+        "reused": False,
+        "reused_from_run_id": None,
+        "reuse_validated": False,
+    }
     reused_payload = {}
     reasons = []
     if not args.smart:
@@ -958,6 +1272,10 @@ def attempt_smart_reuse(command: str, args, repo_root: Path, fp: str, vcs: dict,
 
     if not isinstance(current_entry, dict):
         reasons.append("no prior successful run in capability index")
+        return smart_info, reused_payload, reasons
+
+    if source_fp != fp:
+        reasons.append("WARN: smart reuse skipped because source fingerprint mismatched current run")
         return smart_info, reused_payload, reasons
 
     last_success = current_entry.get("last_success", {})
@@ -1026,6 +1344,8 @@ def attempt_smart_reuse(command: str, args, repo_root: Path, fp: str, vcs: dict,
     reused_suggestions = old_caps.get("suggestions", []) if isinstance(old_caps.get("suggestions"), list) else []
     reused_layout = old_caps.get("layout", "unknown")
     reused_calibration = old_caps.get("calibration", {}) if isinstance(old_caps.get("calibration"), dict) else {}
+    reused_hints = old_caps.get("hints", {}) if isinstance(old_caps.get("hints"), dict) else {}
+    reused_layout_details = old_caps.get("layout_details", {}) if isinstance(old_caps.get("layout_details"), dict) else {}
 
     # Force fresh timing to reflect this run while preserving reused metrics.
     reused_metrics["scan_time_s"] = 0.0
@@ -1039,9 +1359,12 @@ def attempt_smart_reuse(command: str, args, repo_root: Path, fp: str, vcs: dict,
         "source_workspace": str(source_ws),
         "source_fp": source_fp,
         "calibration": reused_calibration,
+        "hints": reused_hints,
+        "layout_details": reused_layout_details,
     }
     smart_info["reused"] = True
     smart_info["reused_from_run_id"] = last_success.get("run_id")
+    smart_info["reuse_validated"] = True
     return smart_info, reused_payload, reasons
 
 
@@ -1093,6 +1416,9 @@ def update_capability_registry(
             "endpoints_total": as_int(metrics.get("endpoints_total", 0), 0),
             "scan_time_s": float(metrics.get("scan_time_s", 0.0) or 0.0),
             "limits_hit": bool(metrics.get("limits_hit", False)),
+            "hint_applied": bool(metrics.get("hint_applied", False)),
+            "hints_emitted": bool(metrics.get("hints_emitted", False)),
+            "reuse_validated": bool(smart_info.get("reuse_validated", False)),
         },
     }
     runs = entry_current.get("runs", [])
@@ -1140,6 +1466,11 @@ def update_capability_registry(
             "command": command,
             "vcs": {"kind": vcs.get("kind", "none"), "head": vcs.get("head", "none")},
             "smart": smart_info,
+            "hints": {
+                "applied": bool(metrics.get("hint_applied", False)),
+                "emitted": bool(metrics.get("hints_emitted", False)),
+                "bundle_path": str(metrics.get("hint_bundle", "") or ""),
+            },
             "governance": governance,
             "versions": versions,
             "metrics": metrics,
@@ -1307,6 +1638,34 @@ def cmd_discover(args):
     roots_info = []
     ambiguity_ratio = 0.0
     keywords = [k.strip() for k in args.keywords.split(",") if k.strip()] if args.keywords else []
+    hint_state = default_hint_state(getattr(args, "apply_hints", ""), getattr(args, "hint_strategy", "conservative"))
+    if args.apply_hints:
+        loaded_hints = load_hint_bundle(args.apply_hints)
+        if loaded_hints.get("ok"):
+            hint_state["applied"] = True
+            hint_state["source_path"] = loaded_hints.get("bundle_path", str(args.apply_hints))
+            hint_state["identity"] = loaded_hints.get("identity", hint_state["identity"])
+            keywords = merge_keywords(
+                keywords,
+                hint_state["identity"].get("keywords", []),
+                hint_state["strategy"],
+            )
+        else:
+            warnings_list.append(f"apply_hints_failed: {loaded_hints.get('error', 'unknown')}")
+            print(
+                f"[plugin] WARN: apply_hints failed for {args.apply_hints}: "
+                f"{loaded_hints.get('error', 'unknown')}",
+                file=sys.stderr,
+            )
+    layout_details = {
+        "adapter_used": "layout_adapters_v1",
+        "candidates_scanned": 0,
+        "java_roots_detected": 0,
+        "template_roots_detected": 0,
+        "keywords_used": len(keywords),
+        "hint_identity_present": bool(hint_state.get("identity")),
+        "fallback_reason": "",
+    }
     discover_candidates: List[dict] = []
     calibration_report: dict = {
         "needs_human_hint": False,
@@ -1330,7 +1689,12 @@ def cmd_discover(args):
         "templates": [],
         "modules": {},
     }
-    smart_info = {"enabled": bool(args.smart), "reused": False, "reused_from_run_id": None}
+    smart_info = {
+        "enabled": bool(args.smart),
+        "reused": False,
+        "reused_from_run_id": None,
+        "reuse_validated": False,
+    }
     capability_registry = {
         "global_state_root": str(global_state_root),
         "index_path": str(global_state_root / "capability_index.json"),
@@ -1380,6 +1744,12 @@ def cmd_discover(args):
         calibration_seed = reused_payload.get("calibration", {})
         if isinstance(calibration_seed, dict):
             calibration_report.update(calibration_seed)
+        hints_seed = reused_payload.get("hints", {})
+        if isinstance(hints_seed, dict):
+            hint_state.update(hints_seed)
+        layout_details_seed = reused_payload.get("layout_details", {})
+        if isinstance(layout_details_seed, dict):
+            layout_details.update(layout_details_seed)
         ensure_endpoints_total(metrics)
     else:
         module_endpoints = {}
@@ -1389,7 +1759,17 @@ def cmd_discover(args):
         try:
             import auto_module_discover as amd
 
-            java_roots = amd.find_java_roots(repo_root)
+            adapter_pre = run_layout_adapters(
+                repo_root=repo_root,
+                candidates=[],
+                keywords=keywords,
+                hint_identity=hint_state.get("identity", {}),
+                fallback_layout=layout,
+            )
+            pre_java_roots = [Path(p) for p in adapter_pre.get("java_roots", []) if Path(p).is_dir()]
+            if not pre_java_roots:
+                pre_java_roots = amd.find_java_roots(repo_root)
+            java_roots = pre_java_roots
             all_pkgs = {}
             for jr in java_roots:
                 for pkg, stats in amd.scan_packages(jr).items():
@@ -1397,7 +1777,13 @@ def cmd_discover(args):
                         all_pkgs[pkg] = {"files": 0, "controllers": 0, "services": 0, "repositories": 0}
                     for k in ("files", "controllers", "services", "repositories"):
                         all_pkgs[pkg][k] += stats[k]
-            candidates = amd.cluster_modules(all_pkgs, keywords)[:args.top_k]
+            candidates = amd.cluster_modules(all_pkgs, keywords)[: args.top_k]
+            if hint_state.get("applied"):
+                candidates = apply_hint_boost_to_candidates(
+                    candidates,
+                    hint_state.get("identity", {}),
+                    hint_state.get("strategy", "conservative"),
+                )
             discover_candidates = candidates
             for i, c in enumerate(candidates):
                 c["confidence"] = amd.compute_confidence(candidates, i) if candidates else 0
@@ -1411,6 +1797,21 @@ def cmd_discover(args):
         metrics["java_roots"] = len(java_roots)
         metrics["module_candidates"] = len(candidates)
         metrics["total_packages"] = len(all_pkgs)
+        adapter_final = run_layout_adapters(
+            repo_root=repo_root,
+            candidates=candidates[:5],
+            keywords=keywords,
+            hint_identity=hint_state.get("identity", {}),
+            fallback_layout=layout,
+        )
+        layout = adapter_final.get("layout", layout)
+        adapter_java_roots = [Path(p) for p in adapter_final.get("java_roots", []) if Path(p).is_dir()]
+        adapter_template_roots = [Path(p) for p in adapter_final.get("template_roots", []) if Path(p).is_dir()]
+        adapter_roots_entries = adapter_final.get("roots_entries", []) if isinstance(adapter_final.get("roots_entries"), list) else []
+        adapter_details = adapter_final.get("layout_details", {}) if isinstance(adapter_final.get("layout_details"), dict) else {}
+        if adapter_details:
+            layout_details.update(adapter_details)
+        layout_details["candidates_scanned"] = len(candidates)
 
         # ── Self-check: ambiguity metrics (warning-only; strict handled by calibration) ──
         if len(candidates) >= 2:
@@ -1463,7 +1864,10 @@ def cmd_discover(args):
 
         if sd and candidates:
             # Scan once, reuse across candidates
-            sd_java_roots, sd_template_roots = sd.find_scan_roots(repo_root)
+            if adapter_java_roots or adapter_template_roots:
+                sd_java_roots, sd_template_roots = adapter_java_roots, adapter_template_roots
+            else:
+                sd_java_roots, sd_template_roots = sd.find_scan_roots(repo_root)
             all_java_results = []
             total_ch = 0
             total_cm = 0
@@ -1554,15 +1958,34 @@ def cmd_discover(args):
             structure_signals["endpoint_count"] = int(metrics.get("endpoints_total", 0) or 0)
         structure_signals["endpoint_paths"] = list(dict.fromkeys(structure_signals["endpoint_paths"]))
         structure_signals["templates"] = list(dict.fromkeys(structure_signals["templates"]))
-        roots_info = [
-            {"module_key": c.get("module_key"), "package_prefix": c.get("package_prefix")}
-            for c in candidates[:5]
-        ]
+        if adapter_roots_entries:
+            roots_info = adapter_roots_entries[:5]
+        else:
+            roots_info = [
+                {"module_key": c.get("module_key"), "package_prefix": c.get("package_prefix")}
+                for c in candidates[:5]
+            ]
         modules_summary = extract_modules_summary(repo_root, candidates[:5], module_endpoints)
+        if roots_info:
+            for root_entry in roots_info:
+                if not isinstance(root_entry, dict):
+                    continue
+                mk = root_entry.get("module_key")
+                if mk in modules_summary and isinstance(modules_summary[mk], dict):
+                    roots_block = root_entry.get("roots", [])
+                    if isinstance(roots_block, list) and roots_block:
+                        modules_summary[mk]["roots"] = [
+                            str(item.get("path", "")) for item in roots_block
+                            if isinstance(item, dict) and item.get("path")
+                        ]
 
     scan_time = time.time() - t_start
     metrics["scan_time_s"] = round(scan_time, 3)
     metrics["layout"] = layout
+    metrics["layout_details"] = layout_details
+    metrics["hint_applied"] = bool(hint_state.get("applied", False))
+    metrics.setdefault("hint_bundle", "-")
+    metrics.setdefault("hints_emitted", False)
     metrics.setdefault("module_candidates", len(roots_info))
     metrics.setdefault("ambiguity_ratio", round(float(ambiguity_ratio), 4))
     ensure_endpoints_total(metrics)
@@ -1573,9 +1996,12 @@ def cmd_discover(args):
     enforce_read_only(delta, args.write_ok)
 
     limits_hit, limit_codes, limit_texts = evaluate_limits(args, metrics, scan_time)
+    metrics["limits_suggestion"] = build_limits_suggestion(limit_codes, "discover", keywords)
     for reason in limit_texts:
         warnings_list.append(f"limits_hit: {reason}")
         print(f"[plugin] WARN: limits_hit: {reason}", file=sys.stderr)
+    if metrics.get("limits_suggestion"):
+        print(f"[plugin] limits_suggestion: {metrics['limits_suggestion']}", file=sys.stderr)
     final_exit_code = 0
     if limits_hit and args.strict:
         final_exit_code = LIMIT_EXIT_CODE
@@ -1609,6 +2035,25 @@ def cmd_discover(args):
             metrics["exit_hint"] = "needs_human_hint"
             print("[plugin] STRICT: needs_human_hint detected, exiting with code 21", file=sys.stderr)
 
+    hint_bundle_path = emit_hint_bundle(
+        workspace=ws,
+        command="discover",
+        repo_fingerprint=fp,
+        run_id=run_id,
+        calibration_report=calibration_report,
+        hint_state=hint_state,
+        emit_hints=bool(args.emit_hints),
+        force_emit=bool(args.strict and metrics.get("needs_human_hint")),
+    )
+    if hint_bundle_path:
+        hint_state["emitted"] = True
+        hint_state["bundle_path"] = hint_bundle_path
+        metrics["hint_bundle"] = hint_bundle_path
+        metrics["hints_emitted"] = True
+    else:
+        metrics.setdefault("hint_bundle", "-")
+        metrics.setdefault("hints_emitted", False)
+
     gov_info = getattr(args, "_gov_info", {})
     if final_exit_code == 0:
         capability_registry = update_capability_registry(
@@ -1641,6 +2086,8 @@ def cmd_discover(args):
         smart_info,
         capability_registry,
         calibration_report,
+        hint_state,
+        layout_details,
     )
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
@@ -1658,6 +2105,8 @@ def cmd_discover(args):
         warnings_count=len(warnings_list),
         layout=layout,
         calibration=calibration_report,
+        hints=hint_state,
+        layout_details=layout_details,
     )
     return final_exit_code
 
@@ -1691,7 +2140,12 @@ def cmd_diff(args):
     artifacts_list = []
     roots_info = []
     modules_summary = {}
-    smart_info = {"enabled": bool(args.smart), "reused": False, "reused_from_run_id": None}
+    smart_info = {
+        "enabled": bool(args.smart),
+        "reused": False,
+        "reused_from_run_id": None,
+        "reuse_validated": False,
+    }
     capability_registry = {
         "global_state_root": str(global_state_root),
         "index_path": str(global_state_root / "capability_index.json"),
@@ -1804,9 +2258,12 @@ def cmd_diff(args):
     metrics.setdefault("ambiguity_ratio", 0.0)
     ensure_endpoints_total(metrics)
     limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
+    metrics["limits_suggestion"] = build_limits_suggestion(_limit_codes, "diff", [])
     for reason in limit_texts:
         warnings_list.append(f"limits_hit: {reason}")
         print(f"[plugin] WARN: limits_hit: {reason}", file=sys.stderr)
+    if metrics.get("limits_suggestion"):
+        print(f"[plugin] limits_suggestion: {metrics['limits_suggestion']}", file=sys.stderr)
     final_exit_code = 0
     if limits_hit and args.strict:
         final_exit_code = LIMIT_EXIT_CODE
@@ -1885,7 +2342,12 @@ def cmd_profile(args):
     metrics = {}
     modules_summary = {}
     roots_info = []
-    smart_info = {"enabled": bool(args.smart), "reused": False, "reused_from_run_id": None}
+    smart_info = {
+        "enabled": bool(args.smart),
+        "reused": False,
+        "reused_from_run_id": None,
+        "reuse_validated": False,
+    }
     capability_registry = {
         "global_state_root": str(global_state_root),
         "index_path": str(global_state_root / "capability_index.json"),
@@ -1969,10 +2431,14 @@ def cmd_profile(args):
     metrics.setdefault("module_candidates", 1 if metrics.get("module_key") and metrics.get("module_key") != "none" else 0)
     metrics.setdefault("ambiguity_ratio", 0.0)
     ensure_endpoints_total(metrics)
+    keywords_used = [k.strip() for k in args.keywords.split(",") if k.strip()] if args.keywords else []
     limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
+    metrics["limits_suggestion"] = build_limits_suggestion(_limit_codes, "profile", keywords_used)
     for reason in limit_texts:
         warnings_list.append(f"limits_hit: {reason}")
         print(f"[plugin] WARN: limits_hit: {reason}", file=sys.stderr)
+    if metrics.get("limits_suggestion"):
+        print(f"[plugin] limits_suggestion: {metrics['limits_suggestion']}", file=sys.stderr)
     final_exit_code = 0
     if limits_hit and args.strict:
         final_exit_code = LIMIT_EXIT_CODE
@@ -2053,7 +2519,12 @@ def cmd_migrate(args):
     metrics = {}
     modules_summary = {}
     roots_info = []
-    smart_info = {"enabled": bool(args.smart), "reused": False, "reused_from_run_id": None}
+    smart_info = {
+        "enabled": bool(args.smart),
+        "reused": False,
+        "reused_from_run_id": None,
+        "reuse_validated": False,
+    }
     capability_registry = {
         "global_state_root": str(global_state_root),
         "index_path": str(global_state_root / "capability_index.json"),
@@ -2113,9 +2584,12 @@ def cmd_migrate(args):
     metrics.setdefault("ambiguity_ratio", 0.0)
     ensure_endpoints_total(metrics)
     limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
+    metrics["limits_suggestion"] = build_limits_suggestion(_limit_codes, "migrate", [])
     for reason in limit_texts:
         warnings_list.append(f"limits_hit: {reason}")
         print(f"[plugin] WARN: limits_hit: {reason}", file=sys.stderr)
+    if metrics.get("limits_suggestion"):
+        print(f"[plugin] limits_suggestion: {metrics['limits_suggestion']}", file=sys.stderr)
     final_exit_code = 0
     if limits_hit and args.strict:
         final_exit_code = LIMIT_EXIT_CODE
@@ -2330,9 +2804,13 @@ def main():
     p_disc.add_argument("--ambiguity-threshold", type=float, default=0.80,
                         help="Calibration ambiguity threshold for top2 score ratio / ambiguity ratio checks")
     p_disc.add_argument("--emit-hints", dest="emit_hints", action="store_true", default=True,
-                        help="Emit workspace calibration/hints_suggested.yaml (default: true)")
+                        help="Emit workspace calibration/hints and discover hint bundle (default: true)")
     p_disc.add_argument("--no-emit-hints", dest="emit_hints", action="store_false",
-                        help="Disable emitting calibration hints_suggested.yaml (report files still emitted)")
+                        help="Disable optional hint emission (strict needs_human_hint still emits discover hint bundle)")
+    p_disc.add_argument("--apply-hints", default="",
+                        help="Apply workspace hint bundle (json/yaml) to bias module ranking and root inference")
+    p_disc.add_argument("--hint-strategy", default="conservative", choices=["conservative", "aggressive"],
+                        help="Hint application strategy when --apply-hints is provided")
 
     # ── diff ──
     p_diff = sub.add_parser("diff", parents=[common],

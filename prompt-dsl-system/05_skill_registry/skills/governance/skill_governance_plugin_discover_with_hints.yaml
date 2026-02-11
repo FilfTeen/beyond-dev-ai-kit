@@ -1,0 +1,104 @@
+name: "skill_governance_plugin_discover_with_hints"
+description: "Governed discover skill with hint-loop awareness. Runs read-only discover, parses HONGZHI_CAPS/HONGZHI_HINTS, and optionally performs apply-hints rerun when explicitly enabled."
+version: "1.0.0"
+domain: "governance"
+tags:
+  - "plugin"
+  - "discover"
+  - "hints"
+  - "governance"
+  - "read-only"
+parameters:
+  - name: "repo_root"
+    type: "string"
+    required: true
+    description: "Target project root path."
+  - name: "keywords"
+    type: "string"
+    required: false
+    description: "Comma-separated keywords to disambiguate module candidates."
+  - name: "workspace_root"
+    type: "string"
+    required: false
+    description: "Workspace root for plugin outputs."
+  - name: "global_state_root"
+    type: "string"
+    required: false
+    description: "Global state root for capability index/latest pointer."
+  - name: "strict"
+    type: "boolean"
+    required: false
+    default: false
+    description: "Whether to run discover in strict mode."
+  - name: "enable_hint_loop"
+    type: "boolean"
+    required: false
+    default: false
+    description: "If true and discover returns needs_human_hint, run one apply-hints rerun."
+  - name: "hint_strategy"
+    type: "string"
+    required: false
+    default: "conservative"
+    description: "Hint application strategy for apply-hints rerun (conservative|aggressive)."
+
+mode: "governance"
+boundary_policy:
+  allowed_module_root: "prompt-dsl-system"
+  forbidden_paths:
+    - "/"
+  max_change_scope: "none"
+
+fact_policy:
+  require_scan_before_change: false
+  unknown_requires_user: true
+
+prompt_template: |
+  Run governed discover and keep target repo read-only.
+  Parse machine-readable lines HONGZHI_CAPS/HONGZHI_HINTS/hongzhi_ai_kit_summary.
+  If needs_human_hint=1, produce next runnable command with --apply-hints.
+  Do not rerun automatically unless enable_hint_loop=true.
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  nav_index: "list"
+  governance: "object"
+  hints: "object"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      repo_root: "/workspace/demo-repo"
+      strict: true
+      enable_hint_loop: false
+    output:
+      summary: "discover completed; needs_human_hint=1; apply-hints rerun suggested"
+      artifacts: []
+      nav_index: []
+      governance:
+        allowed: true
+      hints:
+        emitted: true
+      risks: []
+      next_actions:
+        - "Run discover --apply-hints <hints_path>."
+
+implementation:
+  type: "function_call"
+  tool_name: "run_command"
+  template: |
+    # status hard gate first
+    hongzhi-ai-kit status --repo-root "{{repo_root}}" {{#workspace_root}}--workspace-root "{{workspace_root}}"{{/workspace_root}} {{#global_state_root}}--global-state-root "{{global_state_root}}"{{/global_state_root}}
+
+    # discover (read-only)
+    HONGZHI_PLUGIN_ENABLE=1 hongzhi-ai-kit discover --repo-root "{{repo_root}}" {{#keywords}}--keywords "{{keywords}}"{{/keywords}} {{#workspace_root}}--workspace-root "{{workspace_root}}"{{/workspace_root}} {{#global_state_root}}--global-state-root "{{global_state_root}}"{{/global_state_root}} {{#strict}}--strict{{/strict}}
+
+    # optional hint-loop rerun (only when enable_hint_loop=true and HONGZHI_HINTS exists)
+    # HONGZHI_PLUGIN_ENABLE=1 hongzhi-ai-kit discover --repo-root "{{repo_root}}" --apply-hints "<hints_path>" --hint-strategy "{{hint_strategy}}"
+
+outputs:
+  - name: "capabilities_path"
+    description: "Path extracted from HONGZHI_CAPS line."
+  - name: "hints_bundle_path"
+    description: "Path extracted from HONGZHI_HINTS line when emitted."

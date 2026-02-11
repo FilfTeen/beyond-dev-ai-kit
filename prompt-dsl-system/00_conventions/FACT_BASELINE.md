@@ -6,8 +6,8 @@ Scope: `prompt-dsl-system/**`
 ## 1) Current Skills Baseline
 
 - Active registry file: `prompt-dsl-system/05_skill_registry/skills.json`
-- Active skills count: `4`
-- Domain distribution: `universal=1, governance=3`
+- Active skills count: `5`
+- Domain distribution: `universal=1, governance=4`
 - Universal/super skill status: `present`
   - `skill_hongzhi_universal_ops` (modes: sql/code/process/frontend/release/governance/docs/meta)
   - meta mode: supports template-based skill creation + progressive disclosure
@@ -15,6 +15,7 @@ Scope: `prompt-dsl-system/**`
   - `skill_governance_plugin_discover` (staging)
   - `skill_governance_plugin_runner` (staging, contract v4-aware)
   - `skill_governance_plugin_status` (staging, governance preflight only)
+  - `skill_governance_plugin_discover_with_hints` (staging, hint-loop aware discover orchestration)
 - Skill templates: `prompt-dsl-system/05_skill_registry/templates/skill_template/`
   - Files: `skill.yaml.template`, `references/README.template`, `scripts/README.template`, `assets/README.template`
 - Deprecated skills status:
@@ -49,7 +50,7 @@ Scope: `prompt-dsl-system/**`
 - `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS) + multi-path + ignore patterns
 - `skill_template_audit.py`: post-validate audit (placeholder + schema + registry↔fs consistency + --scope + --fail-on-empty)
 - `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject + identity hints)
-- `golden_path_regression.sh`: end-to-end regression (58 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields)
+- `golden_path_regression.sh`: end-to-end regression (64 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics)
 - `module_profile_scanner.py`: generates discovered profile (Layer2) — scanning + grep + fingerprint + multi-root + concurrent + incremental + `--out-root`/`--read-only`/`--workspace-root`
 - `module_roots_discover.py`: auto-discovers module roots from identity hints + structure fallback + optional `--module-key` (auto-discover) + `--out-root`/`--read-only` (Layer2R)
 - `structure_discover.py` v2: auto-identifies module structure — endpoint v2, per-file incremental cache, `--out-root`/`--read-only`/`--workspace-root` (Layer2S)
@@ -57,6 +58,7 @@ Scope: `prompt-dsl-system/**`
 - `auto_module_discover.py`: discovers module candidates without `--module-key` — package prefix clustering, scoring, top-k, `--read-only`
 - `hongzhi_plugin.py`: v4 contract-capable runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental, capability registry, `HONGZHI_CAPS` line, capabilities.jsonl journal
 - `calibration_engine.py`: lightweight calibration layer for discover confidence, reasons enum, and workspace-only hint/report artifacts
+- `layout_adapters.py`: layout adapters v1 for multi-module/non-standard Java root detection and roots mapping
 - `hongzhi_ai_kit`: installable python package wrapper with module/console entry support
 - `pyproject.toml` (repo root): packaging metadata + console_scripts (`hongzhi-ai-kit`, `hzkit`, `hz`)
 - `PLUGIN_RUNNER.md`: plugin runner documentation (install, governance, v3/v4 contract, workspace/global state)
@@ -193,3 +195,19 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Read-only and governance guarantees remain unchanged:
   - target `repo_root` stays no-write by default.
   - governance block paths (`10/11/12`) still produce zero workspace/state writes.
+
+## 13) Hint Loop & Layout Adapters (R21)
+
+- Discover hint loop:
+  - strict `exit=21` with `needs_human_hint=1` now emits workspace hint bundle (`discover/hints.json`) and stdout `HONGZHI_HINTS <abs_path>`.
+  - rerun supports `--apply-hints <path>` + `--hint-strategy conservative|aggressive`.
+- Capabilities contract fields (additive, backward compatible):
+  - `hints{emitted,applied,bundle_path,source_path,strategy}`
+  - `layout_details{adapter_used,candidates_scanned,...}`
+  - `smart.reuse_validated`
+  - `limits_suggestion`
+- Layout adapters v1:
+  - supports Maven multi-module and non-standard Java roots (`java/`, `app/src/main/java`, `backend/src/main/java`).
+- Prompt-DSL loop closure:
+  - new skill `skill_governance_plugin_discover_with_hints`
+  - discover pipeline now documents status -> decide -> discover and conditional hint rerun policy (`enable_hint_loop`).

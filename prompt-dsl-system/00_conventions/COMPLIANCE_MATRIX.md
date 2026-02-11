@@ -1,4 +1,4 @@
-# Compliance Matrix (Original 15 Requirements + R16~R22 -> Current Implementation)
+# Compliance Matrix (Original 15 Requirements + R16~R23 -> Current Implementation)
 
 ## Validation Snapshot
 
@@ -29,6 +29,7 @@
 | R20 | Release-grade build + version triplet contract + gitignore pollution guard | `hongzhi_plugin.py`; `golden_path_regression.sh` Phase24; `.gitignore`; `PLUGIN_RUNNER.md` | regression Phase24 + validate(strict) | Met |
 | R21 | Governance v3 (token ttl/scope + symlink hardening) + limits exit20 + status->decide->discover pipeline gate | `hongzhi_plugin.py`; `pipeline_plugin_discover.md`; `skill_governance_plugin_status.yaml`; `golden_path_regression.sh` Phase25 | regression Phase25 + validate(strict) | Met |
 | R22 | Calibration layer explainability + strict needs_human_hint gate (exit21) + workspace-only hints | `calibration_engine.py`; `hongzhi_plugin.py`; `golden_path_regression.sh` Phase26; `PLUGIN_RUNNER.md` | regression Phase26 + validate(strict) | Met |
+| R23 | Hint Loop + Layout Adapters v1 + smart reuse validation + governance zero-write carryover | `hongzhi_plugin.py`; `layout_adapters.py`; `pipeline_plugin_discover.md`; `skill_governance_plugin_discover_with_hints.yaml`; `golden_path_regression.sh` Phase27; `PLUGIN_RUNNER.md` | regression Phase27 + validate(strict) | Met |
 
 ## File Mapping (Core)
 
@@ -61,7 +62,7 @@
   - `prompt-dsl-system/tools/merged_guard.py`
   - `prompt-dsl-system/tools/skill_template_audit.py` (--scope, --fail-on-empty, registry↔fs consistency)
   - `prompt-dsl-system/tools/pipeline_contract_lint.py` (--fail-on-empty, module_root + NavIndex + profile template check + strict TODO reject + identity hints)
-  - `prompt-dsl-system/tools/golden_path_regression.sh` (58 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner & governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 package/entry/contract + uninstalled install-hint checks + Phase24 release build/version triplet/gitignore/governance-no-write + Phase25 token ttl/scope/symlink/limits/capability-index-gating/pipeline decision chain + Phase26 calibration strict/non-strict/output/schema checks)
+  - `prompt-dsl-system/tools/golden_path_regression.sh` (64 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner & governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 package/entry/contract + uninstalled install-hint checks + Phase24 release build/version triplet/gitignore/governance-no-write + Phase25 token ttl/scope/symlink/limits/capability-index-gating/pipeline decision chain + Phase26 calibration strict/non-strict/output/schema checks + Phase27 hint-loop/apply-hints/layout adapters/reuse validation/governance no-write/index-hint-metrics checks)
   - `prompt-dsl-system/tools/module_profile_scanner.py` (Layer2 + fingerprint + multi-root + concurrent + incremental + --out-root/--read-only/--workspace-root)
   - `prompt-dsl-system/tools/module_roots_discover.py` (Layer2R + identity hints + structure fallback + optional --module-key + --out-root/--read-only)
   - `prompt-dsl-system/tools/structure_discover.py` v2 (Layer2S + endpoint v2 + per-file incremental cache + --out-root/--read-only/--workspace-root)
@@ -69,6 +70,7 @@
   - `prompt-dsl-system/tools/auto_module_discover.py` (module discovery without --module-key + scoring + --read-only)
   - `prompt-dsl-system/tools/hongzhi_plugin.py` (v4-compatible runner: discover/diff/profile/migrate/status/clean, governance, smart incremental, `HONGZHI_CAPS`, capabilities.jsonl, capability index/latest/run_meta)
   - `prompt-dsl-system/tools/calibration_engine.py` (discover calibration, reasons enum, confidence tiering, workspace hint/report emission)
+  - `prompt-dsl-system/tools/layout_adapters.py` (layout adapters v1 for multi-module/non-standard Java root detection)
   - `prompt-dsl-system/tools/hongzhi_ai_kit` (installable package wrapper + module entry)
   - `prompt-dsl-system/tools/hongzhi_ai_kit/capability_store.py` (atomic capability index persistence helpers)
   - `prompt-dsl-system/tools/hongzhi_ai_kit/paths.py` (workspace/global-state root resolution)
