@@ -1,6 +1,6 @@
 # Golden Path Regression Report
 
-Generated: 2026-02-11T07:57:45Z
+Generated: 2026-02-11T10:12:53Z
 Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit
 
 ## Results
@@ -65,10 +65,38 @@ Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-
 | 55 | Phase26:calibration_non_strict_warn_exit0 | PASS |
 | 56 | Phase26:calibration_outputs_exist_in_workspace | PASS |
 | 57 | Phase26:capabilities_contains_calibration_fields | PASS |
-| 58 | Phase8:guard_strict_no_vcs_fails | PASS |
+| 58 | Phase27:hint_loop_strict_fail_then_apply_pass | PASS |
+| 59 | Phase27:adapter_maven_multi_module_smoke | PASS |
+| 60 | Phase27:adapter_nonstandard_java_root_smoke | PASS |
+| 61 | Phase27:reuse_validated_smoke | PASS |
+| 62 | Phase27:governance_disabled_zero_write | PASS |
+| 63 | Phase27:capability_index_records_hint_runs | PASS |
+| 64 | Phase28:strict_exit21_hints_bundle_schema | PASS |
+| 65 | Phase28:apply_hints_verified_pass | PASS |
+| 66 | Phase28:expired_bundle_strict_exit22 | PASS |
+| 67 | Phase28:governance_disabled_zero_write | PASS |
+| 68 | Phase28:token_scope_missing_hint_bundle_block | PASS |
+| 69 | Phase28:capability_index_gated_when_governance_denied | PASS |
+| 70 | Phase29:federated_index_smoke | PASS |
+| 71 | Phase29:index_list_smoke | PASS |
+| 72 | Phase29:index_query_strict_filters_limits_hit | PASS |
+| 73 | Phase29:index_query_include_limits_hit | PASS |
+| 74 | Phase29:index_explain_smoke | PASS |
+| 75 | Phase29:token_scope_missing_federated_index_strict_exit24 | PASS |
+| 76 | Phase29:token_scope_missing_federated_index_non_strict_warn | PASS |
+| 77 | Phase29:governance_disabled_zero_write_federated | PASS |
+| 78 | Phase30:status_index_zero_touch | PASS |
+| 79 | Phase30:read_only_guard_not_truncated_by_max_files | PASS |
+| 80 | Phase30:policy_parse_fail_closed | PASS |
+| 81 | Phase30:machine_line_path_with_spaces_safe | PASS |
+| 82 | Phase30:jsonl_append_concurrency_no_loss | PASS |
+| 83 | Phase30:discover_io_reduction_same_output | PASS |
+| 84 | Phase30:endpoint_composed_annotation_extracts | PASS |
+| 85 | Phase30:hint_apply_effectiveness_signal | PASS |
+| 86 | Phase8:guard_strict_no_vcs_fails | PASS |
 
 ## Summary
 
-**58 / 58** checks passed.
+**86 / 86** checks passed.
 
 **OVERALL: PASS**

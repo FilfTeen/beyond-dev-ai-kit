@@ -44,6 +44,52 @@ check() {
   fi
 }
 
+extract_machine_path() {
+  local line="$1"
+  "$PYTHON_BIN" - "$line" <<'PY'
+import shlex
+import sys
+
+line = sys.argv[1] if len(sys.argv) > 1 else ""
+path = ""
+try:
+    tokens = shlex.split(line)
+except ValueError:
+    tokens = line.split()
+for token in tokens[1:]:
+    if token.startswith("path="):
+        path = token.split("=", 1)[1]
+        break
+if not path and len(tokens) > 1:
+    path = tokens[1]
+print(path)
+PY
+}
+
+snapshot_sig() {
+  "$PYTHON_BIN" - "$@" <<'PY'
+import hashlib
+import pathlib
+import sys
+
+items = []
+for root in sys.argv[1:]:
+    p = pathlib.Path(root)
+    if not p.exists():
+        items.append(f"missing:{p}")
+        continue
+    for fp in sorted([x for x in p.rglob("*") if x.is_file()]):
+        try:
+            st = fp.stat()
+            rel = fp.relative_to(p)
+            items.append(f"{p}|{rel}|{st.st_size}|{st.st_mtime_ns}")
+        except OSError:
+            items.append(f"{p}|{fp}|stat_error")
+joined = "\n".join(items)
+print(hashlib.sha256(joined.encode("utf-8")).hexdigest())
+PY
+}
+
 echo "=== Golden Path Regression ==="
 echo "repo-root: $REPO_ROOT"
 echo ""
@@ -341,6 +387,7 @@ CASE4="$SCRIPT_DIR/_tmp_structure_cases/case4_endpoint_miss"
 CASE5="$SCRIPT_DIR/_tmp_structure_cases/case5_ambiguous_two_modules"
 CASE6="$SCRIPT_DIR/_tmp_structure_cases/case6_maven_multi_module"
 CASE7="$SCRIPT_DIR/_tmp_structure_cases/case7_nonstandard_java_root"
+CASE8="$SCRIPT_DIR/_tmp_structure_cases/case8_composed_annotation"
 if [ -d "$CASE2" ] && [ -f "$STRUCT_DISCOVER" ]; then
   set +e
   SD_OUT=$("$PYTHON_BIN" "$STRUCT_DISCOVER" --repo-root "$CASE2" --project-key test --module-key order --read-only 2>/dev/null)
@@ -818,7 +865,7 @@ if [ -f "$REPO_ROOT/pyproject.toml" ] && [ -f "$PLUGIN" ] && [ -d "$CASE1" ]; th
     P23_DISC_RC=$?
     set -e
     P23_CAP_LINE=$(printf '%s\n' "$P23_OUT" | grep '^HONGZHI_CAPS ' || true)
-    P23_CAP_PATH=$(printf '%s\n' "$P23_CAP_LINE" | awk '{print $2}')
+    P23_CAP_PATH=$(extract_machine_path "$P23_CAP_LINE")
     if [ "$P23_DISC_RC" -eq 0 ] && [ -n "$P23_CAP_PATH" ] && [ -f "$P23_CAP_PATH" ]; then
       check "Phase23:capabilities_stdout_contract" "PASS"
     else
@@ -1121,7 +1168,7 @@ PY
 
   # capabilities contains calibration fields
   P26_CAP_LINE=$(printf '%s\n' "$P26_OUT_NS" | grep '^HONGZHI_CAPS ' || true)
-  P26_CAP_PATH=$(printf '%s\n' "$P26_CAP_LINE" | awk '{print $2}')
+  P26_CAP_PATH=$(extract_machine_path "$P26_CAP_LINE")
   P26_CHECK4=$("$PYTHON_BIN" - <<PY
 import json, pathlib
 cap = pathlib.Path("$P26_CAP_PATH")
@@ -1161,7 +1208,7 @@ if [ -f "$PLUGIN" ] && [ -d "$CASE1" ] && [ -d "$CASE5" ] && [ -d "$CASE6" ] && 
   P27_RC_FAIL=$?
   set -e
   P27_HINT_LINE=$(printf '%s\n' "$P27_OUT_FAIL" | grep '^HONGZHI_HINTS ' || true)
-  P27_HINT_PATH=$(printf '%s\n' "$P27_HINT_LINE" | awk '{print $2}')
+  P27_HINT_PATH=$(extract_machine_path "$P27_HINT_LINE")
   set +e
   P27_OUT_APPLY=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
     --repo-root "$CASE5" --workspace-root "$P27_WS" --global-state-root "$P27_STATE" \
@@ -1182,7 +1229,7 @@ if [ -f "$PLUGIN" ] && [ -d "$CASE1" ] && [ -d "$CASE5" ] && [ -d "$CASE6" ] && 
     --keywords "notice,billing" 2>/dev/null)
   P27_RC_MAVEN=$?
   set -e
-  P27_MAVEN_CAP=$(printf '%s\n' "$P27_OUT_MAVEN" | awk '/^HONGZHI_CAPS /{print $2}')
+  P27_MAVEN_CAP=$(extract_machine_path "$(printf '%s\n' "$P27_OUT_MAVEN" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
   P27_MAVEN_OK=$("$PYTHON_BIN" - <<PY
 import json, pathlib
 cap = pathlib.Path("$P27_MAVEN_CAP")
@@ -1207,7 +1254,7 @@ PY
     --keywords "asset" 2>/dev/null)
   P27_RC_NONSTD=$?
   set -e
-  P27_NONSTD_CAP=$(printf '%s\n' "$P27_OUT_NONSTD" | awk '/^HONGZHI_CAPS /{print $2}')
+  P27_NONSTD_CAP=$(extract_machine_path "$(printf '%s\n' "$P27_OUT_NONSTD" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
   P27_NONSTD_OK=$("$PYTHON_BIN" - <<PY
 import json, pathlib
 cap = pathlib.Path("$P27_NONSTD_CAP")
@@ -1233,7 +1280,7 @@ PY
     --smart --smart-max-age-seconds 9999 2>/dev/null)
   P27_RC_REUSE=$?
   set -e
-  P27_REUSE_CAP=$(printf '%s\n' "$P27_OUT_REUSE" | awk '/^HONGZHI_CAPS /{print $2}')
+  P27_REUSE_CAP=$(extract_machine_path "$(printf '%s\n' "$P27_OUT_REUSE" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
   P27_REUSE_OK=$("$PYTHON_BIN" - <<PY
 import json, pathlib
 cap = pathlib.Path("$P27_REUSE_CAP")
@@ -1309,6 +1356,737 @@ else
   check "Phase27:reuse_validated_smoke" "FAIL"
   check "Phase27:governance_disabled_zero_write" "FAIL"
   check "Phase27:capability_index_records_hint_runs" "FAIL"
+fi
+
+# ─── Phase 28: hint_assetization_profile_delta_bundle_round22 ───
+echo "[phase 28] hint_assetization_profile_delta_bundle_round22"
+if [ -f "$PLUGIN" ] && [ -d "$CASE5" ]; then
+  P28_WS="$REGRESSION_TMP/phase28_ws"
+  P28_STATE="$REGRESSION_TMP/phase28_state"
+  rm -rf "$P28_WS" "$P28_STATE"
+  mkdir -p "$P28_WS" "$P28_STATE"
+
+  # a) strict -> exit21 -> HONGZHI_HINTS present + bundle exists + schema ok
+  set +e
+  P28_OUT_A=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P28_WS" --global-state-root "$P28_STATE" \
+    --strict 2>/dev/null)
+  P28_RC_A=$?
+  set -e
+  P28_HINT_LINE=$(printf '%s\n' "$P28_OUT_A" | grep '^HONGZHI_HINTS ' || true)
+  P28_HINT_PATH=$(extract_machine_path "$P28_HINT_LINE")
+  P28_CHECK_A=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+p = pathlib.Path("$P28_HINT_PATH")
+ok = False
+if p.is_file():
+    data = json.loads(p.read_text(encoding="utf-8"))
+    ok = (
+        data.get("kind") == "profile_delta" and
+        bool(data.get("created_at")) and
+        isinstance(data.get("delta", {}).get("identity", {}), dict)
+    )
+print("1" if ok else "0")
+PY
+)
+  if [ "$P28_RC_A" -eq 21 ] && [ -n "$P28_HINT_PATH" ] && [ "$P28_CHECK_A" = "1" ]; then
+    check "Phase28:strict_exit21_hints_bundle_schema" "PASS"
+  else
+    check "Phase28:strict_exit21_hints_bundle_schema" "FAIL"
+  fi
+
+  # b) apply-hints -> exit0 + hint_applied=1 + hint_verified=1
+  set +e
+  P28_OUT_B=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P28_WS" --global-state-root "$P28_STATE" \
+    --strict --apply-hints "$P28_HINT_PATH" --hint-strategy aggressive 2>/dev/null)
+  P28_RC_B=$?
+  set -e
+  if [ "$P28_RC_B" -eq 0 ] && \
+     echo "$P28_OUT_B" | grep -q "hint_applied=1" && \
+     echo "$P28_OUT_B" | grep -q "hint_verified=1"; then
+    check "Phase28:apply_hints_verified_pass" "PASS"
+  else
+    check "Phase28:apply_hints_verified_pass" "FAIL"
+  fi
+
+  # c) expired bundle -> strict exit22 + hint_expired=1
+  P28_EXPIRED="$P28_WS/expired_hint_bundle.json"
+  "$PYTHON_BIN" - <<PY
+import json, pathlib
+src = pathlib.Path("$P28_HINT_PATH")
+dst = pathlib.Path("$P28_EXPIRED")
+data = json.loads(src.read_text(encoding="utf-8")) if src.is_file() else {}
+data["created_at"] = "2000-01-01T00:00:00Z"
+data["expires_at"] = "2000-01-01T00:00:01Z"
+data["ttl_seconds"] = 1
+dst.parent.mkdir(parents=True, exist_ok=True)
+dst.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+PY
+  set +e
+  P28_OUT_C=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P28_WS" --global-state-root "$P28_STATE" \
+    --strict --apply-hints "$P28_EXPIRED" 2>/dev/null)
+  P28_RC_C=$?
+  set -e
+  if [ "$P28_RC_C" -eq 22 ] && echo "$P28_OUT_C" | grep -q "hint_expired=1"; then
+    check "Phase28:expired_bundle_strict_exit22" "PASS"
+  else
+    check "Phase28:expired_bundle_strict_exit22" "FAIL"
+  fi
+
+  # d) governance disabled -> exit10 and no hint bundle file created (0 writes)
+  P28_WS_D="$REGRESSION_TMP/phase28_ws_disabled"
+  P28_STATE_D="$REGRESSION_TMP/phase28_state_disabled"
+  rm -rf "$P28_WS_D" "$P28_STATE_D"
+  mkdir -p "$P28_WS_D" "$P28_STATE_D"
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P28_WS_D" --global-state-root "$P28_STATE_D" --strict > /dev/null 2>&1
+  P28_RC_D=$?
+  set -e
+  P28_WRITES_D=$(find "$P28_WS_D" "$P28_STATE_D" -type f \
+    \( -name "hints.json" -o -name "capabilities.json" -o -name "capabilities.jsonl" -o -name "capability_index.json" -o -name "latest.json" -o -name "run_meta.json" \) | wc -l | tr -d ' ')
+  if [ "$P28_RC_D" -eq 10 ] && [ "$P28_WRITES_D" = "0" ]; then
+    check "Phase28:governance_disabled_zero_write" "PASS"
+  else
+    check "Phase28:governance_disabled_zero_write" "FAIL"
+  fi
+
+  # e) token missing hint_bundle scope -> no bundle, strict exit23, HONGZHI_HINTS_BLOCK present
+  P28_POLICY="$REGRESSION_TMP/phase28_policy"
+  mkdir -p "$P28_POLICY/allow_only"
+  cat > "$P28_POLICY/policy.yaml" <<EOF
+plugin:
+  enabled: true
+  allow_roots: ["$P28_POLICY/allow_only"]
+  deny_roots: []
+EOF
+  P28_TOKEN_DISC='{"token":"T-DISC","scope":["discover"],"expires_at":"2999-01-01T00:00:00Z"}'
+  set +e
+  P28_OUT_E=$("$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P28_WS" --global-state-root "$P28_STATE" \
+    --kit-root "$P28_POLICY" --permit-token "$P28_TOKEN_DISC" --strict 2>/dev/null)
+  P28_RC_E=$?
+  set -e
+  P28_HINT_E=$(extract_machine_path "$(printf '%s\n' "$P28_OUT_E" | grep '^HONGZHI_HINTS ' | head -n 1 || true)")
+  if [ "$P28_RC_E" -eq 23 ] && echo "$P28_OUT_E" | grep -q "^HONGZHI_HINTS_BLOCK " && [ -z "$P28_HINT_E" ]; then
+    check "Phase28:token_scope_missing_hint_bundle_block" "PASS"
+  else
+    check "Phase28:token_scope_missing_hint_bundle_block" "FAIL"
+  fi
+
+  # f) capability_index gated by governance disable (no update even when hints requested)
+  P28_STATE_F="$REGRESSION_TMP/phase28_state_index_gate"
+  mkdir -p "$P28_STATE_F"
+  cat > "$P28_STATE_F/capability_index.json" <<'EOF'
+{"version":"1.0.0","updated_at":"2000-01-01T00:00:00Z","projects":{}}
+EOF
+  BEFORE_F=$("$PYTHON_BIN" - <<PY
+import pathlib
+p = pathlib.Path("$P28_STATE_F/capability_index.json")
+print(int(p.stat().st_mtime_ns))
+PY
+)
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P28_WS_D" --global-state-root "$P28_STATE_F" --strict > /dev/null 2>&1
+  P28_RC_F=$?
+  set -e
+  AFTER_F=$("$PYTHON_BIN" - <<PY
+import pathlib
+p = pathlib.Path("$P28_STATE_F/capability_index.json")
+print(int(p.stat().st_mtime_ns))
+PY
+)
+  if [ "$P28_RC_F" -eq 10 ] && [ "$BEFORE_F" = "$AFTER_F" ]; then
+    check "Phase28:capability_index_gated_when_governance_denied" "PASS"
+  else
+    check "Phase28:capability_index_gated_when_governance_denied" "FAIL"
+  fi
+else
+  check "Phase28:strict_exit21_hints_bundle_schema" "FAIL"
+  check "Phase28:apply_hints_verified_pass" "FAIL"
+  check "Phase28:expired_bundle_strict_exit22" "FAIL"
+  check "Phase28:governance_disabled_zero_write" "FAIL"
+  check "Phase28:token_scope_missing_hint_bundle_block" "FAIL"
+  check "Phase28:capability_index_gated_when_governance_denied" "FAIL"
+fi
+
+
+# ─── Phase 29: capability_index_federation_round23 ───
+echo "[phase 29] capability_index_federation_round23"
+if [ -f "$PLUGIN" ] && [ -d "$CASE1" ]; then
+  P29_WS="$REGRESSION_TMP/phase29_ws"
+  P29_STATE="$REGRESSION_TMP/phase29_state"
+  rm -rf "$P29_WS" "$P29_STATE"
+  mkdir -p "$P29_WS" "$P29_STATE"
+
+  # 1) federated_index write smoke + HONGZHI_INDEX pointer
+  set +e
+  P29_OUT_A=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P29_WS" --global-state-root "$P29_STATE" \
+    --keywords "notice" 2>/dev/null)
+  P29_RC_A=$?
+  set -e
+  P29_INDEX_LINE=$(printf '%s\n' "$P29_OUT_A" | grep '^HONGZHI_INDEX ' || true)
+  P29_INDEX_PATH=$(extract_machine_path "$P29_INDEX_LINE")
+  P29_FED_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+idx = pathlib.Path("$P29_INDEX_PATH")
+ok = False
+if idx.is_file():
+    data = json.loads(idx.read_text(encoding="utf-8"))
+    repos = data.get("repos", {})
+    if isinstance(repos, dict) and repos:
+        entry = next(iter(repos.values()))
+        if isinstance(entry, dict):
+            latest = entry.get("latest", {})
+            runs = entry.get("runs", [])
+            ok = bool(latest.get("run_id")) and isinstance(runs, list) and len(runs) >= 1
+print("1" if ok else "0")
+PY
+)
+  if [ "$P29_RC_A" -eq 0 ] && [ -n "$P29_INDEX_PATH" ] && [ "$P29_FED_OK" = "1" ]; then
+    check "Phase29:federated_index_smoke" "PASS"
+  else
+    check "Phase29:federated_index_smoke" "FAIL"
+  fi
+
+  # 2) index list smoke
+  set +e
+  P29_OUT_LIST=$("$PYTHON_BIN" "$PLUGIN" index list --global-state-root "$P29_STATE" --top-k 5 2>/dev/null)
+  P29_RC_LIST=$?
+  set -e
+  if [ "$P29_RC_LIST" -eq 0 ] && echo "$P29_OUT_LIST" | grep -q "repo_fp="; then
+    check "Phase29:index_list_smoke" "PASS"
+  else
+    check "Phase29:index_list_smoke" "FAIL"
+  fi
+
+  # 3/4) query ranking + strict limits_hit filter
+  P29_STATE_RANK="$REGRESSION_TMP/phase29_state_rank"
+  rm -rf "$P29_STATE_RANK"
+  mkdir -p "$P29_STATE_RANK"
+  "$PYTHON_BIN" - <<PY
+import json, pathlib
+state = pathlib.Path("$P29_STATE_RANK")
+idx = state / "federated_index.json"
+data = {
+    "version": "1.0.0",
+    "updated_at": "2026-02-11T00:00:00Z",
+    "repos": {
+        "fp_hit_old": {
+            "repo_fp": "fp_hit_old",
+            "repo_root": "/tmp/fp_hit_old",
+            "last_seen_at": "2026-02-11T00:00:00Z",
+            "latest": {"run_id": "run_hit", "timestamp": "2026-02-11T00:00:00Z", "command": "discover"},
+            "runs": [
+                {
+                    "run_id": "run_hit",
+                    "timestamp": "2026-02-11T00:00:00Z",
+                    "command": "discover",
+                    "layout": "single-module-maven",
+                    "metrics": {
+                        "limits_hit": True,
+                        "ambiguity_ratio": 0.10,
+                        "confidence_tier": "high",
+                        "keywords": ["notice"],
+                        "endpoint_paths": ["/notice/list"],
+                    },
+                }
+            ],
+        },
+        "fp_hit_new": {
+            "repo_fp": "fp_hit_new",
+            "repo_root": "/tmp/fp_hit_new",
+            "last_seen_at": "2026-02-12T00:00:00Z",
+            "latest": {"run_id": "run_clean", "timestamp": "2026-02-12T00:00:00Z", "command": "discover"},
+            "runs": [
+                {
+                    "run_id": "run_clean",
+                    "timestamp": "2026-02-12T00:00:00Z",
+                    "command": "discover",
+                    "layout": "single-module-maven",
+                    "metrics": {
+                        "limits_hit": False,
+                        "ambiguity_ratio": 0.20,
+                        "confidence_tier": "medium",
+                        "keywords": ["notice"],
+                        "endpoint_paths": ["/notice/list"],
+                    },
+                }
+            ],
+        },
+    },
+}
+idx.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+PY
+  set +e
+  P29_OUT_Q_STRICT=$("$PYTHON_BIN" "$PLUGIN" index query \
+    --global-state-root "$P29_STATE_RANK" --endpoint "/notice" --strict --top-k 2 2>/dev/null)
+  P29_RC_Q_STRICT=$?
+  P29_OUT_Q_INCLUDE=$("$PYTHON_BIN" "$PLUGIN" index query \
+    --global-state-root "$P29_STATE_RANK" --endpoint "/notice" --strict --include-limits-hit --top-k 2 2>/dev/null)
+  P29_RC_Q_INCLUDE=$?
+  set -e
+  P29_Q1=$(printf '%s\n' "$P29_OUT_Q_STRICT" | grep '^repo_fp=' | head -n 1 || true)
+  P29_Q2=$(printf '%s\n' "$P29_OUT_Q_INCLUDE" | grep '^repo_fp=' | head -n 1 || true)
+  if [ "$P29_RC_Q_STRICT" -eq 0 ] && echo "$P29_Q1" | grep -q "repo_fp=fp_hit_new"; then
+    check "Phase29:index_query_strict_filters_limits_hit" "PASS"
+  else
+    check "Phase29:index_query_strict_filters_limits_hit" "FAIL"
+  fi
+  if [ "$P29_RC_Q_INCLUDE" -eq 0 ] && echo "$P29_Q2" | grep -q "repo_fp=fp_hit_new\\|repo_fp=fp_hit_old"; then
+    # include-limits-hit should allow the limits_hit run to appear in ranked output
+    if echo "$P29_OUT_Q_INCLUDE" | grep -q "repo_fp=fp_hit_old"; then
+      check "Phase29:index_query_include_limits_hit" "PASS"
+    else
+      check "Phase29:index_query_include_limits_hit" "FAIL"
+    fi
+  else
+    check "Phase29:index_query_include_limits_hit" "FAIL"
+  fi
+
+  # 5) index explain smoke
+  P29_REPO_FP=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+idx = pathlib.Path("$P29_STATE/federated_index.json")
+fp = ""
+if idx.is_file():
+    data = json.loads(idx.read_text(encoding="utf-8"))
+    repos = data.get("repos", {})
+    if isinstance(repos, dict) and repos:
+        fp = next(iter(repos.keys()))
+print(fp)
+PY
+)
+  P29_RUN_ID=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+idx = pathlib.Path("$P29_STATE/federated_index.json")
+run_id = ""
+if idx.is_file():
+    data = json.loads(idx.read_text(encoding="utf-8"))
+    repos = data.get("repos", {})
+    if isinstance(repos, dict) and repos:
+        fp = next(iter(repos.keys()))
+        entry = repos.get(fp, {})
+        latest = entry.get("latest", {}) if isinstance(entry, dict) else {}
+        run_id = str(latest.get("run_id", ""))
+print(run_id)
+PY
+)
+  set +e
+  P29_OUT_EXPLAIN=$("$PYTHON_BIN" "$PLUGIN" index explain "$P29_REPO_FP" "$P29_RUN_ID" --global-state-root "$P29_STATE" 2>/dev/null)
+  P29_RC_EXPLAIN=$?
+  set -e
+  P29_EXPLAIN_JSON="$REGRESSION_TMP/phase29_explain.json"
+  printf '%s\n' "$P29_OUT_EXPLAIN" > "$P29_EXPLAIN_JSON"
+  P29_EXPLAIN_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+ok = False
+try:
+    text = pathlib.Path("$P29_EXPLAIN_JSON").read_text(encoding="utf-8")
+    start = text.find("{")
+    if start >= 0:
+        data = json.loads(text[start:])
+    else:
+        data = {}
+    ok = (data.get("repo_fp") == "$P29_REPO_FP") and (data.get("run", {}).get("run_id") == "$P29_RUN_ID")
+except Exception:
+    ok = False
+print("1" if ok else "0")
+PY
+)
+  if [ "$P29_RC_EXPLAIN" -eq 0 ] && [ "$P29_EXPLAIN_OK" = "1" ]; then
+    check "Phase29:index_explain_smoke" "PASS"
+  else
+    check "Phase29:index_explain_smoke" "FAIL"
+  fi
+
+  # 6) token scope missing federated_index -> strict exit24 + HONGZHI_INDEX_BLOCK + no federated write
+  P29_WS_S="$REGRESSION_TMP/phase29_ws_scope_strict"
+  P29_STATE_S="$REGRESSION_TMP/phase29_state_scope_strict"
+  rm -rf "$P29_WS_S" "$P29_STATE_S"
+  mkdir -p "$P29_WS_S" "$P29_STATE_S"
+  P29_TOKEN_DISC='{"token":"T-DISC","scope":["discover"],"expires_at":"2999-01-01T00:00:00Z"}'
+  set +e
+  P29_OUT_S=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P29_WS_S" --global-state-root "$P29_STATE_S" \
+    --permit-token "$P29_TOKEN_DISC" --strict 2>/dev/null)
+  P29_RC_S=$?
+  set -e
+  if [ "$P29_RC_S" -eq 24 ] && echo "$P29_OUT_S" | grep -q "^HONGZHI_INDEX_BLOCK " && \
+     echo "$P29_OUT_S" | grep -q "scope=federated_index" && [ ! -f "$P29_STATE_S/federated_index.json" ]; then
+    check "Phase29:token_scope_missing_federated_index_strict_exit24" "PASS"
+  else
+    check "Phase29:token_scope_missing_federated_index_strict_exit24" "FAIL"
+  fi
+
+  # 7) token scope missing federated_index -> non-strict warn + exit0 + no federated write
+  P29_WS_N="$REGRESSION_TMP/phase29_ws_scope_non_strict"
+  P29_STATE_N="$REGRESSION_TMP/phase29_state_scope_non_strict"
+  rm -rf "$P29_WS_N" "$P29_STATE_N"
+  mkdir -p "$P29_WS_N" "$P29_STATE_N"
+  set +e
+  P29_OUT_N=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P29_WS_N" --global-state-root "$P29_STATE_N" \
+    --permit-token "$P29_TOKEN_DISC" 2>/dev/null)
+  P29_RC_N=$?
+  set -e
+  if [ "$P29_RC_N" -eq 0 ] && echo "$P29_OUT_N" | grep -q "^HONGZHI_INDEX_BLOCK " && \
+     [ ! -f "$P29_STATE_N/federated_index.json" ]; then
+    check "Phase29:token_scope_missing_federated_index_non_strict_warn" "PASS"
+  else
+    check "Phase29:token_scope_missing_federated_index_non_strict_warn" "FAIL"
+  fi
+
+  # 8) governance disabled -> zero writes including federated index
+  P29_WS_G="$REGRESSION_TMP/phase29_ws_governance"
+  P29_STATE_G="$REGRESSION_TMP/phase29_state_governance"
+  rm -rf "$P29_WS_G" "$P29_STATE_G"
+  mkdir -p "$P29_WS_G" "$P29_STATE_G"
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P29_WS_G" --global-state-root "$P29_STATE_G" > /dev/null 2>&1
+  P29_RC_G=$?
+  set -e
+  P29_G_WRITES=$(find "$P29_WS_G" "$P29_STATE_G" -type f \
+    \( -name "federated_index.json" -o -name "federated_index.jsonl" -o -name "index.json" -o -name "capability_index.json" -o -name "latest.json" -o -name "run_meta.json" -o -name "capabilities.json" -o -name "capabilities.jsonl" -o -name "hints.json" \) | wc -l | tr -d ' ')
+  if [ "$P29_RC_G" -eq 10 ] && [ "$P29_G_WRITES" = "0" ]; then
+    check "Phase29:governance_disabled_zero_write_federated" "PASS"
+  else
+    check "Phase29:governance_disabled_zero_write_federated" "FAIL"
+  fi
+else
+  check "Phase29:federated_index_smoke" "FAIL"
+  check "Phase29:index_list_smoke" "FAIL"
+  check "Phase29:index_query_strict_filters_limits_hit" "FAIL"
+  check "Phase29:index_query_include_limits_hit" "FAIL"
+  check "Phase29:index_explain_smoke" "FAIL"
+  check "Phase29:token_scope_missing_federated_index_strict_exit24" "FAIL"
+  check "Phase29:token_scope_missing_federated_index_non_strict_warn" "FAIL"
+  check "Phase29:governance_disabled_zero_write_federated" "FAIL"
+fi
+
+
+# ─── Phase 30: plugin_v4_plus_hardening_round24 ───
+echo "[phase 30] plugin_v4_plus_hardening_round24"
+if [ -f "$PLUGIN" ] && [ -d "$CASE1" ] && [ -d "$CASE5" ] && [ -d "$CASE8" ]; then
+  P30_TMP_REPO="$REGRESSION_TMP/phase30_repo"
+  P30_WS="$REGRESSION_TMP/phase30_ws"
+  P30_STATE="$REGRESSION_TMP/phase30_state"
+  rm -rf "$P30_TMP_REPO" "$P30_WS" "$P30_STATE"
+  mkdir -p "$P30_TMP_REPO" "$P30_WS" "$P30_STATE"
+
+  # 1) status/index should not touch workspace/state when governance disabled.
+  P30_SIG_BEFORE=$(snapshot_sig "$P30_WS" "$P30_STATE")
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  P30_STATUS_OUT=$("$PYTHON_BIN" "$PLUGIN" status \
+    --repo-root "$P30_TMP_REPO" --workspace-root "$P30_WS" --global-state-root "$P30_STATE" 2>/dev/null)
+  P30_STATUS_RC=$?
+  P30_INDEX_OUT=$("$PYTHON_BIN" "$PLUGIN" index list --global-state-root "$P30_STATE" --top-k 2 2>/dev/null)
+  P30_INDEX_RC=$?
+  set -e
+  P30_SIG_AFTER=$(snapshot_sig "$P30_WS" "$P30_STATE")
+  if [ "$P30_STATUS_RC" -eq 10 ] && [ "$P30_INDEX_RC" -eq 0 ] && [ "$P30_SIG_BEFORE" = "$P30_SIG_AFTER" ]; then
+    check "Phase30:status_index_zero_touch" "PASS"
+  else
+    check "Phase30:status_index_zero_touch" "FAIL"
+  fi
+
+  # 2) read-only guard must detect writes even with --max-files truncation on scanning stage.
+  P30_GUARD_REPO="$REGRESSION_TMP/phase30_guard_repo"
+  P30_GUARD_WS="$REGRESSION_TMP/phase30_guard_ws"
+  P30_GUARD_STATE="$REGRESSION_TMP/phase30_guard_state"
+  rm -rf "$P30_GUARD_REPO" "$P30_GUARD_WS" "$P30_GUARD_STATE"
+  "$PYTHON_BIN" - <<PY
+import pathlib
+root = pathlib.Path("$P30_GUARD_REPO")
+for i in range(320):
+    d = root / "src/main/java/com/example/guard" / f"m{i:03d}"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"C{i:03d}.java").write_text(
+        f"package com.example.guard.m{i:03d};\\npublic class C{i:03d} {{}}\\n",
+        encoding="utf-8",
+    )
+tail = root / "zz_tail"
+tail.mkdir(parents=True, exist_ok=True)
+(tail / "late.txt").write_text("before\\n", encoding="utf-8")
+PY
+  mkdir -p "$P30_GUARD_WS" "$P30_GUARD_STATE"
+  (
+    for i in $(seq 1 220); do
+      printf 'mutated-%s\n' "$i" >> "$P30_GUARD_REPO/zz_tail/late.txt"
+      sleep 0.01
+    done
+  ) &
+  P30_BG_PID=$!
+  set +e
+  HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$P30_GUARD_REPO" --workspace-root "$P30_GUARD_WS" --global-state-root "$P30_GUARD_STATE" \
+    --max-files 10 --top-k 3 > /dev/null 2>&1
+  P30_GUARD_RC=$?
+  set -e
+  wait "$P30_BG_PID" 2>/dev/null || true
+  if [ "$P30_GUARD_RC" -eq 3 ]; then
+    check "Phase30:read_only_guard_not_truncated_by_max_files" "PASS"
+  else
+    check "Phase30:read_only_guard_not_truncated_by_max_files" "FAIL"
+  fi
+
+  # 3) policy parser fail-closed.
+  P30_POLICY="$REGRESSION_TMP/phase30_policy"
+  rm -rf "$P30_POLICY"
+  mkdir -p "$P30_POLICY/allowed"
+  cat > "$P30_POLICY/policy.yaml" <<EOF
+plugin:
+  enabled: true
+  allow_roots:
+    - "$P30_POLICY/allowed"
+  deny_roots: []
+  unexpected_block:
+    - "bad"
+EOF
+  set +e
+  P30_POLICY_OUT_STATUS=$("$PYTHON_BIN" "$PLUGIN" status \
+    --repo-root "$P30_POLICY/allowed" --kit-root "$P30_POLICY" 2>/dev/null)
+  P30_POLICY_RC_STATUS=$?
+  P30_POLICY_OUT_DISC=$("$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P30_WS" --global-state-root "$P30_STATE" \
+    --kit-root "$P30_POLICY" 2>/dev/null)
+  P30_POLICY_RC_DISC=$?
+  set -e
+  if [ "$P30_POLICY_RC_STATUS" -eq 13 ] && [ "$P30_POLICY_RC_DISC" -eq 13 ] && \
+     echo "$P30_POLICY_OUT_STATUS" | grep -q "^HONGZHI_GOV_BLOCK " && \
+     echo "$P30_POLICY_OUT_DISC" | grep -q "reason=policy_parse_error"; then
+    check "Phase30:policy_parse_fail_closed" "PASS"
+  else
+    check "Phase30:policy_parse_fail_closed" "FAIL"
+  fi
+
+  # 4) machine path parsing with spaces is stable via path=...
+  P30_WS_SPACE="$REGRESSION_TMP/phase30 ws"
+  P30_STATE_SPACE="$REGRESSION_TMP/phase30 state"
+  rm -rf "$P30_WS_SPACE" "$P30_STATE_SPACE"
+  mkdir -p "$P30_WS_SPACE" "$P30_STATE_SPACE"
+  set +e
+  P30_OUT_SPACE=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P30_WS_SPACE" --global-state-root "$P30_STATE_SPACE" \
+    --keywords notice 2>/dev/null)
+  P30_RC_SPACE=$?
+  set -e
+  P30_CAP_LINE_SPACE=$(printf '%s\n' "$P30_OUT_SPACE" | grep '^HONGZHI_CAPS ' | head -n 1 || true)
+  P30_CAP_PATH_SPACE=$(extract_machine_path "$P30_CAP_LINE_SPACE")
+  if [ "$P30_RC_SPACE" -eq 0 ] && [ -n "$P30_CAP_PATH_SPACE" ] && [ -f "$P30_CAP_PATH_SPACE" ] && \
+     echo "$P30_CAP_LINE_SPACE" | grep -q 'path='; then
+    check "Phase30:machine_line_path_with_spaces_safe" "PASS"
+  else
+    check "Phase30:machine_line_path_with_spaces_safe" "FAIL"
+  fi
+
+  # 5) jsonl append should be concurrency-safe with no line loss.
+  P30_WS_CON="$REGRESSION_TMP/phase30_ws_con"
+  P30_STATE_CON="$REGRESSION_TMP/phase30_state_con"
+  rm -rf "$P30_WS_CON" "$P30_STATE_CON"
+  mkdir -p "$P30_WS_CON" "$P30_STATE_CON"
+  P30_CON_OK=$("$PYTHON_BIN" - <<PY
+import importlib.util
+import json
+import os
+import pathlib
+import subprocess
+import sys
+
+repo_root = pathlib.Path("$REPO_ROOT")
+plugin = pathlib.Path("$PLUGIN")
+case1 = pathlib.Path("$CASE1")
+ws = pathlib.Path("$P30_WS_CON")
+state = pathlib.Path("$P30_STATE_CON")
+py = "$PYTHON_BIN"
+env = os.environ.copy()
+env["HONGZHI_PLUGIN_ENABLE"] = "1"
+
+procs = []
+for _ in range(20):
+    cmd = [
+        py, str(plugin), "discover",
+        "--repo-root", str(case1),
+        "--workspace-root", str(ws),
+        "--global-state-root", str(state),
+        "--keywords", "notice",
+    ]
+    procs.append(subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, text=True))
+
+rcs = [p.wait() for p in procs]
+if any(rc != 0 for rc in rcs):
+    print("0")
+    sys.exit(0)
+
+sys.path.insert(0, str(repo_root / "prompt-dsl-system/tools"))
+spec = importlib.util.spec_from_file_location("hongzhi_plugin", str(plugin))
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+fp = mod.compute_project_fingerprint(case1.resolve())
+cap_jsonl = ws / fp / "capabilities.jsonl"
+fed_jsonl = state / "federated_index.jsonl"
+
+def _count_valid(path: pathlib.Path) -> tuple[int, bool]:
+    if not path.is_file():
+        return 0, False
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    ok = True
+    for ln in lines:
+        try:
+            json.loads(ln)
+        except Exception:
+            ok = False
+            break
+    return len(lines), ok
+
+cap_n, cap_ok = _count_valid(cap_jsonl)
+fed_n, fed_ok = _count_valid(fed_jsonl)
+print("1" if cap_n == 20 and fed_n == 20 and cap_ok and fed_ok else "0")
+PY
+)
+  if [ "$P30_CON_OK" = "1" ]; then
+    check "Phase30:jsonl_append_concurrency_no_loss" "PASS"
+  else
+    check "Phase30:jsonl_append_concurrency_no_loss" "FAIL"
+  fi
+
+  # 6) discover I/O optimization should keep outputs stable and expose scan_io_stats.
+  P30_WS_IO="$REGRESSION_TMP/phase30_ws_io"
+  P30_STATE_IO="$REGRESSION_TMP/phase30_state_io"
+  rm -rf "$P30_WS_IO" "$P30_STATE_IO"
+  mkdir -p "$P30_WS_IO" "$P30_STATE_IO"
+  set +e
+  P30_OUT_IO1=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P30_WS_IO" --global-state-root "$P30_STATE_IO" \
+    --keywords notice 2>/dev/null)
+  P30_RC_IO1=$?
+  P30_OUT_IO2=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P30_WS_IO" --global-state-root "$P30_STATE_IO" \
+    --keywords notice 2>/dev/null)
+  P30_RC_IO2=$?
+  set -e
+  P30_CAP_IO1=$(extract_machine_path "$(printf '%s\n' "$P30_OUT_IO1" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P30_CAP_IO2=$(extract_machine_path "$(printf '%s\n' "$P30_OUT_IO2" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P30_IO_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+c1 = pathlib.Path("$P30_CAP_IO1")
+c2 = pathlib.Path("$P30_CAP_IO2")
+ok = False
+if c1.is_file() and c2.is_file():
+    a = json.loads(c1.read_text(encoding="utf-8"))
+    b = json.loads(c2.read_text(encoding="utf-8"))
+    am = a.get("module_candidates")
+    bm = b.get("module_candidates")
+    ae = a.get("metrics", {}).get("endpoints_total")
+    be = b.get("metrics", {}).get("endpoints_total")
+    io = b.get("scan_io_stats", {}) if isinstance(b.get("scan_io_stats"), dict) else {}
+    ok = (
+        am == bm and ae == be and
+        int(io.get("layout_adapter_runs", 0) or 0) == 1 and
+        "java_files_scanned" in io
+    )
+print("1" if ok else "0")
+PY
+)
+  if [ "$P30_RC_IO1" -eq 0 ] && [ "$P30_RC_IO2" -eq 0 ] && [ "$P30_IO_OK" = "1" ]; then
+    check "Phase30:discover_io_reduction_same_output" "PASS"
+  else
+    check "Phase30:discover_io_reduction_same_output" "FAIL"
+  fi
+
+  # 7) composed annotation / symbolic endpoint extraction.
+  P30_WS_EP="$REGRESSION_TMP/phase30_ws_ep"
+  P30_STATE_EP="$REGRESSION_TMP/phase30_state_ep"
+  rm -rf "$P30_WS_EP" "$P30_STATE_EP"
+  mkdir -p "$P30_WS_EP" "$P30_STATE_EP"
+  set +e
+  P30_OUT_EP=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE8" --workspace-root "$P30_WS_EP" --global-state-root "$P30_STATE_EP" \
+    --keywords composed 2>/dev/null)
+  P30_RC_EP=$?
+  set -e
+  P30_CAP_EP=$(extract_machine_path "$(printf '%s\n' "$P30_OUT_EP" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P30_EP_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P30_CAP_EP")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    endpoints = int(data.get("metrics", {}).get("endpoints_total", 0) or 0)
+    artifacts = data.get("artifacts", []) if isinstance(data.get("artifacts"), list) else []
+    symbolic = False
+    for ap in artifacts:
+        p = pathlib.Path(ap)
+        if p.is_file() and p.suffix == ".yaml":
+            text = p.read_text(encoding="utf-8", errors="ignore")
+            if "symbolic: 1" in text or "API." in text:
+                symbolic = True
+                break
+    ok = endpoints > 0 and symbolic
+print("1" if ok else "0")
+PY
+)
+  if [ "$P30_RC_EP" -eq 0 ] && [ "$P30_EP_OK" = "1" ]; then
+    check "Phase30:endpoint_composed_annotation_extracts" "PASS"
+  else
+    check "Phase30:endpoint_composed_annotation_extracts" "FAIL"
+  fi
+
+  # 8) apply-hints should expose hint effectiveness signal.
+  P30_WS_HINT="$REGRESSION_TMP/phase30_ws_hint"
+  P30_STATE_HINT="$REGRESSION_TMP/phase30_state_hint"
+  rm -rf "$P30_WS_HINT" "$P30_STATE_HINT"
+  mkdir -p "$P30_WS_HINT" "$P30_STATE_HINT"
+  set +e
+  P30_OUT_HINT1=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P30_WS_HINT" --global-state-root "$P30_STATE_HINT" \
+    --strict 2>/dev/null)
+  P30_RC_HINT1=$?
+  set -e
+  P30_HINT_PATH=$(extract_machine_path "$(printf '%s\n' "$P30_OUT_HINT1" | grep '^HONGZHI_HINTS ' | head -n 1 || true)")
+  set +e
+  P30_OUT_HINT2=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P30_WS_HINT" --global-state-root "$P30_STATE_HINT" \
+    --strict --apply-hints "$P30_HINT_PATH" --hint-strategy aggressive 2>/dev/null)
+  P30_RC_HINT2=$?
+  set -e
+  P30_CAP_HINT2=$(extract_machine_path "$(printf '%s\n' "$P30_OUT_HINT2" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P30_HINT_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P30_CAP_HINT2")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    hints = data.get("hints", {}) if isinstance(data.get("hints"), dict) else {}
+    delta = float(hints.get("confidence_delta", 0.0) or 0.0)
+    ok = bool(hints.get("applied", False)) and (bool(hints.get("hint_effective", False)) or delta > 0.0)
+print("1" if ok else "0")
+PY
+)
+  if [ "$P30_RC_HINT1" -eq 21 ] && [ "$P30_RC_HINT2" -eq 0 ] && \
+     echo "$P30_OUT_HINT2" | grep -q "hint_applied=1" && [ "$P30_HINT_OK" = "1" ]; then
+    check "Phase30:hint_apply_effectiveness_signal" "PASS"
+  else
+    check "Phase30:hint_apply_effectiveness_signal" "FAIL"
+  fi
+else
+  check "Phase30:status_index_zero_touch" "FAIL"
+  check "Phase30:read_only_guard_not_truncated_by_max_files" "FAIL"
+  check "Phase30:policy_parse_fail_closed" "FAIL"
+  check "Phase30:machine_line_path_with_spaces_safe" "FAIL"
+  check "Phase30:jsonl_append_concurrency_no_loss" "FAIL"
+  check "Phase30:discover_io_reduction_same_output" "FAIL"
+  check "Phase30:endpoint_composed_annotation_extracts" "FAIL"
+  check "Phase30:hint_apply_effectiveness_signal" "FAIL"
 fi
 
 

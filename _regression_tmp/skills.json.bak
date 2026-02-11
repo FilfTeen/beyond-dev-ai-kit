@@ -58,5 +58,20 @@
     ],
     "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_plugin_status.yaml",
     "status": "staging"
+  },
+  {
+    "name": "skill_governance_plugin_discover_with_hints",
+    "description": "Governed discover with hint-loop awareness and machine-readable HONGZHI_CAPS/HONGZHI_HINTS parsing.",
+    "version": "1.0.0",
+    "domain": "governance",
+    "tags": [
+      "plugin",
+      "discover",
+      "hints",
+      "governance",
+      "meta"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_plugin_discover_with_hints.yaml",
+    "status": "staging"
   }
 ]

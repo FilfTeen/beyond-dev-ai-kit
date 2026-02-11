@@ -36,6 +36,22 @@ from hongzhi_ai_kit.capability_store import (
     update_project_entry,
     write_latest_pointer,
 )
+from hongzhi_ai_kit.hint_bundle import (
+    HINT_BUNDLE_KIND_PROFILE_DELTA,
+    build_profile_delta_bundle,
+    load_hint_bundle_input,
+    verify_hint_bundle,
+    atomic_write_json as hint_atomic_write_json,
+)
+from hongzhi_ai_kit.federated_store import (
+    load_federated_index,
+    save_federated_index,
+    build_run_record,
+    update_federated_repo_entry,
+    write_repo_mirror,
+    rank_query_runs,
+    atomic_append_jsonl,
+)
 from hongzhi_ai_kit.paths import resolve_global_state_root, resolve_workspace_root
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -49,8 +65,12 @@ GOVERNANCE_ENV = "HONGZHI_PLUGIN_ENABLE"
 GOVERNANCE_EXIT_CODE = 10
 GOVERNANCE_DENY_EXIT_CODE = 11
 GOVERNANCE_ALLOW_EXIT_CODE = 12
+POLICY_PARSE_EXIT_CODE = 13
 LIMIT_EXIT_CODE = 20
 CALIBRATION_EXIT_CODE = 21
+HINT_VERIFY_EXIT_CODE = 22
+HINT_SCOPE_EXIT_CODE = 23
+INDEX_SCOPE_EXIT_CODE = 24
 GLOBAL_STATE_ENV = "HONGZHI_PLUGIN_GLOBAL_STATE_ROOT"
 HINT_BUNDLE_VERSION = "1.0.0"
 
@@ -83,6 +103,10 @@ def version_triplet() -> dict:
         "plugin_version": PLUGIN_VERSION,
         "contract_version": CONTRACT_VERSION,
     }
+
+
+def quote_machine_value(value: Any) -> str:
+    return json.dumps(str(value), ensure_ascii=False)
 
 
 def canonical_path(path_value: str | Path) -> Path:
@@ -197,11 +221,15 @@ def validate_permit_token(parsed: dict, command: str) -> Tuple[bool, str]:
 
 
 def compute_policy_hash(policy: dict) -> str:
+    fed_policy = policy.get("federated_index", {}) if isinstance(policy.get("federated_index"), dict) else {}
     canonical = {
         "enabled": bool(policy.get("enabled")),
         "allow_roots": sorted(str(x) for x in (policy.get("allow_roots") or [])),
         "deny_roots": sorted(str(x) for x in (policy.get("deny_roots") or [])),
         "permit_token_file": str(policy.get("permit_token_file") or ""),
+        "federated_index_enabled": fed_policy.get("enabled"),
+        "federated_index_write_jsonl": bool(fed_policy.get("write_jsonl", True)),
+        "federated_index_write_repo_mirror": bool(fed_policy.get("write_repo_mirror", True)),
     }
     encoded = json.dumps(canonical, sort_keys=True, ensure_ascii=True)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
@@ -278,86 +306,40 @@ def default_hint_state(apply_hints_path: str = "", strategy: str = "conservative
         "bundle_path": "",
         "source_path": str(apply_hints_path or ""),
         "strategy": str(strategy or "conservative"),
+        "verified": False,
+        "expired": False,
+        "effective": False,
+        "confidence_delta": 0.0,
+        "ttl_seconds": 0,
+        "created_at": "",
+        "expires_at": "",
+        "kind": "",
         "identity": {
             "backend_package_hint": "",
             "web_path_hint": "",
             "keywords": [],
         },
+        "roots_hints": {
+            "backend_java": [],
+            "web_template": [],
+        },
+        "layout_hints": {
+            "layout": "",
+            "adapter_used": "",
+        },
     }
 
 
-def _parse_hint_yaml_like(path: Path) -> dict:
-    identity = {"backend_package_hint": "", "web_path_hint": "", "keywords": []}
-    in_keywords = False
-    for raw in path.read_text(encoding="utf-8", errors="ignore").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("backend_package_hint:"):
-            identity["backend_package_hint"] = line.split(":", 1)[1].strip().strip("\"'")
-            in_keywords = False
-            continue
-        if line.startswith("web_path_hint:"):
-            identity["web_path_hint"] = line.split(":", 1)[1].strip().strip("\"'")
-            in_keywords = False
-            continue
-        if line.startswith("keywords:"):
-            in_keywords = True
-            continue
-        if in_keywords and line.startswith("-"):
-            kw = line[1:].strip().strip("\"'")
-            if kw:
-                identity["keywords"].append(kw)
-            continue
-        in_keywords = False
-    return {"identity": identity}
-
-
-def load_hint_bundle(path_value: str) -> dict:
-    path_obj = Path(path_value).expanduser().resolve()
-    result = {
-        "ok": False,
-        "error": "",
-        "bundle_path": str(path_obj),
-        "identity": {"backend_package_hint": "", "web_path_hint": "", "keywords": []},
+def default_hint_bundle_info() -> dict:
+    return {
+        "kind": "",
+        "path": "",
+        "verified": False,
+        "expired": False,
+        "ttl_seconds": 0,
+        "created_at": "",
+        "expires_at": "",
     }
-    if not path_obj.is_file():
-        result["error"] = "hint_bundle_not_found"
-        return result
-
-    payload: dict = {}
-    try:
-        loaded = json.loads(path_obj.read_text(encoding="utf-8"))
-        if isinstance(loaded, dict):
-            payload = loaded
-    except json.JSONDecodeError:
-        try:
-            payload = _parse_hint_yaml_like(path_obj)
-        except OSError:
-            payload = {}
-    except OSError:
-        payload = {}
-
-    identity = payload.get("identity")
-    if not isinstance(identity, dict):
-        identity = payload.get("suggested_hints", {}).get("identity", {}) if isinstance(payload.get("suggested_hints"), dict) else {}
-    if not isinstance(identity, dict):
-        identity = {}
-
-    keywords = identity.get("keywords", [])
-    if isinstance(keywords, str):
-        keywords = [x.strip() for x in keywords.split(",") if x.strip()]
-    if not isinstance(keywords, list):
-        keywords = []
-    keywords = [str(k).strip() for k in keywords if str(k).strip()]
-
-    result["identity"] = {
-        "backend_package_hint": str(identity.get("backend_package_hint", "") or "").strip(),
-        "web_path_hint": str(identity.get("web_path_hint", "") or "").strip(),
-        "keywords": keywords,
-    }
-    result["ok"] = True
-    return result
 
 
 def merge_keywords(base_keywords: List[str], hint_keywords: List[str], strategy: str) -> List[str]:
@@ -429,10 +411,11 @@ def emit_hint_bundle(
     run_id: str,
     calibration_report: dict,
     hint_state: dict,
+    hint_bundle_info: dict,
     emit_hints: bool,
-    force_emit: bool = False,
+    ttl_seconds: int,
 ) -> str:
-    should_emit = bool(emit_hints or force_emit)
+    should_emit = bool(metrics_bool(calibration_report.get("needs_human_hint", False)) or emit_hints)
     if not should_emit:
         return ""
     if command != "discover":
@@ -447,39 +430,123 @@ def emit_hint_bundle(
     if not isinstance(identity, dict):
         identity = hint_state.get("identity", {}) if isinstance(hint_state.get("identity"), dict) else {}
 
-    payload = {
-        "version": HINT_BUNDLE_VERSION,
-        "timestamp": utc_now_iso(),
-        "repo_fingerprint": repo_fingerprint,
-        "run_id": run_id,
-        "source": {
-            "needs_human_hint": bool(calibration_report.get("needs_human_hint", False)),
-            "confidence": float(calibration_report.get("confidence", 0.0) or 0.0),
-            "confidence_tier": str(calibration_report.get("confidence_tier", "low")),
-            "reasons": calibration_report.get("reasons", []) if isinstance(calibration_report.get("reasons", []), list) else [],
-        },
-        "identity": {
-            "backend_package_hint": str(identity.get("backend_package_hint", "") or ""),
-            "web_path_hint": str(identity.get("web_path_hint", "") or ""),
-            "keywords": identity.get("keywords", []) if isinstance(identity.get("keywords", []), list) else [],
-        },
-        "rerun": {
-            "hint_strategy_default": str(hint_state.get("strategy", "conservative")),
-            "command_template": f"hongzhi-ai-kit discover --repo-root <repo_root> --apply-hints {bundle_path.resolve()}",
-        },
+    roots_hints = hint_state.get("roots_hints", {}) if isinstance(hint_state.get("roots_hints"), dict) else {}
+    layout_hints = hint_state.get("layout_hints", {}) if isinstance(hint_state.get("layout_hints"), dict) else {}
+    payload = build_profile_delta_bundle(
+        repo_fingerprint=repo_fingerprint,
+        run_id=run_id,
+        calibration_report=calibration_report,
+        hint_identity=identity,
+        layout_hints=layout_hints,
+        roots_hints=roots_hints,
+        ttl_seconds=int(ttl_seconds),
+    )
+    payload["rerun"] = {
+        "hint_strategy_default": str(hint_state.get("strategy", "conservative")),
+        "command_template": f"hongzhi-ai-kit discover --repo-root <repo_root> --apply-hints {bundle_path.resolve()}",
     }
-    atomic_write_json(bundle_path, payload)
+    hint_atomic_write_json(bundle_path, payload)
+    hint_bundle_info.update(
+        {
+            "kind": HINT_BUNDLE_KIND_PROFILE_DELTA,
+            "path": str(bundle_path.resolve()),
+            "verified": True,
+            "expired": False,
+            "ttl_seconds": int(payload.get("ttl_seconds", 0) or 0),
+            "created_at": str(payload.get("created_at", "") or ""),
+            "expires_at": str(payload.get("expires_at", "") or ""),
+        }
+    )
     return str(bundle_path.resolve())
 
 
 def print_hints_pointer_line(hints_path: str) -> None:
     versions = version_triplet()
+    resolved = Path(hints_path).resolve()
     print(
-        f"HONGZHI_HINTS {Path(hints_path).resolve()} "
+        f"HONGZHI_HINTS {resolved} "
+        f"path={quote_machine_value(str(resolved))} "
         f"package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']}"
     )
+
+
+def print_hints_block_line(code: int, reason: str, command: str, detail: str, token_scope: list | None) -> None:
+    versions = version_triplet()
+    scope_text = ",".join(token_scope or ["*"])
+    print(
+        f"HONGZHI_HINTS_BLOCK code={int(code)} reason={reason} command={command} "
+        f"scope={scope_text} "
+        f"package_version={versions['package_version']} "
+        f"plugin_version={versions['plugin_version']} "
+        f"contract_version={versions['contract_version']} "
+        f"detail={quote_machine_value(detail)}"
+    )
+
+
+def hint_bundle_scope_allowed(governance: dict) -> Tuple[bool, str]:
+    if not isinstance(governance, dict):
+        return False, "governance_missing"
+    if not governance.get("token_used", False):
+        return True, "allowed"
+    scope = normalize_scope(governance.get("token_scope"))
+    if "*" in scope or "hint_bundle" in scope:
+        return True, "allowed"
+    return False, "token_scope_missing"
+
+
+def print_index_pointer_line(index_path: Path) -> None:
+    versions = version_triplet()
+    resolved = index_path.resolve()
+    print(
+        f"HONGZHI_INDEX {resolved} "
+        f"path={quote_machine_value(str(resolved))} "
+        f"package_version={versions['package_version']} "
+        f"plugin_version={versions['plugin_version']} "
+        f"contract_version={versions['contract_version']}"
+    )
+
+
+def print_index_block_line(
+    code: int,
+    reason: str,
+    command: str,
+    detail: str,
+    token_scope: list | None,
+    required_scope: str = "federated_index",
+) -> None:
+    versions = version_triplet()
+    scope_text = str(required_scope or "federated_index")
+    token_scope_text = ",".join(token_scope or ["*"])
+    print(
+        f"HONGZHI_INDEX_BLOCK code={int(code)} reason={reason} command={command} "
+        f"scope={scope_text} "
+        f"token_scope={token_scope_text} "
+        f"package_version={versions['package_version']} "
+        f"plugin_version={versions['plugin_version']} "
+        f"contract_version={versions['contract_version']} "
+        f"detail={quote_machine_value(detail)}"
+    )
+
+
+def federated_index_policy_enabled(governance: dict) -> bool:
+    return bool(governance.get("federated_index_enabled", governance.get("enabled", False)))
+
+
+def federated_index_scope_allowed(governance: dict) -> Tuple[bool, str]:
+    if not isinstance(governance, dict):
+        return False, "governance_missing"
+    if not governance.get("token_used", False):
+        return True, "allowed"
+    scope = normalize_scope(governance.get("token_scope"))
+    if "*" in scope or "federated_index" in scope:
+        return True, "allowed"
+    return False, "token_scope_missing"
+
+
+def metrics_bool(value: Any) -> bool:
+    return bool(value)
 
 
 def run_layout_adapters(
@@ -519,6 +586,51 @@ def run_layout_adapters(
             "fallback_reason": "adapter_import_or_runtime_failure",
         },
     }
+
+
+def build_roots_entries_from_detected_roots(
+    repo_root: Path,
+    candidates: List[dict],
+    java_roots: List[Path],
+    template_roots: List[Path],
+) -> List[dict]:
+    """Build roots entries using already-detected roots (avoid repeated full layout scan)."""
+    try:
+        import layout_adapters as la
+
+        if hasattr(la, "build_roots_entries"):
+            return la.build_roots_entries(
+                repo_root=repo_root,
+                candidates=candidates,
+                java_roots=[str(p) for p in java_roots],
+                template_roots=[str(p) for p in template_roots],
+            )
+    except Exception:
+        pass
+
+    entries: List[dict] = []
+    for cand in candidates or []:
+        if not isinstance(cand, dict):
+            continue
+        module_key = str(cand.get("module_key", "") or "")
+        package_prefix = str(cand.get("package_prefix", "") or "")
+        backend = []
+        template = []
+        pkg_path = package_prefix.replace(".", "/")
+        for root in java_roots:
+            if not root.is_dir():
+                continue
+            target = root / pkg_path if pkg_path else root
+            backend.append(normalize_rel(str(target), repo_root))
+        for root in template_roots:
+            if not root.is_dir():
+                continue
+            template.append(normalize_rel(str(root), repo_root))
+        roots = [{"kind": "backend_java", "path": p} for p in backend if p] + [
+            {"kind": "web_template", "path": p} for p in template if p
+        ]
+        entries.append({"module_key": module_key, "package_prefix": package_prefix, "roots": roots})
+    return entries
 
 
 def parse_iso_ts(ts: str) -> datetime | None:
@@ -692,67 +804,169 @@ def assert_output_roots_safe(repo_root: Path, workspace: Path, global_state_root
 #  Governance Logic
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _parse_bool_literal(value: str) -> bool:
+    val = str(value).strip().lower()
+    if val == "true":
+        return True
+    if val == "false":
+        return False
+    raise ValueError(f"invalid bool literal: {value}")
+
+
+def _parse_inline_list(value: str) -> List[str]:
+    text = str(value).strip()
+    if not (text.startswith("[") and text.endswith("]")):
+        raise ValueError("expected inline list syntax")
+    inner = text[1:-1].strip()
+    if not inner:
+        return []
+    return [x.strip().strip("\"'") for x in inner.split(",") if x.strip()]
+
+
 def load_policy_yaml(args_dict):
-    """Load governance policy from policy.yaml (simple parser, no PyYAML dep)."""
-    # Try finding kit_root
+    """Load governance policy from policy.yaml (simple parser, fail-closed)."""
     kit_root = None
     if args_dict.get("kit_root"):
         kit_root = Path(args_dict["kit_root"])
     else:
-        # Infer from script location: tools -> prompt-dsl-system -> beyond-dev-ai-kit
         try:
             kit_root = SCRIPT_DIR.parent.parent
         except Exception:
             pass
-    
+
     policy = {
         "enabled": False,
         "allow_roots": [],
         "deny_roots": [],
-        "permit_token_file": None
+        "permit_token_file": None,
+        "federated_index": {
+            "enabled": None,  # None => inherit plugin.enabled
+            "write_jsonl": True,
+            "write_repo_mirror": True,
+        },
+        "_parse_error": False,
+        "_parse_error_reason": "",
     }
 
-    # Env override for enable
     if os.environ.get(GOVERNANCE_ENV) == "1":
         policy["enabled"] = True
-    
-    if kit_root:
-        policy_path = kit_root / "policy.yaml"
-        if policy_path.exists():
+
+    if not kit_root:
+        return policy
+
+    policy_path = kit_root / "policy.yaml"
+    if not policy_path.exists():
+        return policy
+
+    def fail_parse(reason: str) -> dict:
+        policy["_parse_error"] = True
+        policy["_parse_error_reason"] = f"{policy_path}: {reason}"
+        return policy
+
+    try:
+        content = policy_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return fail_parse(f"read_failed: {exc}")
+
+    in_plugin = False
+    in_federated = False
+    plugin_indent = 0
+    federated_indent = 0
+    pending_list = None
+    pending_list_indent = 0
+
+    for lineno, raw_line in enumerate(content.splitlines(), 1):
+        line = raw_line.rstrip()
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+
+        if pending_list:
+            if indent > pending_list_indent and stripped.startswith("-"):
+                item = stripped[1:].strip().strip("\"'")
+                if item:
+                    policy[pending_list].append(str(canonical_path(item)))
+                continue
+            pending_list = None
+
+        if stripped == "plugin:":
+            in_plugin = True
+            in_federated = False
+            plugin_indent = indent
+            continue
+
+        if not in_plugin:
+            # Allow unrelated top-level sections.
+            continue
+
+        if indent <= plugin_indent:
+            in_plugin = False
+            in_federated = False
+            if stripped == "plugin:":
+                in_plugin = True
+                plugin_indent = indent
+                continue
+            continue
+
+        if stripped == "federated_index:":
+            in_federated = True
+            federated_indent = indent
+            continue
+
+        if in_federated and indent <= federated_indent:
+            in_federated = False
+
+        if ":" not in stripped:
+            return fail_parse(f"line {lineno}: malformed yaml entry")
+
+        key, raw_value = stripped.split(":", 1)
+        key = key.strip()
+        raw_value = raw_value.strip()
+
+        if in_federated:
+            if key not in ("enabled", "write_jsonl", "write_repo_mirror"):
+                return fail_parse(f"line {lineno}: unsupported federated_index key '{key}'")
+            if not raw_value:
+                return fail_parse(f"line {lineno}: empty value for federated_index.{key}")
             try:
-                # Simple line-based parser to avoid PyYAML dependency
-                # Supports subset of YAML used in tests (flow-style lists)
-                content = policy_path.read_text(encoding="utf-8")
-                in_plugin = False
-                for line in content.splitlines():
-                    line = line.strip()
-                    if not line or line.startswith("#"): continue
-                    
-                    if line == "plugin:":
-                        in_plugin = True
-                        continue
-                    
-                    if in_plugin:
-                        if line.startswith("enabled:"):
-                            val = line.split(":", 1)[1].strip().lower()
-                            policy["enabled"] = (val == "true")
-                        elif line.startswith("allow_roots:"):
-                            # Handle ["..."]
-                            val = line.split(":", 1)[1].strip()
-                            if val.startswith("[") and val.endswith("]"):
-                                items = [x.strip().strip('"\'') for x in val[1:-1].split(",")]
-                                policy["allow_roots"] = [str(Path(r).expanduser().resolve()) for r in items if r.strip()]
-                        elif line.startswith("deny_roots:"):
-                            val = line.split(":", 1)[1].strip()
-                            if val.startswith("[") and val.endswith("]"):
-                                items = [x.strip().strip('"\'') for x in val[1:-1].split(",")]
-                                policy["deny_roots"] = [str(Path(r).expanduser().resolve()) for r in items if r.strip()]
-                        elif line.startswith("permit_token_file:"):
-                            val = line.split(":", 1)[1].strip().strip('"\'')
-                            policy["permit_token_file"] = val
-            except Exception:
-                pass
-    
+                policy["federated_index"][key] = _parse_bool_literal(raw_value)
+            except ValueError as exc:
+                return fail_parse(f"line {lineno}: {exc}")
+            continue
+
+        if key == "enabled":
+            try:
+                policy["enabled"] = _parse_bool_literal(raw_value)
+            except ValueError as exc:
+                return fail_parse(f"line {lineno}: {exc}")
+            continue
+
+        if key in ("allow_roots", "deny_roots"):
+            if not raw_value:
+                policy[key] = []
+                pending_list = key
+                pending_list_indent = indent
+                continue
+            try:
+                parsed = _parse_inline_list(raw_value)
+            except ValueError:
+                return fail_parse(f"line {lineno}: {key} requires inline list or block list")
+            policy[key] = [str(canonical_path(item)) for item in parsed if str(item).strip()]
+            continue
+
+        if key == "permit_token_file":
+            if not raw_value:
+                policy["permit_token_file"] = None
+            else:
+                policy["permit_token_file"] = raw_value.strip("\"'")
+            continue
+
+        if key == "federated_index":
+            return fail_parse(f"line {lineno}: federated_index must be a nested object block")
+
+        return fail_parse(f"line {lineno}: unsupported plugin key '{key}'")
+
     return policy
 
 def check_root_governance(policy, repo_root, command, permit_token=None):
@@ -829,13 +1043,32 @@ def check_governance_full(args):
     args_dict = vars(args)
     policy = load_policy_yaml(args_dict)
 
+    fed_policy = policy.get("federated_index", {}) if isinstance(policy.get("federated_index"), dict) else {}
+    fed_enabled_raw = fed_policy.get("enabled", None)
+    if fed_enabled_raw is None:
+        fed_enabled = bool(policy["enabled"])
+    else:
+        fed_enabled = bool(fed_enabled_raw)
     gov_info = {
         "enabled": policy["enabled"],
         "token_used": False,
-        "policy_loaded": True,
+        "policy_loaded": not bool(policy.get("_parse_error", False)),
         "policy_hash": compute_policy_hash(policy),
         "token_reason": "token_not_provided",
+        "token_scope": ["*"],
+        "policy_parse_error": bool(policy.get("_parse_error", False)),
+        "federated_index_enabled": fed_enabled,
+        "federated_index_write_jsonl": bool(fed_policy.get("write_jsonl", True)),
+        "federated_index_write_repo_mirror": bool(fed_policy.get("write_repo_mirror", True)),
     }
+
+    if policy.get("_parse_error"):
+        return (
+            False,
+            POLICY_PARSE_EXIT_CODE,
+            str(policy.get("_parse_error_reason", "policy_parse_error")),
+            gov_info,
+        )
 
     if not policy["enabled"]:
         return False, GOVERNANCE_EXIT_CODE, "plugin runner disabled", gov_info
@@ -882,12 +1115,13 @@ def compute_project_fingerprint(repo_root):
     return hashlib.md5("|".join(parts).encode()).hexdigest()[:12]
 
 
-def resolve_workspace(fingerprint, run_id, override_root=None):
+def resolve_workspace(fingerprint, run_id, override_root=None, read_only: bool = False):
     """Resolve workspace directory with fallback chain."""
     try:
-        workspace_root = resolve_workspace_root(override_root)
+        workspace_root = resolve_workspace_root(override_root, read_only=read_only)
         ws = workspace_root / fingerprint / run_id
-        ws.mkdir(parents=True, exist_ok=True)
+        if not read_only:
+            ws.mkdir(parents=True, exist_ok=True)
         return ws
     except RuntimeError as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
@@ -974,7 +1208,9 @@ def write_capabilities(
     capability_registry=None,
     calibration=None,
     hints=None,
+    hint_bundle=None,
     layout_details=None,
+    federated_index=None,
 ):
     """Write capabilities.json for agent-detectable output (contract v4, backward compatible)."""
     versions = version_triplet()
@@ -1002,8 +1238,20 @@ def write_capabilities(
         "bundle_path": str(hints_payload.get("bundle_path", "")),
         "source_path": str(hints_payload.get("source_path", "")),
         "strategy": str(hints_payload.get("strategy", "conservative")),
+        "hint_effective": bool(hints_payload.get("effective", False)),
+        "confidence_delta": float(hints_payload.get("confidence_delta", 0.0) or 0.0),
     }
     layout_details_payload = layout_details if isinstance(layout_details, dict) else {}
+    hint_bundle_payload = hint_bundle if isinstance(hint_bundle, dict) else {}
+    hint_bundle_payload = {
+        "kind": str(hint_bundle_payload.get("kind", "") or ""),
+        "path": str(hint_bundle_payload.get("path", "") or ""),
+        "verified": bool(hint_bundle_payload.get("verified", False)),
+        "expired": bool(hint_bundle_payload.get("expired", False)),
+        "ttl_seconds": int(hint_bundle_payload.get("ttl_seconds", 0) or 0),
+        "created_at": str(hint_bundle_payload.get("created_at", "") or ""),
+        "expires_at": str(hint_bundle_payload.get("expires_at", "") or ""),
+    }
     caps = {
         "version": PLUGIN_VERSION,
         "package_version": versions["package_version"],
@@ -1026,8 +1274,10 @@ def write_capabilities(
             "reason_code": metrics.get("limits_reason_code", "-"),
         },
         "scan_stats": scan_stats,
+        "scan_io_stats": metrics.get("scan_io_stats", {}) if isinstance(metrics.get("scan_io_stats"), dict) else {},
         "layout_details": layout_details_payload,
         "hints": hints_payload,
+        "hint_bundle": hint_bundle_payload,
         "calibration": calibration_payload,
         "roots": roots,
         "artifacts": artifacts,
@@ -1042,6 +1292,7 @@ def write_capabilities(
             "reuse_validated": False,
         },
         "capability_registry": capability_registry or {},
+        "federated_index": federated_index or {},
         "stdout_contract": {
             "v3_summary_prefix": "hongzhi_ai_kit_summary",
             "v4_caps_prefix": "HONGZHI_CAPS",
@@ -1053,7 +1304,7 @@ def write_capabilities(
         },
     }
     cap_path = workspace / "capabilities.json"
-    cap_path.write_text(json.dumps(caps, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    atomic_write_json(cap_path, caps)
     return cap_path
 
 
@@ -1075,6 +1326,11 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
     exit_hint = str(metrics.get("exit_hint", "-") or "-")
     hint_applied = 1 if metrics.get("hint_applied") else 0
     hint_bundle = str(metrics.get("hint_bundle", "-") or "-")
+    hint_bundle_kind = str(metrics.get("hint_bundle_kind", "-") or "-")
+    hint_verified = 1 if metrics.get("hint_verified") else 0
+    hint_expired = 1 if metrics.get("hint_expired") else 0
+    hint_effective = 1 if metrics.get("hint_effective") else 0
+    confidence_delta = float(metrics.get("confidence_delta", 0.0) or 0.0)
     print(
         "hongzhi_ai_kit_summary "
         f"version={SUMMARY_VERSION} "
@@ -1092,6 +1348,11 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
         f"ambiguity_ratio={ambiguity_ratio:.4f} "
         f"hint_applied={hint_applied} "
         f"hint_bundle={hint_bundle} "
+        f"hint_bundle_kind={hint_bundle_kind} "
+        f"hint_verified={hint_verified} "
+        f"hint_expired={hint_expired} "
+        f"hint_effective={hint_effective} "
+        f"confidence_delta={confidence_delta:.4f} "
         f"exit_hint={exit_hint} "
         f"limits_hit={limits_hit} "
         f"limits_reason={limits_reason_code} "
@@ -1105,8 +1366,10 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
 def print_caps_pointer_line(cap_path: Path) -> None:
     """Contract v4 machine-readable pointer to capabilities.json."""
     versions = version_triplet()
+    resolved = cap_path.resolve()
     print(
-        f"HONGZHI_CAPS {cap_path.resolve()} "
+        f"HONGZHI_CAPS {resolved} "
+        f"path={quote_machine_value(str(resolved))} "
         f"package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']}"
@@ -1126,6 +1389,8 @@ def append_capabilities_jsonl(
     smart_info: dict,
     calibration: Optional[dict] = None,
     hints: Optional[dict] = None,
+    hint_bundle: Optional[dict] = None,
+    federated_index: Optional[dict] = None,
     layout_details: Optional[dict] = None,
 ) -> Path:
     """
@@ -1153,18 +1418,21 @@ def append_capabilities_jsonl(
         "limits_suggestion": str(metrics.get("limits_suggestion", "")),
         "limits": metrics.get("limits", {"max_files": None, "max_seconds": None}),
         "scan_stats": build_scan_stats(metrics),
+        "scan_io_stats": metrics.get("scan_io_stats", {}) if isinstance(metrics.get("scan_io_stats"), dict) else {},
         "layout_details": layout_details if isinstance(layout_details, dict) else {},
         "smart_reused": bool(smart_info.get("reused", False)),
         "reuse_validated": bool(smart_info.get("reuse_validated", False)),
         "reused_from_run_id": smart_info.get("reused_from_run_id"),
         "hints": hints if isinstance(hints, dict) else {},
+        "hint_bundle": hint_bundle if isinstance(hint_bundle, dict) else {},
+        "federated_index": federated_index if isinstance(federated_index, dict) else {},
         "calibration": calibration if isinstance(calibration, dict) else {},
         "needs_human_hint": bool((calibration or {}).get("needs_human_hint", False)),
         "confidence_tier": str((calibration or {}).get("confidence_tier", "-")),
+        "hint_effective": bool(metrics.get("hint_effective", False)),
+        "confidence_delta": float(metrics.get("confidence_delta", 0.0) or 0.0),
     }
-    jsonl_path.parent.mkdir(parents=True, exist_ok=True)
-    with jsonl_path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    atomic_append_jsonl(jsonl_path, record)
     return jsonl_path
 
 
@@ -1182,6 +1450,8 @@ def emit_capability_contract_lines(
     layout: str,
     calibration: Optional[dict] = None,
     hints: Optional[dict] = None,
+    hint_bundle: Optional[dict] = None,
+    federated_index: Optional[dict] = None,
     layout_details: Optional[dict] = None,
 ) -> Path:
     """
@@ -1201,6 +1471,12 @@ def emit_capability_contract_lines(
     if isinstance(hints, dict):
         metrics.setdefault("hint_applied", bool(hints.get("applied", False)))
         metrics.setdefault("hint_bundle", str(hints.get("bundle_path", "") or "-"))
+        metrics.setdefault("hint_effective", bool(hints.get("effective", False)))
+        metrics.setdefault("confidence_delta", float(hints.get("confidence_delta", 0.0) or 0.0))
+    if isinstance(hint_bundle, dict):
+        metrics.setdefault("hint_bundle_kind", str(hint_bundle.get("kind", "") or "-"))
+        metrics.setdefault("hint_verified", bool(hint_bundle.get("verified", False)))
+        metrics.setdefault("hint_expired", bool(hint_bundle.get("expired", False)))
     jsonl_path = append_capabilities_jsonl(
         workspace=workspace,
         command=command,
@@ -1214,6 +1490,8 @@ def emit_capability_contract_lines(
         smart_info=smart_info,
         calibration=calibration,
         hints=hints,
+        hint_bundle=hint_bundle,
+        federated_index=federated_index,
         layout_details=layout_details,
     )
     print(f"[plugin] capabilities_jsonl: {jsonl_path}", file=sys.stderr)
@@ -1224,10 +1502,10 @@ def emit_capability_contract_lines(
     return jsonl_path
 
 
-def resolve_global_state(args) -> Path:
+def resolve_global_state(args, read_only: bool = False) -> Path:
     override = args.global_state_root or os.environ.get(GLOBAL_STATE_ENV)
     try:
-        return resolve_global_state_root(override)
+        return resolve_global_state_root(override, read_only=read_only)
     except RuntimeError as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         sys.exit(1)
@@ -1345,6 +1623,7 @@ def attempt_smart_reuse(command: str, args, repo_root: Path, fp: str, vcs: dict,
     reused_layout = old_caps.get("layout", "unknown")
     reused_calibration = old_caps.get("calibration", {}) if isinstance(old_caps.get("calibration"), dict) else {}
     reused_hints = old_caps.get("hints", {}) if isinstance(old_caps.get("hints"), dict) else {}
+    reused_hint_bundle = old_caps.get("hint_bundle", {}) if isinstance(old_caps.get("hint_bundle"), dict) else {}
     reused_layout_details = old_caps.get("layout_details", {}) if isinstance(old_caps.get("layout_details"), dict) else {}
 
     # Force fresh timing to reflect this run while preserving reused metrics.
@@ -1360,6 +1639,7 @@ def attempt_smart_reuse(command: str, args, repo_root: Path, fp: str, vcs: dict,
         "source_fp": source_fp,
         "calibration": reused_calibration,
         "hints": reused_hints,
+        "hint_bundle": reused_hint_bundle,
         "layout_details": reused_layout_details,
     }
     smart_info["reused"] = True
@@ -1418,6 +1698,9 @@ def update_capability_registry(
             "limits_hit": bool(metrics.get("limits_hit", False)),
             "hint_applied": bool(metrics.get("hint_applied", False)),
             "hints_emitted": bool(metrics.get("hints_emitted", False)),
+            "hint_bundle_created": bool(metrics.get("hints_emitted", False)),
+            "hint_bundle_kind": str(metrics.get("hint_bundle_kind", "") or ""),
+            "hint_bundle_expires_at": str(metrics.get("hint_bundle_expires_at", "") or ""),
             "reuse_validated": bool(smart_info.get("reuse_validated", False)),
         },
     }
@@ -1470,6 +1753,10 @@ def update_capability_registry(
                 "applied": bool(metrics.get("hint_applied", False)),
                 "emitted": bool(metrics.get("hints_emitted", False)),
                 "bundle_path": str(metrics.get("hint_bundle", "") or ""),
+                "bundle_kind": str(metrics.get("hint_bundle_kind", "") or ""),
+                "bundle_expires_at": str(metrics.get("hint_bundle_expires_at", "") or ""),
+                "bundle_verified": bool(metrics.get("hint_verified", False)),
+                "bundle_expired": bool(metrics.get("hint_expired", False)),
             },
             "governance": governance,
             "versions": versions,
@@ -1484,6 +1771,147 @@ def update_capability_registry(
         "run_meta_path": str(run_meta_path),
         "updated": True,
     }
+
+
+def update_federated_registry(
+    *,
+    global_state_root: Path,
+    repo_root: Path,
+    fp: str,
+    command: str,
+    run_id: str,
+    ws: Path,
+    metrics: dict,
+    layout: str,
+    governance: dict,
+    capability_registry: dict,
+) -> dict:
+    fed_path = global_state_root / "federated_index.json"
+    fed_jsonl = global_state_root / "federated_index.jsonl"
+    fed = load_federated_index(fed_path)
+    now_ts = utc_now_iso()
+    versions_triplet = version_triplet()
+    versions = {
+        "package": versions_triplet["package_version"],
+        "plugin": versions_triplet["plugin_version"],
+        "contract": versions_triplet["contract_version"],
+    }
+    latest_pointer = {
+        "run_id": run_id,
+        "timestamp": now_ts,
+        "workspace": str(ws),
+        "capability_latest_path": str(capability_registry.get("latest_path", "")),
+        "command": command,
+    }
+    run_record = build_run_record(
+        command=command,
+        run_id=run_id,
+        timestamp=now_ts,
+        workspace=str(ws),
+        latest_path=str(capability_registry.get("latest_path", "")),
+        layout=layout,
+        metrics=metrics,
+        versions=versions,
+        governance=governance,
+    )
+    fed = update_federated_repo_entry(
+        index=fed,
+        repo_fp=fp,
+        repo_root=str(repo_root),
+        latest_pointer=latest_pointer,
+        run_record=run_record,
+        governance=governance,
+        versions=versions,
+    )
+    save_federated_index(fed_path, fed)
+    if bool(governance.get("federated_index_write_jsonl", True)):
+        atomic_append_jsonl(
+            fed_jsonl,
+            {
+                "timestamp": now_ts,
+                "repo_fp": fp,
+                "command": command,
+                "run_id": run_id,
+                "layout": layout,
+                "limits_hit": bool(metrics.get("limits_hit", False)),
+                "hint_bundle_created": bool(metrics.get("hints_emitted", False)),
+            },
+        )
+    mirror_path = ""
+    if bool(governance.get("federated_index_write_repo_mirror", True)):
+        entry = fed.get("repos", {}).get(fp, {}) if isinstance(fed.get("repos"), dict) else {}
+        mirror = write_repo_mirror(global_state_root, fp, entry)
+        mirror_path = str(mirror)
+    return {
+        "path": str(fed_path),
+        "jsonl_path": str(fed_jsonl),
+        "mirror_path": mirror_path,
+        "updated": True,
+    }
+
+
+def maybe_update_federated_registry(
+    *,
+    command: str,
+    args,
+    final_exit_code: int,
+    global_state_root: Path,
+    repo_root: Path,
+    fp: str,
+    run_id: str,
+    ws: Path,
+    metrics: dict,
+    layout: str,
+    governance: dict,
+    capability_registry: dict,
+    warnings_list: list,
+) -> Tuple[int, dict]:
+    federated_registry = {
+        "path": str(global_state_root / "federated_index.json"),
+        "jsonl_path": str(global_state_root / "federated_index.jsonl"),
+        "mirror_path": "",
+        "updated": False,
+        "blocked_reason": "",
+    }
+    if final_exit_code != 0:
+        return final_exit_code, federated_registry
+
+    if not federated_index_policy_enabled(governance):
+        federated_registry["blocked_reason"] = "disabled_by_policy"
+        warnings_list.append("federated_index_blocked: disabled_by_policy")
+        print("[plugin] WARN: federated index disabled by policy", file=sys.stderr)
+        return final_exit_code, federated_registry
+
+    scope_ok, scope_reason = federated_index_scope_allowed(governance)
+    if not scope_ok:
+        federated_registry["blocked_reason"] = scope_reason
+        warnings_list.append(f"federated_index_blocked: {scope_reason}")
+        print(f"[plugin] WARN: federated index blocked: {scope_reason}", file=sys.stderr)
+        print_index_block_line(
+            code=INDEX_SCOPE_EXIT_CODE,
+            reason=scope_reason,
+            command=command,
+            detail="federated index write blocked by token scope",
+            token_scope=normalize_scope(governance.get("token_scope")),
+        )
+        if args.strict:
+            metrics["exit_hint"] = "federated_index_scope_missing"
+            return INDEX_SCOPE_EXIT_CODE, federated_registry
+        return final_exit_code, federated_registry
+
+    federated_registry = update_federated_registry(
+        global_state_root=global_state_root,
+        repo_root=repo_root,
+        fp=fp,
+        command=command,
+        run_id=run_id,
+        ws=ws,
+        metrics=metrics,
+        layout=layout,
+        governance=governance,
+        capability_registry=capability_registry,
+    )
+    return final_exit_code, federated_registry
 
 
 def extract_modules_summary(
@@ -1639,17 +2067,58 @@ def cmd_discover(args):
     ambiguity_ratio = 0.0
     keywords = [k.strip() for k in args.keywords.split(",") if k.strip()] if args.keywords else []
     hint_state = default_hint_state(getattr(args, "apply_hints", ""), getattr(args, "hint_strategy", "conservative"))
+    hint_bundle_info = default_hint_bundle_info()
+    final_exit_code = 0
     if args.apply_hints:
-        loaded_hints = load_hint_bundle(args.apply_hints)
+        loaded_hints = load_hint_bundle_input(str(args.apply_hints))
         if loaded_hints.get("ok"):
-            hint_state["applied"] = True
-            hint_state["source_path"] = loaded_hints.get("bundle_path", str(args.apply_hints))
-            hint_state["identity"] = loaded_hints.get("identity", hint_state["identity"])
-            keywords = merge_keywords(
-                keywords,
-                hint_state["identity"].get("keywords", []),
-                hint_state["strategy"],
+            verify = verify_hint_bundle(
+                loaded_hints.get("payload", {}),
+                repo_fingerprint=fp,
+                command="discover",
+                allow_cross_repo_hints=bool(getattr(args, "allow_cross_repo_hints", False)),
             )
+            hint_bundle_info.update(
+                {
+                    "kind": str(verify.get("kind", "") or ""),
+                    "path": str(loaded_hints.get("source_path", "") or ""),
+                    "verified": bool(verify.get("verified", False)),
+                    "expired": bool(verify.get("expired", False)),
+                    "ttl_seconds": int(verify.get("ttl_seconds", 0) or 0),
+                    "created_at": str(verify.get("created_at", "") or ""),
+                    "expires_at": str(verify.get("expires_at", "") or ""),
+                }
+            )
+            if verify.get("ok"):
+                hint_state["applied"] = True
+                hint_state["verified"] = True
+                hint_state["expired"] = False
+                hint_state["kind"] = str(verify.get("kind", "") or "")
+                hint_state["source_path"] = str(loaded_hints.get("source_path", "") or "")
+                hint_state["identity"] = verify.get("identity", hint_state["identity"])
+                hint_state["roots_hints"] = verify.get("roots_hints", hint_state["roots_hints"])
+                hint_state["layout_hints"] = verify.get("layout_hints", hint_state["layout_hints"])
+                hint_state["ttl_seconds"] = int(verify.get("ttl_seconds", 0) or 0)
+                hint_state["created_at"] = str(verify.get("created_at", "") or "")
+                hint_state["expires_at"] = str(verify.get("expires_at", "") or "")
+                keywords = merge_keywords(
+                    keywords,
+                    hint_state["identity"].get("keywords", []),
+                    hint_state["strategy"],
+                )
+            else:
+                reason = str(verify.get("error", "hint_verify_failed") or "hint_verify_failed")
+                warnings_list.append(f"apply_hints_failed: {reason}")
+                print(f"[plugin] WARN: apply_hints failed: {reason}", file=sys.stderr)
+                if reason == "hint_bundle_expired":
+                    hint_state["expired"] = True
+                    hint_bundle_info["expired"] = True
+                    if args.strict:
+                        final_exit_code = HINT_VERIFY_EXIT_CODE
+                        metrics["exit_hint"] = "hint_bundle_expired"
+                elif args.strict:
+                    final_exit_code = HINT_VERIFY_EXIT_CODE
+                    metrics["exit_hint"] = "hint_verify_failed"
         else:
             warnings_list.append(f"apply_hints_failed: {loaded_hints.get('error', 'unknown')}")
             print(
@@ -1657,6 +2126,12 @@ def cmd_discover(args):
                 f"{loaded_hints.get('error', 'unknown')}",
                 file=sys.stderr,
             )
+            if args.strict:
+                final_exit_code = HINT_VERIFY_EXIT_CODE
+                metrics["exit_hint"] = "hint_verify_failed"
+    hinted_layout = str(hint_state.get("layout_hints", {}).get("layout", "") or "").strip()
+    if hinted_layout:
+        layout = hinted_layout
     layout_details = {
         "adapter_used": "layout_adapters_v1",
         "candidates_scanned": 0,
@@ -1702,9 +2177,17 @@ def cmd_discover(args):
         "run_meta_path": "",
         "updated": False,
     }
-
+    federated_registry = {
+        "path": str(global_state_root / "federated_index.json"),
+        "jsonl_path": str(global_state_root / "federated_index.jsonl"),
+        "mirror_path": "",
+        "updated": False,
+        "blocked_reason": "",
+    }
+    all_java_results: List[dict] = []
+    all_templates: List[str] = []
     # Snapshot before
-    snap_before = take_snapshot(repo_root, max_files=args.max_files)
+    snap_before = take_snapshot(repo_root)
 
     t_start = time.time()
     smart_info, reused_payload, smart_reasons = attempt_smart_reuse(
@@ -1747,6 +2230,9 @@ def cmd_discover(args):
         hints_seed = reused_payload.get("hints", {})
         if isinstance(hints_seed, dict):
             hint_state.update(hints_seed)
+        hint_bundle_seed = reused_payload.get("hint_bundle", {})
+        if isinstance(hint_bundle_seed, dict):
+            hint_bundle_info.update(hint_bundle_seed)
         layout_details_seed = reused_payload.get("layout_details", {})
         if isinstance(layout_details_seed, dict):
             layout_details.update(layout_details_seed)
@@ -1756,6 +2242,12 @@ def cmd_discover(args):
 
         # ── Step 1: auto_module_discover ──
         sys.path.insert(0, str(SCRIPT_DIR))
+        adapter_pre = {
+            "layout": layout,
+            "java_roots": [],
+            "template_roots": [],
+            "layout_details": {},
+        }
         try:
             import auto_module_discover as amd
 
@@ -1766,10 +2258,26 @@ def cmd_discover(args):
                 hint_identity=hint_state.get("identity", {}),
                 fallback_layout=layout,
             )
+            metrics["layout_adapter_runs"] = 1
             pre_java_roots = [Path(p) for p in adapter_pre.get("java_roots", []) if Path(p).is_dir()]
+            pre_template_roots = [Path(p) for p in adapter_pre.get("template_roots", []) if Path(p).is_dir()]
+            hinted_backend_roots = hint_state.get("roots_hints", {}).get("backend_java", [])
+            if isinstance(hinted_backend_roots, list):
+                for rel in hinted_backend_roots:
+                    root_hint = (repo_root / str(rel)).resolve()
+                    if root_hint.is_dir() and root_hint not in pre_java_roots:
+                        pre_java_roots.append(root_hint)
+            hinted_template_roots = hint_state.get("roots_hints", {}).get("web_template", [])
+            if isinstance(hinted_template_roots, list):
+                for rel in hinted_template_roots:
+                    tpl_hint = (repo_root / str(rel)).resolve()
+                    if tpl_hint.is_dir() and tpl_hint not in pre_template_roots:
+                        pre_template_roots.append(tpl_hint)
             if not pre_java_roots:
                 pre_java_roots = amd.find_java_roots(repo_root)
             java_roots = pre_java_roots
+            adapter_java_roots = list(pre_java_roots)
+            adapter_template_roots = list(pre_template_roots)
             all_pkgs = {}
             for jr in java_roots:
                 for pkg, stats in amd.scan_packages(jr).items():
@@ -1778,12 +2286,22 @@ def cmd_discover(args):
                     for k in ("files", "controllers", "services", "repositories"):
                         all_pkgs[pkg][k] += stats[k]
             candidates = amd.cluster_modules(all_pkgs, keywords)[: args.top_k]
+            pre_hint_conf = amd.compute_confidence(candidates, 0) if candidates else 0.0
+            pre_hint_top_score = float(candidates[0].get("score", 0.0) or 0.0) if candidates else 0.0
             if hint_state.get("applied"):
                 candidates = apply_hint_boost_to_candidates(
                     candidates,
                     hint_state.get("identity", {}),
                     hint_state.get("strategy", "conservative"),
                 )
+            post_hint_conf = amd.compute_confidence(candidates, 0) if candidates else 0.0
+            post_hint_top_score = float(candidates[0].get("score", 0.0) or 0.0) if candidates else 0.0
+            hint_delta = round(float(post_hint_conf) - float(pre_hint_conf), 4)
+            score_delta = round(float(post_hint_top_score) - float(pre_hint_top_score), 4)
+            metrics["hint_confidence_pre"] = round(float(pre_hint_conf), 4)
+            metrics["hint_confidence_post"] = round(float(post_hint_conf), 4)
+            metrics["confidence_delta"] = hint_delta
+            metrics["hint_score_delta"] = score_delta
             discover_candidates = candidates
             for i, c in enumerate(candidates):
                 c["confidence"] = amd.compute_confidence(candidates, i) if candidates else 0
@@ -1792,23 +2310,24 @@ def cmd_discover(args):
             candidates = []
             discover_candidates = []
             java_roots = []
+            adapter_java_roots = []
+            adapter_template_roots = []
             all_pkgs = {}
 
         metrics["java_roots"] = len(java_roots)
         metrics["module_candidates"] = len(candidates)
         metrics["total_packages"] = len(all_pkgs)
-        adapter_final = run_layout_adapters(
+        layout = adapter_pre.get("layout", layout) if isinstance(adapter_pre, dict) else layout
+        hinted_layout = str(hint_state.get("layout_hints", {}).get("layout", "") or "").strip()
+        if hinted_layout:
+            layout = hinted_layout
+        adapter_roots_entries = build_roots_entries_from_detected_roots(
             repo_root=repo_root,
             candidates=candidates[:5],
-            keywords=keywords,
-            hint_identity=hint_state.get("identity", {}),
-            fallback_layout=layout,
+            java_roots=adapter_java_roots,
+            template_roots=adapter_template_roots,
         )
-        layout = adapter_final.get("layout", layout)
-        adapter_java_roots = [Path(p) for p in adapter_final.get("java_roots", []) if Path(p).is_dir()]
-        adapter_template_roots = [Path(p) for p in adapter_final.get("template_roots", []) if Path(p).is_dir()]
-        adapter_roots_entries = adapter_final.get("roots_entries", []) if isinstance(adapter_final.get("roots_entries"), list) else []
-        adapter_details = adapter_final.get("layout_details", {}) if isinstance(adapter_final.get("layout_details"), dict) else {}
+        adapter_details = adapter_pre.get("layout_details", {}) if isinstance(adapter_pre.get("layout_details"), dict) else {}
         if adapter_details:
             layout_details.update(adapter_details)
         layout_details["candidates_scanned"] = len(candidates)
@@ -1862,15 +2381,16 @@ def cmd_discover(args):
         except ImportError:
             sd = None
 
+        all_java_results: List[dict] = []
+        all_templates: List[str] = []
+        total_ch = 0
+        total_cm = 0
         if sd and candidates:
             # Scan once, reuse across candidates
             if adapter_java_roots or adapter_template_roots:
                 sd_java_roots, sd_template_roots = adapter_java_roots, adapter_template_roots
             else:
                 sd_java_roots, sd_template_roots = sd.find_scan_roots(repo_root)
-            all_java_results = []
-            total_ch = 0
-            total_cm = 0
             for jr in sd_java_roots:
                 rh = sd.root_hash(str(jr))
                 # Use workspace for cache
@@ -1882,7 +2402,6 @@ def cmd_discover(args):
                 total_cm += misses
                 sd.save_file_index(cache_dir, rh, new_idx)
 
-            all_templates = []
             for tr in sd_template_roots:
                 all_templates.extend(sd.scan_templates(tr, repo_root))
 
@@ -1984,6 +2503,41 @@ def cmd_discover(args):
     metrics["layout"] = layout
     metrics["layout_details"] = layout_details
     metrics["hint_applied"] = bool(hint_state.get("applied", False))
+    metrics["hint_verified"] = bool(hint_state.get("verified", False))
+    metrics["hint_expired"] = bool(hint_state.get("expired", False))
+    metrics["hint_bundle_kind"] = str(hint_bundle_info.get("kind", "") or "-")
+    metrics["hint_effective"] = bool(
+        metrics.get("hint_applied", False)
+        and (
+            float(metrics.get("confidence_delta", 0.0) or 0.0) > 0.0
+            or float(metrics.get("hint_score_delta", 0.0) or 0.0) > 0.0
+            or bool(metrics.get("hint_verified", False))
+        )
+    )
+    if "confidence_delta" not in metrics:
+        metrics["confidence_delta"] = 0.0
+    hint_state["effective"] = bool(metrics.get("hint_effective", False))
+    hint_state["confidence_delta"] = float(metrics.get("confidence_delta", 0.0) or 0.0)
+    scan_io_stats = metrics.get("scan_io_stats", {}) if isinstance(metrics.get("scan_io_stats"), dict) else {}
+    if not scan_io_stats:
+        scan_io_stats = {
+            "layout_adapter_runs": int(metrics.get("layout_adapter_runs", 1) or 1),
+            "java_files_scanned": int(len(all_java_results)),
+            "templates_scanned": int(len(all_templates)),
+            "snapshot_files_count": int(len(snap_before)),
+            "cache_hit_files": int(metrics.get("cache_hit_files", 0) or 0),
+            "cache_miss_files": int(metrics.get("cache_miss_files", 0) or 0),
+            "cache_hit_rate": float(metrics.get("cache_hit_rate", 0.0) or 0.0),
+        }
+    else:
+        scan_io_stats.setdefault("layout_adapter_runs", int(metrics.get("layout_adapter_runs", 1) or 1))
+        scan_io_stats.setdefault("java_files_scanned", int(len(all_java_results)))
+        scan_io_stats.setdefault("templates_scanned", int(len(all_templates)))
+        scan_io_stats.setdefault("snapshot_files_count", int(len(snap_before)))
+        scan_io_stats.setdefault("cache_hit_files", int(metrics.get("cache_hit_files", 0) or 0))
+        scan_io_stats.setdefault("cache_miss_files", int(metrics.get("cache_miss_files", 0) or 0))
+        scan_io_stats.setdefault("cache_hit_rate", float(metrics.get("cache_hit_rate", 0.0) or 0.0))
+    metrics["scan_io_stats"] = scan_io_stats
     metrics.setdefault("hint_bundle", "-")
     metrics.setdefault("hints_emitted", False)
     metrics.setdefault("module_candidates", len(roots_info))
@@ -1991,7 +2545,7 @@ def cmd_discover(args):
     ensure_endpoints_total(metrics)
 
     # Snapshot after — enforce read-only contract
-    snap_after = take_snapshot(repo_root, max_files=args.max_files)
+    snap_after = take_snapshot(repo_root)
     delta = diff_snapshots(snap_before, snap_after)
     enforce_read_only(delta, args.write_ok)
 
@@ -2002,8 +2556,7 @@ def cmd_discover(args):
         print(f"[plugin] WARN: limits_hit: {reason}", file=sys.stderr)
     if metrics.get("limits_suggestion"):
         print(f"[plugin] limits_suggestion: {metrics['limits_suggestion']}", file=sys.stderr)
-    final_exit_code = 0
-    if limits_hit and args.strict:
+    if limits_hit and args.strict and final_exit_code == 0:
         final_exit_code = LIMIT_EXIT_CODE
         print("[plugin] STRICT: limits hit, exiting with code 20", file=sys.stderr)
 
@@ -2021,7 +2574,7 @@ def cmd_discover(args):
     metrics["needs_human_hint"] = bool(calibration_report.get("needs_human_hint", False))
     metrics["confidence_tier"] = str(calibration_report.get("confidence_tier", "low"))
     metrics["calibration_confidence"] = float(calibration_report.get("confidence", 0.0) or 0.0)
-    metrics["exit_hint"] = "-"
+    metrics.setdefault("exit_hint", "-")
     for action in calibration_report.get("action_suggestions", []):
         if action not in suggestions_list:
             suggestions_list.append(action)
@@ -2030,31 +2583,86 @@ def cmd_discover(args):
         warn = f"needs_human_hint: {reason_text}"
         warnings_list.append(warn)
         print(f"[plugin] WARN: {warn}", file=sys.stderr)
-        if args.strict:
+        if args.strict and final_exit_code == 0:
             final_exit_code = CALIBRATION_EXIT_CODE
             metrics["exit_hint"] = "needs_human_hint"
             print("[plugin] STRICT: needs_human_hint detected, exiting with code 21", file=sys.stderr)
 
-    hint_bundle_path = emit_hint_bundle(
-        workspace=ws,
-        command="discover",
-        repo_fingerprint=fp,
-        run_id=run_id,
-        calibration_report=calibration_report,
-        hint_state=hint_state,
-        emit_hints=bool(args.emit_hints),
-        force_emit=bool(args.strict and metrics.get("needs_human_hint")),
-    )
-    if hint_bundle_path:
-        hint_state["emitted"] = True
-        hint_state["bundle_path"] = hint_bundle_path
-        metrics["hint_bundle"] = hint_bundle_path
-        metrics["hints_emitted"] = True
-    else:
-        metrics.setdefault("hint_bundle", "-")
-        metrics.setdefault("hints_emitted", False)
-
     gov_info = getattr(args, "_gov_info", {})
+    hint_scope_allowed, hint_scope_reason = hint_bundle_scope_allowed(gov_info)
+    if hint_state.get("applied") and hint_bundle_info.get("path"):
+        metrics["hint_bundle"] = str(hint_bundle_info.get("path"))
+    should_emit_hint_bundle = bool(metrics.get("needs_human_hint", False)) and not (
+        final_exit_code == HINT_VERIFY_EXIT_CODE and bool(hint_state.get("expired", False))
+    )
+    if should_emit_hint_bundle:
+        if hint_scope_allowed:
+            hint_state["layout_hints"] = {
+                "layout": str(layout),
+                "adapter_used": str(layout_details.get("adapter_used", "")),
+            }
+            roots_backend: List[str] = []
+            roots_templates: List[str] = []
+            for entry in roots_info:
+                if not isinstance(entry, dict):
+                    continue
+                for root_item in entry.get("roots", []) if isinstance(entry.get("roots"), list) else []:
+                    if not isinstance(root_item, dict):
+                        continue
+                    kind = str(root_item.get("kind", "") or "")
+                    path = str(root_item.get("path", "") or "")
+                    if not path:
+                        continue
+                    if kind == "backend_java" and path not in roots_backend:
+                        roots_backend.append(path)
+                    if kind == "web_template" and path not in roots_templates:
+                        roots_templates.append(path)
+            hint_state["roots_hints"] = {"backend_java": roots_backend, "web_template": roots_templates}
+            hint_bundle_path = emit_hint_bundle(
+                workspace=ws,
+                command="discover",
+                repo_fingerprint=fp,
+                run_id=run_id,
+                calibration_report=calibration_report,
+                hint_state=hint_state,
+                hint_bundle_info=hint_bundle_info,
+                emit_hints=bool(args.emit_hints),
+                ttl_seconds=int(getattr(args, "hint_bundle_ttl_seconds", 1800)),
+            )
+            if hint_bundle_path:
+                hint_state["emitted"] = True
+                hint_state["bundle_path"] = hint_bundle_path
+                hint_state["kind"] = str(hint_bundle_info.get("kind", HINT_BUNDLE_KIND_PROFILE_DELTA))
+                hint_state["verified"] = True
+                hint_state["expired"] = False
+                hint_state["ttl_seconds"] = int(hint_bundle_info.get("ttl_seconds", 0) or 0)
+                hint_state["created_at"] = str(hint_bundle_info.get("created_at", "") or "")
+                hint_state["expires_at"] = str(hint_bundle_info.get("expires_at", "") or "")
+                metrics["hint_bundle"] = hint_bundle_path
+                metrics["hints_emitted"] = True
+        else:
+            warnings_list.append(f"hint_bundle_blocked: {hint_scope_reason}")
+            print(f"[plugin] WARN: hint bundle blocked: {hint_scope_reason}", file=sys.stderr)
+            print_hints_block_line(
+                code=HINT_SCOPE_EXIT_CODE,
+                reason=hint_scope_reason,
+                command="discover",
+                detail="hint bundle emission blocked by token scope",
+                token_scope=normalize_scope(gov_info.get("token_scope")),
+            )
+            metrics["exit_hint"] = "hint_bundle_scope_missing"
+            if args.strict:
+                final_exit_code = HINT_SCOPE_EXIT_CODE
+    metrics["hint_bundle_kind"] = str(hint_bundle_info.get("kind", "-") or "-")
+    metrics["hint_verified"] = bool(hint_bundle_info.get("verified", hint_state.get("verified", False)))
+    metrics["hint_expired"] = bool(hint_bundle_info.get("expired", hint_state.get("expired", False)))
+    metrics["hint_bundle_expires_at"] = str(hint_bundle_info.get("expires_at", "") or "")
+    metrics["hint_bundle_created_at"] = str(hint_bundle_info.get("created_at", "") or "")
+    metrics.setdefault("hint_bundle", "-")
+    metrics.setdefault("hints_emitted", False)
+    metrics["keywords_used"] = keywords[:8]
+    metrics["endpoint_paths"] = structure_signals.get("endpoint_paths", [])[:120]
+
     if final_exit_code == 0:
         capability_registry = update_capability_registry(
             global_state_root,
@@ -2071,27 +2679,46 @@ def cmd_discover(args):
             smart_info,
             gov_info,
         )
+    final_exit_code, federated_registry = maybe_update_federated_registry(
+        command="discover",
+        args=args,
+        final_exit_code=final_exit_code,
+        global_state_root=global_state_root,
+        repo_root=repo_root,
+        fp=fp,
+        run_id=run_id,
+        ws=ws,
+        metrics=metrics,
+        layout=layout,
+        governance=gov_info,
+        capability_registry=capability_registry,
+        warnings_list=warnings_list,
+    )
     cap_path = write_capabilities(
-        ws,
-        "discover",
-        run_id,
-        fp,
-        layout,
-        roots_info,
-        artifacts_list,
-        metrics,
-        warnings_list,
-        suggestions_list,
-        gov_info,
-        smart_info,
-        capability_registry,
-        calibration_report,
-        hint_state,
-        layout_details,
+        workspace=ws,
+        command="discover",
+        run_id=run_id,
+        repo_fingerprint=fp,
+        layout=layout,
+        roots=roots_info,
+        artifacts=artifacts_list,
+        metrics=metrics,
+        warnings=warnings_list,
+        suggestions=suggestions_list,
+        governance=gov_info,
+        smart=smart_info,
+        capability_registry=capability_registry,
+        calibration=calibration_report,
+        hints=hint_state,
+        hint_bundle=hint_bundle_info,
+        layout_details=layout_details,
+        federated_index=federated_registry,
     )
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
+    if federated_registry.get("updated"):
+        print_index_pointer_line(Path(str(federated_registry["path"])))
     emit_capability_contract_lines(
         cap_path=cap_path,
         command="discover",
@@ -2106,6 +2733,8 @@ def cmd_discover(args):
         layout=layout,
         calibration=calibration_report,
         hints=hint_state,
+        hint_bundle=hint_bundle_info,
+        federated_index=federated_registry,
         layout_details=layout_details,
     )
     return final_exit_code
@@ -2153,11 +2782,18 @@ def cmd_diff(args):
         "run_meta_path": "",
         "updated": False,
     }
+    federated_registry = {
+        "path": str(global_state_root / "federated_index.json"),
+        "jsonl_path": str(global_state_root / "federated_index.jsonl"),
+        "mirror_path": "",
+        "updated": False,
+        "blocked_reason": "",
+    }
     metrics = {}
 
     # Snapshot before (both repos)
-    snap_old_before = take_snapshot(old_root, max_files=args.max_files)
-    snap_new_before = take_snapshot(new_root, max_files=args.max_files)
+    snap_old_before = take_snapshot(old_root)
+    snap_new_before = take_snapshot(new_root)
 
     t_start = time.time()
     smart_info, reused_payload, smart_reasons = attempt_smart_reuse(
@@ -2245,8 +2881,8 @@ def cmd_diff(args):
         }
 
     # Snapshot after — enforce read-only
-    snap_old_after = take_snapshot(old_root, max_files=args.max_files)
-    snap_new_after = take_snapshot(new_root, max_files=args.max_files)
+    snap_old_after = take_snapshot(old_root)
+    snap_new_after = take_snapshot(new_root)
     delta_old = diff_snapshots(snap_old_before, snap_old_after)
     delta_new = diff_snapshots(snap_new_before, snap_new_after)
     enforce_read_only(delta_old, args.write_ok)
@@ -2256,6 +2892,9 @@ def cmd_diff(args):
         metrics["scan_time_s"] = round(time.time() - t_start, 3)
     metrics.setdefault("module_candidates", 1 if metrics.get("module_key") else 0)
     metrics.setdefault("ambiguity_ratio", 0.0)
+    metrics.setdefault("confidence_tier", "high")
+    metrics.setdefault("keywords_used", [])
+    metrics.setdefault("endpoint_paths", [])
     ensure_endpoints_total(metrics)
     limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
     metrics["limits_suggestion"] = build_limits_suggestion(_limit_codes, "diff", [])
@@ -2286,24 +2925,42 @@ def cmd_diff(args):
             smart_info,
             gov_info,
         )
+    final_exit_code, federated_registry = maybe_update_federated_registry(
+        command="diff",
+        args=args,
+        final_exit_code=final_exit_code,
+        global_state_root=global_state_root,
+        repo_root=new_root,
+        fp=fp,
+        run_id=run_id,
+        ws=ws,
+        metrics=metrics,
+        layout="n/a",
+        governance=gov_info,
+        capability_registry=capability_registry,
+        warnings_list=warnings_list,
+    )
     cap_path = write_capabilities(
-        ws,
-        "diff",
-        run_id,
-        fp,
-        "n/a",
-        roots_info,
-        artifacts_list,
-        metrics,
-        warnings_list,
-        suggestions_list,
-        gov_info,
-        smart_info,
-        capability_registry,
+        workspace=ws,
+        command="diff",
+        run_id=run_id,
+        repo_fingerprint=fp,
+        layout="n/a",
+        roots=roots_info,
+        artifacts=artifacts_list,
+        metrics=metrics,
+        warnings=warnings_list,
+        suggestions=suggestions_list,
+        governance=gov_info,
+        smart=smart_info,
+        capability_registry=capability_registry,
+        federated_index=federated_registry,
     )
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
+    if federated_registry.get("updated"):
+        print_index_pointer_line(Path(str(federated_registry["path"])))
     emit_capability_contract_lines(
         cap_path=cap_path,
         command="diff",
@@ -2316,6 +2973,7 @@ def cmd_diff(args):
         exit_code=final_exit_code,
         warnings_count=len(warnings_list),
         layout="n/a",
+        federated_index=federated_registry,
     )
     return final_exit_code
 
@@ -2355,8 +3013,15 @@ def cmd_profile(args):
         "run_meta_path": "",
         "updated": False,
     }
+    federated_registry = {
+        "path": str(global_state_root / "federated_index.json"),
+        "jsonl_path": str(global_state_root / "federated_index.jsonl"),
+        "mirror_path": "",
+        "updated": False,
+        "blocked_reason": "",
+    }
 
-    snap_before = take_snapshot(repo_root, max_files=args.max_files)
+    snap_before = take_snapshot(repo_root)
     t_start = time.time()
 
     smart_info, reused_payload, smart_reasons = attempt_smart_reuse(
@@ -2422,16 +3087,19 @@ def cmd_profile(args):
                 "endpoints": 0,
             }
 
-    snap_after = take_snapshot(repo_root, max_files=args.max_files)
+    snap_after = take_snapshot(repo_root)
     delta = diff_snapshots(snap_before, snap_after)
     enforce_read_only(delta, args.write_ok)
 
     if "scan_time_s" not in metrics:
         metrics["scan_time_s"] = round(time.time() - t_start, 3)
+    keywords_used = [k.strip() for k in args.keywords.split(",") if k.strip()] if args.keywords else []
     metrics.setdefault("module_candidates", 1 if metrics.get("module_key") and metrics.get("module_key") != "none" else 0)
     metrics.setdefault("ambiguity_ratio", 0.0)
+    metrics.setdefault("confidence_tier", "high")
+    metrics.setdefault("keywords_used", keywords_used)
+    metrics.setdefault("endpoint_paths", [])
     ensure_endpoints_total(metrics)
-    keywords_used = [k.strip() for k in args.keywords.split(",") if k.strip()] if args.keywords else []
     limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
     metrics["limits_suggestion"] = build_limits_suggestion(_limit_codes, "profile", keywords_used)
     for reason in limit_texts:
@@ -2461,24 +3129,42 @@ def cmd_profile(args):
             gov_info,
         )
     layout = detect_layout(repo_root)
+    final_exit_code, federated_registry = maybe_update_federated_registry(
+        command="profile",
+        args=args,
+        final_exit_code=final_exit_code,
+        global_state_root=global_state_root,
+        repo_root=repo_root,
+        fp=fp,
+        run_id=run_id,
+        ws=ws,
+        metrics=metrics,
+        layout=layout,
+        governance=gov_info,
+        capability_registry=capability_registry,
+        warnings_list=warnings_list,
+    )
     cap_path = write_capabilities(
-        ws,
-        "profile",
-        run_id,
-        fp,
-        layout,
-        roots_info,
-        artifacts_list,
-        metrics,
-        warnings_list,
-        suggestions_list,
-        gov_info,
-        smart_info,
-        capability_registry,
+        workspace=ws,
+        command="profile",
+        run_id=run_id,
+        repo_fingerprint=fp,
+        layout=layout,
+        roots=roots_info,
+        artifacts=artifacts_list,
+        metrics=metrics,
+        warnings=warnings_list,
+        suggestions=suggestions_list,
+        governance=gov_info,
+        smart=smart_info,
+        capability_registry=capability_registry,
+        federated_index=federated_registry,
     )
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
+    if federated_registry.get("updated"):
+        print_index_pointer_line(Path(str(federated_registry["path"])))
     emit_capability_contract_lines(
         cap_path=cap_path,
         command="profile",
@@ -2491,6 +3177,7 @@ def cmd_profile(args):
         exit_code=final_exit_code,
         warnings_count=len(warnings_list),
         layout=layout,
+        federated_index=federated_registry,
     )
     return final_exit_code
 
@@ -2532,8 +3219,15 @@ def cmd_migrate(args):
         "run_meta_path": "",
         "updated": False,
     }
+    federated_registry = {
+        "path": str(global_state_root / "federated_index.json"),
+        "jsonl_path": str(global_state_root / "federated_index.jsonl"),
+        "mirror_path": "",
+        "updated": False,
+        "blocked_reason": "",
+    }
 
-    snap_before = take_snapshot(repo_root, max_files=args.max_files)
+    snap_before = take_snapshot(repo_root)
     t_start = time.time()
 
     smart_info, reused_payload, smart_reasons = attempt_smart_reuse(
@@ -2574,7 +3268,7 @@ def cmd_migrate(args):
         scan_time = time.time() - t_start
         metrics = {"scan_time_s": round(scan_time, 3), "endpoints_total": 0}
 
-    snap_after = take_snapshot(repo_root, max_files=args.max_files)
+    snap_after = take_snapshot(repo_root)
     delta = diff_snapshots(snap_before, snap_after)
     enforce_read_only(delta, args.write_ok)
 
@@ -2582,6 +3276,9 @@ def cmd_migrate(args):
         metrics["scan_time_s"] = round(time.time() - t_start, 3)
     metrics.setdefault("module_candidates", 0)
     metrics.setdefault("ambiguity_ratio", 0.0)
+    metrics.setdefault("confidence_tier", "high")
+    metrics.setdefault("keywords_used", [])
+    metrics.setdefault("endpoint_paths", [])
     ensure_endpoints_total(metrics)
     limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
     metrics["limits_suggestion"] = build_limits_suggestion(_limit_codes, "migrate", [])
@@ -2612,24 +3309,42 @@ def cmd_migrate(args):
             gov_info,
         )
     layout = detect_layout(repo_root)
+    final_exit_code, federated_registry = maybe_update_federated_registry(
+        command="migrate",
+        args=args,
+        final_exit_code=final_exit_code,
+        global_state_root=global_state_root,
+        repo_root=repo_root,
+        fp=fp,
+        run_id=run_id,
+        ws=ws,
+        metrics=metrics,
+        layout=layout,
+        governance=gov_info,
+        capability_registry=capability_registry,
+        warnings_list=warnings_list,
+    )
     cap_path = write_capabilities(
-        ws,
-        "migrate",
-        run_id,
-        fp,
-        layout,
-        roots_info,
-        artifacts_list,
-        metrics,
-        warnings_list,
-        suggestions_list,
-        gov_info,
-        smart_info,
-        capability_registry,
+        workspace=ws,
+        command="migrate",
+        run_id=run_id,
+        repo_fingerprint=fp,
+        layout=layout,
+        roots=roots_info,
+        artifacts=artifacts_list,
+        metrics=metrics,
+        warnings=warnings_list,
+        suggestions=suggestions_list,
+        governance=gov_info,
+        smart=smart_info,
+        capability_registry=capability_registry,
+        federated_index=federated_registry,
     )
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
+    if federated_registry.get("updated"):
+        print_index_pointer_line(Path(str(federated_registry["path"])))
     emit_capability_contract_lines(
         cap_path=cap_path,
         command="migrate",
@@ -2642,8 +3357,97 @@ def cmd_migrate(args):
         exit_code=final_exit_code,
         warnings_count=len(warnings_list),
         layout=layout,
+        federated_index=federated_registry,
     )
     return final_exit_code
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Subcommand: index
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def cmd_index(args):
+    """Federated capability index operations: list/query/explain."""
+    global_state_root = resolve_global_state(args, read_only=True)
+    fed_path = global_state_root / "federated_index.json"
+    fed = load_federated_index(fed_path)
+    repos = fed.get("repos", {}) if isinstance(fed.get("repos"), dict) else {}
+    print(f"[plugin] federated_index: {fed_path}")
+    print(f"[plugin] federated_index_repos: {len(repos)}")
+    print_index_pointer_line(fed_path)
+
+    subcmd = getattr(args, "index_command", None)
+    if subcmd == "list":
+        top_k = max(1, int(getattr(args, "top_k", 20) or 20))
+        rows = []
+        for fp, entry in repos.items():
+            if not isinstance(entry, dict):
+                continue
+            latest = entry.get("latest", {}) if isinstance(entry.get("latest"), dict) else {}
+            runs = entry.get("runs", []) if isinstance(entry.get("runs"), list) else []
+            rows.append(
+                {
+                    "repo_fp": fp,
+                    "repo_root": entry.get("repo_root", ""),
+                    "last_seen_at": entry.get("last_seen_at", ""),
+                    "latest_run_id": latest.get("run_id", ""),
+                    "latest_command": latest.get("command", ""),
+                    "runs": len(runs),
+                }
+            )
+        rows.sort(key=lambda x: str(x.get("last_seen_at", "")), reverse=True)
+        for row in rows[:top_k]:
+            print(
+                f"repo_fp={row['repo_fp']} runs={row['runs']} "
+                f"latest_run_id={row['latest_run_id']} latest_command={row['latest_command']} "
+                f"last_seen_at={row['last_seen_at']} repo_root={row['repo_root']}"
+            )
+        return 0
+
+    if subcmd == "query":
+        results = rank_query_runs(
+            index=fed,
+            keyword=getattr(args, "keyword", ""),
+            endpoint=getattr(args, "endpoint", ""),
+            top_k=max(1, int(getattr(args, "top_k", 10) or 10)),
+            strict_query=bool(getattr(args, "strict", False)),
+            include_limits_hit=bool(getattr(args, "include_limits_hit", False)),
+        )
+        for item in results:
+            run = item.get("run", {}) if isinstance(item.get("run"), dict) else {}
+            metrics = run.get("metrics", {}) if isinstance(run.get("metrics"), dict) else {}
+            print(
+                f"repo_fp={item.get('repo_fp','')} run_id={run.get('run_id','')} "
+                f"command={run.get('command','')} timestamp={run.get('timestamp','')} "
+                f"endpoint_match={item.get('score',[0,0,0,0,0])[0]} "
+                f"keyword_match={item.get('score',[0,0,0,0,0])[1]} "
+                f"ambiguity_ratio={metrics.get('ambiguity_ratio', 1.0)} "
+                f"confidence_tier={metrics.get('confidence_tier','')} "
+                f"limits_hit={1 if metrics.get('limits_hit') else 0}"
+            )
+        return 0
+
+    if subcmd == "explain":
+        repo_fp = str(getattr(args, "repo_fp", "") or "").strip()
+        run_id = str(getattr(args, "run_id", "") or "").strip()
+        entry = repos.get(repo_fp, {}) if isinstance(repos, dict) else {}
+        if not isinstance(entry, dict):
+            print(f"FAIL: repo_fp not found: {repo_fp}", file=sys.stderr)
+            return 1
+        runs = entry.get("runs", []) if isinstance(entry.get("runs"), list) else []
+        target = None
+        for run in runs:
+            if isinstance(run, dict) and str(run.get("run_id", "")) == run_id:
+                target = run
+                break
+        if target is None:
+            print(f"FAIL: run_id not found under repo_fp={repo_fp}: {run_id}", file=sys.stderr)
+            return 1
+        print(json.dumps({"repo_fp": repo_fp, "entry": entry, "run": target}, indent=2, ensure_ascii=False))
+        return 0
+
+    print("FAIL: missing index subcommand (use: index list|query|explain)", file=sys.stderr)
+    return 1
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2709,9 +3513,14 @@ def cmd_status(args):
     """Show governance status: enabled/disabled, allowlist/denylist, repo check."""
     args_dict = vars(args)
     policy = load_policy_yaml(args_dict)
-    global_state_root = resolve_global_state(args)
+    global_state_root = resolve_global_state(args, read_only=True)
     index_path = global_state_root / "capability_index.json"
+    federated_path = global_state_root / "federated_index.json"
     policy_hash = compute_policy_hash(policy)
+    fed_policy = policy.get("federated_index", {}) if isinstance(policy.get("federated_index"), dict) else {}
+    fed_enabled = fed_policy.get("enabled")
+    if fed_enabled is None:
+        fed_enabled = bool(policy.get("enabled", False))
 
     versions = version_triplet()
     print(f"[plugin] package_version: {versions['package_version']}")
@@ -2723,13 +3532,29 @@ def cmd_status(args):
     print(f"[plugin] policy_hash: {policy_hash}")
     print(f"[plugin] global_state_root: {global_state_root}")
     print(f"[plugin] capability_index: {index_path}")
+    print(f"[plugin] federated_index: {federated_path}")
+    print(f"[plugin] federated_index_enabled: {1 if fed_enabled else 0}")
     print(
         f"HONGZHI_STATUS package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']} "
         f"enabled={1 if policy['enabled'] else 0} "
-        f"policy_hash={policy_hash}"
+        f"policy_hash={policy_hash} "
+        f'global_state_root={quote_machine_value(str(global_state_root.resolve()))}'
     )
+    if policy.get("_parse_error"):
+        detail = str(policy.get("_parse_error_reason", "policy_parse_error"))
+        print(
+            f"HONGZHI_GOV_BLOCK code={POLICY_PARSE_EXIT_CODE} reason=policy_parse_error "
+            f"command=status "
+            f"package_version={PACKAGE_VERSION} "
+            f"plugin_version={PLUGIN_VERSION} "
+            f"contract_version={CONTRACT_VERSION} "
+            f"detail={quote_machine_value(detail)}"
+        )
+        return POLICY_PARSE_EXIT_CODE
+    if federated_path.exists():
+        print_index_pointer_line(federated_path)
     if policy.get("permit_token_file"):
         tok_path = Path(policy["permit_token_file"]).expanduser()
         print(f"[plugin] permit_token_file: {tok_path} ({'found' if tok_path.exists() else 'missing'})")
@@ -2795,6 +3620,12 @@ def main():
     common.add_argument("--smart-max-fingerprint-drift", default="strict", choices=["strict", "warn"],
                         help="Reuse policy when fingerprint/VCS drift is detected")
 
+    index_common = argparse.ArgumentParser(add_help=False)
+    index_common.add_argument("--global-state-root", default=None,
+                              help="Override global state root for federated index")
+    index_common.add_argument("--strict", action="store_true",
+                              help="Strict query mode: ignore limits_hit runs unless --include-limits-hit")
+
     # ── discover ──
     p_disc = sub.add_parser("discover", parents=[common],
                             help="Auto-discover modules, roots, structure, endpoints")
@@ -2811,6 +3642,10 @@ def main():
                         help="Apply workspace hint bundle (json/yaml) to bias module ranking and root inference")
     p_disc.add_argument("--hint-strategy", default="conservative", choices=["conservative", "aggressive"],
                         help="Hint application strategy when --apply-hints is provided")
+    p_disc.add_argument("--allow-cross-repo-hints", action="store_true",
+                        help="Allow applying hints with mismatched repo_fingerprint")
+    p_disc.add_argument("--hint-bundle-ttl-seconds", type=int, default=1800,
+                        help="TTL for emitted profile_delta hint bundle (default: 1800)")
 
     # ── diff ──
     p_diff = sub.add_parser("diff", parents=[common],
@@ -2842,6 +3677,22 @@ def main():
                          help="Remove runs older than N days (default: 7)")
     p_clean.add_argument("--workspace-root", default=None, help="Override workspace root")
 
+    # ── index ──
+    p_index = sub.add_parser("index", parents=[index_common],
+                             help="Federated capability index operations")
+    index_sub = p_index.add_subparsers(dest="index_command", help="Index operation")
+    p_idx_list = index_sub.add_parser("list", parents=[index_common], help="List repos in federated index")
+    p_idx_list.add_argument("--top-k", type=int, default=20, help="Max repos to list")
+    p_idx_query = index_sub.add_parser("query", parents=[index_common], help="Query federated runs")
+    p_idx_query.add_argument("--keyword", default="", help="Keyword query against run metadata")
+    p_idx_query.add_argument("--endpoint", default="", help="Endpoint path fragment match")
+    p_idx_query.add_argument("--top-k", type=int, default=10, help="Max runs to return")
+    p_idx_query.add_argument("--include-limits-hit", action="store_true",
+                             help="Include runs with limits_hit even in strict query mode")
+    p_idx_explain = index_sub.add_parser("explain", parents=[index_common], help="Explain one run in detail")
+    p_idx_explain.add_argument("repo_fp", help="Repository fingerprint")
+    p_idx_explain.add_argument("run_id", help="Run identifier")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -2851,7 +3702,7 @@ def main():
     args._run_command = args.command
 
     # ── Governance gate (skip for clean/status/help) ──
-    if args.command not in ("clean", "status"):
+    if args.command not in ("clean", "status", "index"):
         allowed, exit_code, reason, gov_info = check_governance_full(args)
         if not allowed:
             machine_reason = "governance_blocked"
@@ -2871,6 +3722,9 @@ def main():
                     machine_reason = "repo_not_allowed"
                 print(f"[plugin] BLOCKED: {reason}", file=sys.stderr)
                 print(f"[plugin] Add repo path to plugin.allow_roots in policy.yaml.", file=sys.stderr)
+            elif exit_code == POLICY_PARSE_EXIT_CODE:
+                machine_reason = "policy_parse_error"
+                print(f"[plugin] BLOCKED: governance policy parse failed: {reason}", file=sys.stderr)
             # Contract v4: machine-readable governance rejection line on stdout.
             print(
                 f"HONGZHI_GOV_BLOCK code={exit_code} reason={machine_reason} "
@@ -2878,7 +3732,7 @@ def main():
                 f"package_version={PACKAGE_VERSION} "
                 f"plugin_version={PLUGIN_VERSION} "
                 f"contract_version={CONTRACT_VERSION} "
-                f"detail=\"{reason}\""
+                f"detail={quote_machine_value(reason)}"
             )
             sys.exit(exit_code)
         # Attach governance info for capabilities.json
@@ -2890,6 +3744,7 @@ def main():
         "diff": cmd_diff,
         "profile": cmd_profile,
         "migrate": cmd_migrate,
+        "index": cmd_index,
         "status": cmd_status,
         "clean": cmd_clean,
     }

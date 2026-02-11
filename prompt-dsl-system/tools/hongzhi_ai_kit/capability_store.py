@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -13,9 +15,20 @@ def _utc_now_iso() -> str:
 
 def _atomic_write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(f"{path.name}.tmp")
-    tmp_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    tmp_path.replace(path)
+    fd, tmp_name = tempfile.mkstemp(prefix=f"{path.name}.", suffix=".tmp", dir=str(path.parent))
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+        tmp_path.replace(path)
+    finally:
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except OSError:
+            pass
 
 
 def load_capability_index(path: str | Path) -> dict:
@@ -69,4 +82,3 @@ def write_latest_pointer(global_state_root: str | Path, fp: str, run_id: str, wo
     }
     _atomic_write_json(latest_path, latest_payload)
     return latest_path
-

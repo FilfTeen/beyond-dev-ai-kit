@@ -59,6 +59,28 @@ METHOD_MAPPING_RE = re.compile(
     r'(?:.*?consumes\s*=\s*["\']([^"\']+)["\'])?'
     r'\s*\)', re.DOTALL)
 
+# Mapping fallback for arrays/constants (keeps legacy "path=" miss case unchanged).
+METHOD_MAPPING_SYMBOLIC_RE = re.compile(
+    r'@(Get|Post|Put|Delete|Patch|Request)Mapping\s*\(([^)]*(?:\{|[A-Z][A-Za-z0-9_]*\.)[^)]*)\)',
+    re.DOTALL,
+)
+CLASS_MAPPING_SYMBOLIC_RE = re.compile(
+    r'@RequestMapping\s*\(([^)]*(?:\{|[A-Z][A-Za-z0-9_]*\.)[^)]*)\)',
+    re.DOTALL,
+)
+COMPOSED_MAPPING_DEF_RE = re.compile(
+    r'@(?:Get|Post|Put|Delete|Patch|Request)Mapping\s*\((?P<args>.*?)\)\s*'
+    r'(?:public\s+)?@interface\s+(?P<name>\w+)',
+    re.DOTALL,
+)
+COMPOSED_USAGE_RE = re.compile(
+    r'@(?P<name>\w+)(?:\s*\((?P<args>.*?)\))?\s*'
+    r'(?:public|private|protected)\s+\S+\s+(?P<method>\w+)\s*\(',
+    re.DOTALL,
+)
+REQUEST_METHOD_RE = re.compile(r"RequestMethod\.([A-Z]+)")
+SYMBOLIC_TOKEN_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+)\b")
+
 # Simple method-level mapping without value (just annotation)
 SIMPLE_METHOD_MAPPING_RE = re.compile(
     r'@(Get|Post|Put|Delete|Patch)Mapping\s*(?:\(\s*\))?\s*\n\s*(?:public|private|protected)\s+\S+\s+(\w+)')
@@ -70,6 +92,69 @@ HTTP_METHOD_MAP = {
     "Get": "GET", "Post": "POST", "Put": "PUT",
     "Delete": "DELETE", "Patch": "PATCH", "Request": "ANY",
 }
+
+
+def _extract_mapping_paths(args_text: str) -> tuple[list, bool]:
+    args = str(args_text or "")
+    symbolic = False
+    paths = []
+
+    quoted = [q.strip() for q in re.findall(r'["\']([^"\']+)["\']', args) if q.strip()]
+    for q in quoted:
+        if q not in paths:
+            paths.append(q)
+
+    for token in SYMBOLIC_TOKEN_RE.findall(args):
+        if token.startswith("RequestMethod."):
+            continue
+        if token in ("value", "path", "produces", "consumes", "method"):
+            continue
+        symbolic = True
+        if token not in paths:
+            paths.append(token)
+
+    return paths, symbolic
+
+
+def _extract_http_methods(mapping_type: str, args_text: str) -> list:
+    if mapping_type != "Request":
+        return [HTTP_METHOD_MAP.get(mapping_type, "ANY")]
+    methods = [m.upper() for m in REQUEST_METHOD_RE.findall(str(args_text or ""))]
+    dedup = []
+    for method in methods:
+        if method not in dedup:
+            dedup.append(method)
+    return dedup or ["ANY"]
+
+
+def _join_endpoint_path(class_base: str, segment: str, symbolic: bool) -> str:
+    base = str(class_base or "").strip()
+    seg = str(segment or "").strip()
+    if not base and not seg:
+        return "/"
+    if symbolic:
+        if base and seg:
+            return f"{base}/{seg}"
+        return base or seg
+    return normalize_path(base, seg)
+
+
+def _extract_composed_annotation_defs(content: str) -> dict:
+    defs = {}
+    for match in COMPOSED_MAPPING_DEF_RE.finditer(content):
+        args = match.group("args") or ""
+        name = match.group("name") or ""
+        if not name:
+            continue
+        mapping_kind_match = re.search(
+            r'@(?P<kind>Get|Post|Put|Delete|Patch|Request)Mapping',
+            match.group(0),
+        )
+        mapping_kind = mapping_kind_match.group("kind") if mapping_kind_match else "Request"
+        paths, symbolic = _extract_mapping_paths(args)
+        methods = _extract_http_methods(mapping_kind, args)
+        defs[name] = {"paths": paths, "methods": methods, "symbolic": bool(symbolic)}
+    return defs
 
 
 def root_hash(root_path: str) -> str:
@@ -112,16 +197,25 @@ def normalize_path(base: str, segment: str) -> str:
 def extract_endpoints_v2(content: str, class_name: str) -> list:
     """Extract API endpoint signatures with class+method join, HTTP method, consumes/produces."""
     endpoints = []
+    dedup = set()
 
     # Find class-level @RequestMapping
     class_base = ""
     class_produces = ""
     class_consumes = ""
+    class_base_symbolic = False
     cm = CLASS_MAPPING_RE.search(content)
     if cm:
         class_base = cm.group(1) or ""
         class_produces = cm.group(2) or ""
         class_consumes = cm.group(3) or ""
+    else:
+        cm_symbolic = CLASS_MAPPING_SYMBOLIC_RE.search(content)
+        if cm_symbolic:
+            cls_paths, cls_symbolic = _extract_mapping_paths(cm_symbolic.group(1) or "")
+            if cls_paths:
+                class_base = cls_paths[0]
+            class_base_symbolic = bool(cls_symbolic)
 
     # Find method-level mappings with value
     for mm in METHOD_MAPPING_RE.finditer(content):
@@ -137,6 +231,10 @@ def extract_endpoints_v2(content: str, class_name: str) -> list:
         pos = mm.end()
         method_match = re.search(r'(?:public|private|protected)\s+\S+\s+(\w+)', content[pos:pos+200])
         method_name = method_match.group(1) if method_match else "unknown"
+        dedup_key = (full_path, http_method, class_name, method_name)
+        if dedup_key in dedup:
+            continue
+        dedup.add(dedup_key)
 
         ep = {
             "path": full_path,
@@ -150,6 +248,45 @@ def extract_endpoints_v2(content: str, class_name: str) -> list:
             ep["consumes"] = consumes
         endpoints.append(ep)
 
+    # Fallback for arrays/constant path mappings.
+    for mm in METHOD_MAPPING_SYMBOLIC_RE.finditer(content):
+        mapping_type = mm.group(1)
+        raw_args = mm.group(2) or ""
+        if mapping_type == "Request" and "RequestMethod." not in raw_args and "method" not in raw_args:
+            # Likely class-level @RequestMapping base path; handled separately.
+            continue
+        paths, symbolic = _extract_mapping_paths(raw_args)
+        if not paths:
+            continue
+        methods = _extract_http_methods(mapping_type, raw_args)
+        pos = mm.end()
+        method_match = re.search(
+            r'(?:public|private|protected)\s+(?!class\b|interface\b)\S+\s+(\w+)\s*\(',
+            content[pos:pos+240],
+        )
+        method_name = method_match.group(1) if method_match else "unknown"
+        for path_segment in paths:
+            is_symbolic = bool(symbolic or class_base_symbolic or not str(path_segment).startswith("/"))
+            full_path = _join_endpoint_path(class_base, path_segment, is_symbolic)
+            for http_method in methods:
+                dedup_key = (full_path, http_method, class_name, method_name)
+                if dedup_key in dedup:
+                    continue
+                dedup.add(dedup_key)
+                ep = {
+                    "path": full_path,
+                    "http_method": http_method,
+                    "class": class_name,
+                    "method": method_name,
+                }
+                if class_produces:
+                    ep["produces"] = class_produces
+                if class_consumes:
+                    ep["consumes"] = class_consumes
+                if is_symbolic:
+                    ep["symbolic"] = 1
+                endpoints.append(ep)
+
     # Find simple method mappings (no value)
     for sm in SIMPLE_METHOD_MAPPING_RE.finditer(content):
         mapping_type = sm.group(1)
@@ -158,7 +295,9 @@ def extract_endpoints_v2(content: str, class_name: str) -> list:
         full_path = normalize_path(class_base, "")
 
         # Avoid duplicating already-found endpoints
-        if not any(e["method"] == method_name for e in endpoints):
+        dedup_key = (full_path, http_method, class_name, method_name)
+        if dedup_key not in dedup:
+            dedup.add(dedup_key)
             ep = {
                 "path": full_path,
                 "http_method": http_method,
@@ -170,6 +309,47 @@ def extract_endpoints_v2(content: str, class_name: str) -> list:
             if class_consumes:
                 ep["consumes"] = class_consumes
             endpoints.append(ep)
+
+    # Composed annotations declared in the same file.
+    composed_defs = _extract_composed_annotation_defs(content)
+    if composed_defs:
+        for usage in COMPOSED_USAGE_RE.finditer(content):
+            anno_name = usage.group("name") or ""
+            if anno_name not in composed_defs:
+                continue
+            defn = composed_defs.get(anno_name, {})
+            method_name = usage.group("method") or "unknown"
+            usage_args = usage.group("args") or ""
+            paths = list(defn.get("paths") or [])
+            symbolic = bool(defn.get("symbolic", False))
+            if not paths and usage_args:
+                usage_paths, usage_symbolic = _extract_mapping_paths(usage_args)
+                paths = usage_paths
+                symbolic = bool(symbolic or usage_symbolic)
+            if not paths:
+                paths = [""]
+            methods = list(defn.get("methods") or ["ANY"])
+            for path_segment in paths:
+                is_symbolic = bool(symbolic or class_base_symbolic or not str(path_segment).startswith("/"))
+                full_path = _join_endpoint_path(class_base, path_segment, is_symbolic)
+                for http_method in methods:
+                    dedup_key = (full_path, http_method, class_name, method_name)
+                    if dedup_key in dedup:
+                        continue
+                    dedup.add(dedup_key)
+                    ep = {
+                        "path": full_path,
+                        "http_method": http_method,
+                        "class": class_name,
+                        "method": method_name,
+                    }
+                    if class_produces:
+                        ep["produces"] = class_produces
+                    if class_consumes:
+                        ep["consumes"] = class_consumes
+                    if is_symbolic:
+                        ep["symbolic"] = 1
+                    endpoints.append(ep)
 
     return endpoints
 
@@ -485,6 +665,8 @@ def write_structure_discovered(out_path, project_key, module_key,
         lines.append(f'    http_method: "{ep["http_method"]}"')
         lines.append(f'    class: "{ep["class"]}"')
         lines.append(f'    method: "{ep["method"]}"')
+        if ep.get("symbolic"):
+            lines.append(f"    symbolic: {int(ep.get('symbolic'))}")
         if ep.get("produces"):
             lines.append(f'    produces: "{ep["produces"]}"')
         if ep.get("consumes"):

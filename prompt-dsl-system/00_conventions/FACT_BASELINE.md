@@ -50,7 +50,7 @@ Scope: `prompt-dsl-system/**`
 - `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS) + multi-path + ignore patterns
 - `skill_template_audit.py`: post-validate audit (placeholder + schema + registry↔fs consistency + --scope + --fail-on-empty)
 - `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject + identity hints)
-- `golden_path_regression.sh`: end-to-end regression (64 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics)
+- `golden_path_regression.sh`: end-to-end regression (86 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics + Phase28 profile_delta hint assetization/verification/scope gating/index gating + Phase29 federated index write/query/explain/scope gating/zero-write governance + Phase30 zero-touch/status-index, full snapshot guard, policy parse fail-closed, machine-path safety, jsonl concurrency, IO stats stability, composed endpoint extraction, hint effectiveness)
 - `module_profile_scanner.py`: generates discovered profile (Layer2) — scanning + grep + fingerprint + multi-root + concurrent + incremental + `--out-root`/`--read-only`/`--workspace-root`
 - `module_roots_discover.py`: auto-discovers module roots from identity hints + structure fallback + optional `--module-key` (auto-discover) + `--out-root`/`--read-only` (Layer2R)
 - `structure_discover.py` v2: auto-identifies module structure — endpoint v2, per-file incremental cache, `--out-root`/`--read-only`/`--workspace-root` (Layer2S)
@@ -59,6 +59,8 @@ Scope: `prompt-dsl-system/**`
 - `hongzhi_plugin.py`: v4 contract-capable runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental, capability registry, `HONGZHI_CAPS` line, capabilities.jsonl journal
 - `calibration_engine.py`: lightweight calibration layer for discover confidence, reasons enum, and workspace-only hint/report artifacts
 - `layout_adapters.py`: layout adapters v1 for multi-module/non-standard Java root detection and roots mapping
+- `hongzhi_ai_kit/hint_bundle.py`: profile_delta hint bundle schema/build/verify helpers (path + inline JSON)
+- `hongzhi_ai_kit/federated_store.py`: federated index persistence/query helpers (atomic write + bounded runs + ranking)
 - `hongzhi_ai_kit`: installable python package wrapper with module/console entry support
 - `pyproject.toml` (repo root): packaging metadata + console_scripts (`hongzhi-ai-kit`, `hzkit`, `hz`)
 - `PLUGIN_RUNNER.md`: plugin runner documentation (install, governance, v3/v4 contract, workspace/global state)
@@ -211,3 +213,52 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Prompt-DSL loop closure:
   - new skill `skill_governance_plugin_discover_with_hints`
   - discover pipeline now documents status -> decide -> discover and conditional hint rerun policy (`enable_hint_loop`).
+
+## 14) Hint Assetization (R22)
+
+- Discover strict ambiguity path now assetizes hints as `profile_delta` bundle and emits `HONGZHI_HINTS`.
+- Apply-hints input supports:
+  - bundle file path
+  - inline JSON string
+- Apply verification now checks:
+  - expiry (`expires_at`/`ttl_seconds`) -> strict exit `22`
+  - scope (`discover`/`*`)
+  - fingerprint match (unless `--allow-cross-repo-hints`)
+- Hint emission scope gate:
+  - when permit-token scope misses `hint_bundle`, strict returns `23`
+  - machine line: `HONGZHI_HINTS_BLOCK ...`
+- Capabilities outputs now include additive `hint_bundle{kind,path,verified,expired,ttl_seconds,created_at,expires_at}`.
+
+## 15) Capability Index Federation (R23)
+
+- Global federated index files (governance-allowed path only):
+  - `<global_state_root>/federated_index.json`
+  - `<global_state_root>/federated_index.jsonl` (optional)
+  - `<global_state_root>/repos/<fp>/index.json` (optional mirror)
+- Federated writes are policy + token-scope gated independently:
+  - missing `federated_index` scope with token:
+    - strict: exit `24` + `HONGZHI_INDEX_BLOCK ...`
+    - non-strict: warn, no federated write
+- New CLI subcommands:
+  - `index list`
+  - `index query`
+  - `index explain`
+- Discover emits `HONGZHI_INDEX <abs_path>` when federated index update is committed.
+
+## 16) Plugin v4+ Hardening (R24)
+
+- Path resolution hardening:
+  - `status` / `index` use read-only root resolution (`resolve_*_root(read_only=True)`), no `.write_test` probing files.
+  - machine lines now include parse-safe path fields (`path="<abs_path>"`) for `HONGZHI_CAPS/HONGZHI_HINTS/HONGZHI_INDEX`.
+- Read-only contract hardening:
+  - snapshot-diff guard now always uses full before/after snapshots (not truncated by `--max-files` / `--max-seconds`).
+- Governance fail-closed:
+  - `policy.yaml` parse error returns exit `13` with `HONGZHI_GOV_BLOCK reason=policy_parse_error`.
+- Concurrency hardening:
+  - `capability_store` and `federated_store` atomic JSON writes now use unique temp files + fsync.
+  - `atomic_append_jsonl` uses locked append (`flock` fallback lockfile) to avoid dropped lines under parallel runs.
+- Discover observability additions:
+  - `scan_io_stats` (`layout_adapter_runs`, `java_files_scanned`, `templates_scanned`, `snapshot_files_count`, cache stats).
+  - `hint_effective` + `confidence_delta` emitted in summary and capabilities (`hints` payload).
+- Endpoint extraction hardening:
+  - `structure_discover.py` gains composed-annotation/symbolic path fallback; symbolic signals persisted in structure output.

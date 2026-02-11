@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-11T07:57:17+00:00",
+  "generated_at": "2026-02-11T10:12:20+00:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
   "scope": {
     "effective_module_path": null,
@@ -27,7 +27,7 @@
     "path": "prompt-dsl-system/05_skill_registry/skills.json",
     "exists": true,
     "errors": [],
-    "entry_count": 4,
+    "entry_count": 5,
     "missing_skill_files": []
   },
   "pipelines": [
@@ -768,14 +768,14 @@
         },
         {
           "step": 3,
-          "skill": "skill_governance_plugin_runner",
+          "skill": "skill_governance_plugin_discover_with_hints",
           "parameter_keys": [
             "acceptance",
             "allowed_module_root",
             "boundary_policy",
-            "command",
             "constraints",
             "context_id",
+            "enable_hint_loop",
             "forbidden",
             "input_artifact_refs",
             "mode",
