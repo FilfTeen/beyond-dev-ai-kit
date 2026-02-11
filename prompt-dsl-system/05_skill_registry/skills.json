@@ -43,5 +43,20 @@
     ],
     "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_plugin_runner.yaml",
     "status": "staging"
+  },
+  {
+    "name": "skill_governance_plugin_status",
+    "description": "Read-only governance status preflight skill with machine-readable HONGZHI_STATUS/HONGZHI_GOV_BLOCK outputs.",
+    "version": "1.0.0",
+    "domain": "governance",
+    "tags": [
+      "plugin",
+      "status",
+      "governance",
+      "meta",
+      "docs"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_plugin_status.yaml",
+    "status": "staging"
   }
 ]

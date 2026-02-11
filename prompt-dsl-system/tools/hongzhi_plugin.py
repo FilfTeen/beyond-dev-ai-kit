@@ -23,7 +23,12 @@ import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    from hongzhi_ai_kit import __version__ as PACKAGE_VERSION
+except Exception:
+    PACKAGE_VERSION = "unknown"
 
 from hongzhi_ai_kit.capability_store import (
     load_capability_index,
@@ -38,11 +43,14 @@ from hongzhi_ai_kit.paths import resolve_global_state_root, resolve_workspace_ro
 # ═══════════════════════════════════════════════════════════════════════════════
 
 PLUGIN_VERSION = "4.0.0"
+CONTRACT_VERSION = "4.0.0"
 SUMMARY_VERSION = "3.0"
 GOVERNANCE_ENV = "HONGZHI_PLUGIN_ENABLE"
 GOVERNANCE_EXIT_CODE = 10
 GOVERNANCE_DENY_EXIT_CODE = 11
 GOVERNANCE_ALLOW_EXIT_CODE = 12
+LIMIT_EXIT_CODE = 20
+CALIBRATION_EXIT_CODE = 21
 GLOBAL_STATE_ENV = "HONGZHI_PLUGIN_GLOBAL_STATE_ROOT"
 
 SNAPSHOT_EXCLUDES = {
@@ -66,6 +74,178 @@ def utc_now_iso() -> str:
 
 def utc_now_run_id() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S%fZ")
+
+
+def version_triplet() -> dict:
+    return {
+        "package_version": PACKAGE_VERSION,
+        "plugin_version": PLUGIN_VERSION,
+        "contract_version": CONTRACT_VERSION,
+    }
+
+
+def canonical_path(path_value: str | Path) -> Path:
+    return Path(path_value).expanduser().resolve()
+
+
+def is_path_within(path_value: str | Path, root_value: str | Path) -> bool:
+    path_obj = canonical_path(path_value)
+    root_obj = canonical_path(root_value)
+    if path_obj == root_obj:
+        return True
+    return root_obj in path_obj.parents
+
+
+def normalize_scope(scope_value: Any) -> List[str]:
+    if scope_value is None:
+        return ["*"]
+    if isinstance(scope_value, str):
+        scope_items = [x.strip().lower() for x in scope_value.split(",") if x.strip()]
+        return scope_items or ["*"]
+    if isinstance(scope_value, list):
+        normalized = []
+        for item in scope_value:
+            if isinstance(item, str) and item.strip():
+                normalized.append(item.strip().lower())
+        return normalized or ["*"]
+    return ["*"]
+
+
+def parse_permit_token(raw_token: str | None) -> dict:
+    payload = {
+        "provided": bool(raw_token and raw_token.strip()),
+        "raw": (raw_token or "").strip(),
+        "token": "",
+        "scope": ["*"],
+        "expires_at": None,
+        "issued_at": None,
+        "ttl_seconds": None,
+        "valid": False,
+        "reason": "token_not_provided",
+    }
+    if not payload["provided"]:
+        return payload
+
+    raw = payload["raw"]
+    token_obj = None
+    if raw.startswith("{") and raw.endswith("}"):
+        try:
+            loaded = json.loads(raw)
+            if isinstance(loaded, dict):
+                token_obj = loaded
+        except json.JSONDecodeError:
+            token_obj = None
+
+    if token_obj is None:
+        payload["token"] = raw
+        payload["scope"] = ["*"]
+        payload["valid"] = True
+        payload["reason"] = "plain_token"
+        return payload
+
+    payload["token"] = str(token_obj.get("token") or token_obj.get("value") or "").strip()
+    payload["scope"] = normalize_scope(token_obj.get("scope"))
+    payload["expires_at"] = token_obj.get("expires_at")
+    payload["issued_at"] = token_obj.get("issued_at") or token_obj.get("created_at")
+    payload["ttl_seconds"] = token_obj.get("ttl_seconds")
+    if not payload["token"]:
+        payload["reason"] = "token_missing_value"
+        return payload
+    payload["valid"] = True
+    payload["reason"] = "json_token"
+    return payload
+
+
+def validate_permit_token(parsed: dict, command: str) -> Tuple[bool, str]:
+    if not parsed.get("provided"):
+        return False, "token_not_provided"
+    if not parsed.get("valid"):
+        return False, parsed.get("reason", "token_invalid")
+
+    now = datetime.now(timezone.utc)
+    expires_at = parsed.get("expires_at")
+    if expires_at:
+        exp = parse_iso_ts(str(expires_at))
+        if not exp:
+            return False, "token_invalid_expires_at"
+        if now > exp:
+            return False, "token_expired"
+
+    ttl_seconds = parsed.get("ttl_seconds")
+    if ttl_seconds is not None:
+        try:
+            ttl = int(ttl_seconds)
+        except (TypeError, ValueError):
+            return False, "token_invalid_ttl"
+        if ttl < 0:
+            return False, "token_invalid_ttl"
+        issued_at = parsed.get("issued_at")
+        if not issued_at:
+            return False, "token_missing_issued_at_for_ttl"
+        issued = parse_iso_ts(str(issued_at))
+        if not issued:
+            return False, "token_invalid_issued_at"
+        if (now - issued).total_seconds() > ttl:
+            return False, "token_expired"
+
+    scope = normalize_scope(parsed.get("scope"))
+    command_l = (command or "").strip().lower()
+    if "*" not in scope and command_l not in scope:
+        return False, "token_scope_mismatch"
+    return True, "token_valid"
+
+
+def compute_policy_hash(policy: dict) -> str:
+    canonical = {
+        "enabled": bool(policy.get("enabled")),
+        "allow_roots": sorted(str(x) for x in (policy.get("allow_roots") or [])),
+        "deny_roots": sorted(str(x) for x in (policy.get("deny_roots") or [])),
+        "permit_token_file": str(policy.get("permit_token_file") or ""),
+    }
+    encoded = json.dumps(canonical, sort_keys=True, ensure_ascii=True)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
+
+
+def as_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
+
+
+def build_scan_stats(metrics: dict) -> dict:
+    cache_hit_files = as_int(metrics.get("cache_hit_files", 0), 0)
+    cache_miss_files = as_int(metrics.get("cache_miss_files", 0), 0)
+    files_scanned = as_int(metrics.get("files_scanned", metrics.get("total_scanned_files", cache_hit_files + cache_miss_files)), 0)
+    return {
+        "files_scanned": files_scanned,
+        "cache_hit_files": cache_hit_files,
+        "cache_miss_files": cache_miss_files,
+        "cache_hit_rate": float(metrics.get("cache_hit_rate", 0.0) or 0.0),
+    }
+
+
+def evaluate_limits(args, metrics: dict, elapsed_s: float) -> Tuple[bool, List[str], List[str]]:
+    scan_stats = build_scan_stats(metrics)
+    metrics["scan_stats"] = scan_stats
+    max_files = args.max_files if args.max_files is not None else None
+    max_seconds = args.max_seconds if args.max_seconds is not None else None
+    metrics["limits"] = {"max_files": max_files, "max_seconds": max_seconds}
+
+    reason_codes: List[str] = []
+    reason_texts: List[str] = []
+    if max_files is not None and scan_stats["files_scanned"] > int(max_files):
+        reason_codes.append("max_files")
+        reason_texts.append(f"files_scanned={scan_stats['files_scanned']} exceeds max_files={int(max_files)}")
+    if max_seconds is not None and float(elapsed_s) > float(max_seconds):
+        reason_codes.append("max_seconds")
+        reason_texts.append(f"scan_time_s={elapsed_s:.3f} exceeds max_seconds={float(max_seconds):.3f}")
+
+    limits_hit = bool(reason_codes)
+    metrics["limits_hit"] = limits_hit
+    metrics["limits_reason"] = "; ".join(reason_texts) if reason_texts else ""
+    metrics["limits_reason_code"] = ",".join(reason_codes) if reason_codes else "-"
+    return limits_hit, reason_codes, reason_texts
 
 
 def parse_iso_ts(ts: str) -> datetime | None:
@@ -302,17 +482,17 @@ def load_policy_yaml(args_dict):
     
     return policy
 
-def check_root_governance(policy, repo_root, permit_token=None):
+def check_root_governance(policy, repo_root, command, permit_token=None):
     """
     Check if repo_root is allowed.
-    Returns: (allowed: bool, exit_code: int, reason: str, token_used: bool)
+    Returns: (allowed: bool, exit_code: int, reason: str, token_used: bool, token_info: dict)
     Priorities:
-      1. Permit Token (if valid) -> ALLOW
+      1. Permit Token (if valid + unexpired + scope match) -> ALLOW
       2. Deny List -> BLOCK (11)
       3. Allow List (if not empty) -> BLOCK (12) if not present
       4. Default -> ALLOW
     """
-    repo_path = str(repo_root.resolve())
+    repo_path = canonical_path(repo_root)
 
     # Check permit token override
     token_used = False
@@ -325,28 +505,51 @@ def check_root_governance(policy, repo_root, permit_token=None):
             except OSError:
                 pass
 
-    if effective_token:
-        # Token present — bypass allow/deny (but NOT read-only contract)
-        token_used = True
-        return True, 0, "permit-token override", True
+    token_info = parse_permit_token(effective_token)
+    if token_info.get("provided"):
+        token_ok, token_reason = validate_permit_token(token_info, command)
+        token_info["validated_reason"] = token_reason
+        if token_ok:
+            # Token present — bypass allow/deny (but NOT read-only contract)
+            token_used = True
+            return True, 0, "permit-token override", True, token_info
+        return (
+            False,
+            GOVERNANCE_ALLOW_EXIT_CODE,
+            f"permit-token rejected: {token_reason}",
+            False,
+            token_info,
+        )
 
     # Check Deny List
     for denied in policy["deny_roots"]:
-        if repo_path == denied or repo_path.startswith(denied + os.sep):
-            return False, GOVERNANCE_DENY_EXIT_CODE, f"repo path denied by policy: {denied}", False
+        if is_path_within(repo_path, denied):
+            return (
+                False,
+                GOVERNANCE_DENY_EXIT_CODE,
+                f"repo path denied by policy: {canonical_path(denied)}",
+                False,
+                token_info,
+            )
 
     # Check Allow List
     if policy["allow_roots"]:
         allowed_found = False
         for allowed in policy["allow_roots"]:
-            if repo_path == allowed or repo_path.startswith(allowed + os.sep):
+            if is_path_within(repo_path, allowed):
                 allowed_found = True
                 break
         if not allowed_found:
-            return False, GOVERNANCE_ALLOW_EXIT_CODE, "repo path not in allow_roots", False
+            return (
+                False,
+                GOVERNANCE_ALLOW_EXIT_CODE,
+                "repo path not in allow_roots",
+                False,
+                token_info,
+            )
     
     # No allow_roots defined or matched -> allow
-    return True, 0, "allowed by policy", False
+    return True, 0, "allowed by policy", False, token_info
 
 def check_governance_full(args):
     """Full governance check including enabled status and root validation."""
@@ -356,21 +559,33 @@ def check_governance_full(args):
     gov_info = {
         "enabled": policy["enabled"],
         "token_used": False,
-        "policy_loaded": True
+        "policy_loaded": True,
+        "policy_hash": compute_policy_hash(policy),
+        "token_reason": "token_not_provided",
     }
 
     if not policy["enabled"]:
         return False, GOVERNANCE_EXIT_CODE, "plugin runner disabled", gov_info
 
-    # If repo-root is involved, check it
-    repo_root_str = args_dict.get("repo_root")
-    if repo_root_str:
-        repo_root = Path(repo_root_str).resolve()
-        permit_token = args_dict.get("permit_token")
-        allowed, code, reason, token_used = check_root_governance(policy, repo_root, permit_token)
-        gov_info["token_used"] = token_used
+    # If repo-root is involved, check it (including diff old/new roots).
+    repo_targets: List[Path] = []
+    if args_dict.get("repo_root"):
+        repo_targets.append(Path(args_dict["repo_root"]).resolve())
+    elif args_dict.get("new_project_root"):
+        repo_targets.append(Path(args_dict["new_project_root"]).resolve())
+        if args_dict.get("old_project_root"):
+            repo_targets.append(Path(args_dict["old_project_root"]).resolve())
+
+    permit_token = args_dict.get("permit_token")
+    for target_repo in repo_targets:
+        allowed, code, reason, token_used, token_info = check_root_governance(
+            policy, target_repo, args.command, permit_token
+        )
+        gov_info["token_used"] = bool(gov_info["token_used"] or token_used)
+        gov_info["token_reason"] = token_info.get("validated_reason", token_info.get("reason", "token_not_provided"))
+        gov_info["token_scope"] = token_info.get("scope", ["*"])
         if not allowed:
-             return False, code, reason, gov_info
+             return False, code, f"{target_repo}: {reason}", gov_info
 
     return True, 0, "allowed", gov_info
 
@@ -484,16 +699,49 @@ def write_capabilities(
     governance=None,
     smart=None,
     capability_registry=None,
+    calibration=None,
 ):
-    """Write capabilities.json for agent-detectable output (contract v3)."""
+    """Write capabilities.json for agent-detectable output (contract v4, backward compatible)."""
+    versions = version_triplet()
+    scan_stats = build_scan_stats(metrics)
+    limits = metrics.get("limits", {"max_files": None, "max_seconds": None})
+    if not isinstance(limits, dict):
+        limits = {"max_files": None, "max_seconds": None}
+    calibration_payload = calibration if isinstance(calibration, dict) else {}
+    calibration_payload = {
+        "needs_human_hint": bool(calibration_payload.get("needs_human_hint", False)),
+        "confidence": float(calibration_payload.get("confidence", 1.0) or 0.0),
+        "confidence_tier": str(calibration_payload.get("confidence_tier", "high")),
+        "reasons": calibration_payload.get("reasons", []) if isinstance(calibration_payload.get("reasons", []), list) else [],
+        "suggested_hints_path": str(calibration_payload.get("suggested_hints_path", "")),
+        "report_path": str(calibration_payload.get("report_path", "")),
+        "report_json_path": str(calibration_payload.get("report_json_path", "")),
+        "suggested_hints": calibration_payload.get("suggested_hints", {}) if isinstance(calibration_payload.get("suggested_hints", {}), dict) else {},
+        "action_suggestions": calibration_payload.get("action_suggestions", []) if isinstance(calibration_payload.get("action_suggestions", []), list) else [],
+        "metrics_snapshot": calibration_payload.get("metrics_snapshot", {}) if isinstance(calibration_payload.get("metrics_snapshot", {}), dict) else {},
+    }
     caps = {
         "version": PLUGIN_VERSION,
-        "contract_version": SUMMARY_VERSION,
+        "package_version": versions["package_version"],
+        "plugin_version": versions["plugin_version"],
+        "contract_version": versions["contract_version"],
+        "summary_version": SUMMARY_VERSION,
         "command": command,
         "run_id": run_id,
         "repo_fingerprint": repo_fingerprint,
         "timestamp": utc_now_iso(),
         "layout": layout,
+        "module_candidates": as_int(metrics.get("module_candidates", len(roots)), len(roots)),
+        "ambiguity_ratio": float(metrics.get("ambiguity_ratio", 0.0) or 0.0),
+        "limits_hit": bool(metrics.get("limits_hit", False)),
+        "limits": {
+            "max_files": limits.get("max_files"),
+            "max_seconds": limits.get("max_seconds"),
+            "reason": metrics.get("limits_reason", ""),
+            "reason_code": metrics.get("limits_reason_code", "-"),
+        },
+        "scan_stats": scan_stats,
+        "calibration": calibration_payload,
         "roots": roots,
         "artifacts": artifacts,
         "metrics": metrics,
@@ -509,6 +757,8 @@ def write_capabilities(
         "stdout_contract": {
             "v3_summary_prefix": "hongzhi_ai_kit_summary",
             "v4_caps_prefix": "HONGZHI_CAPS",
+            "v4_status_prefix": "HONGZHI_STATUS",
+            "v4_governance_block_prefix": "HONGZHI_GOV_BLOCK",
         },
         "workspace_journal": {
             "capabilities_jsonl": str((workspace.parent / "capabilities.jsonl").resolve()),
@@ -521,20 +771,36 @@ def write_capabilities(
 
 def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
     """Print single-line agent-detectable summary (fixed key contract)."""
+    versions = version_triplet()
     modules = metrics.get("module_candidates", metrics.get("modules", 0))
     endpoints = metrics.get("endpoints_total", 0)
     scan_time = metrics.get("scan_time_s", 0)
     reused = 1 if smart_info.get("reused") else 0
     reused_from = smart_info.get("reused_from_run_id") or "-"
     gov_state = summarize_governance(governance)
+    limits_hit = 1 if metrics.get("limits_hit") else 0
+    limits_reason_code = metrics.get("limits_reason_code", "-")
+    needs_human_hint = 1 if metrics.get("needs_human_hint") else 0
+    confidence_tier = metrics.get("confidence_tier", "-")
+    ambiguity_ratio = float(metrics.get("ambiguity_ratio", 0.0) or 0.0)
+    exit_hint = str(metrics.get("exit_hint", "-") or "-")
     print(
         "hongzhi_ai_kit_summary "
         f"version={SUMMARY_VERSION} "
+        f"package_version={versions['package_version']} "
+        f"plugin_version={versions['plugin_version']} "
+        f"contract_version={versions['contract_version']} "
         f"command={command} "
         f"fp={fp} "
         f"run_id={run_id} "
         f"smart_reused={reused} "
         f"reused_from={reused_from} "
+        f"needs_human_hint={needs_human_hint} "
+        f"confidence_tier={confidence_tier} "
+        f"ambiguity_ratio={ambiguity_ratio:.4f} "
+        f"exit_hint={exit_hint} "
+        f"limits_hit={limits_hit} "
+        f"limits_reason={limits_reason_code} "
         f"modules={modules} "
         f"endpoints={endpoints} "
         f"scan_time_s={scan_time} "
@@ -544,7 +810,13 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
 
 def print_caps_pointer_line(cap_path: Path) -> None:
     """Contract v4 machine-readable pointer to capabilities.json."""
-    print(f"HONGZHI_CAPS {cap_path.resolve()}")
+    versions = version_triplet()
+    print(
+        f"HONGZHI_CAPS {cap_path.resolve()} "
+        f"package_version={versions['package_version']} "
+        f"plugin_version={versions['plugin_version']} "
+        f"contract_version={versions['contract_version']}"
+    )
 
 
 def append_capabilities_jsonl(
@@ -555,6 +827,10 @@ def append_capabilities_jsonl(
     exit_code: int,
     warnings_count: int,
     cap_path: Path,
+    metrics: dict,
+    layout: str,
+    smart_info: dict,
+    calibration: Optional[dict] = None,
 ) -> Path:
     """
     Append summary line to workspace-level capabilities.jsonl (append-only).
@@ -565,12 +841,26 @@ def append_capabilities_jsonl(
     jsonl_path = workspace.parent / "capabilities.jsonl"
     record = {
         "timestamp": utc_now_iso(),
+        "package_version": PACKAGE_VERSION,
+        "plugin_version": PLUGIN_VERSION,
+        "contract_version": CONTRACT_VERSION,
         "command": command,
         "repo_fp": repo_fp,
         "run_id": run_id,
         "exit_code": int(exit_code),
         "warnings_count": int(warnings_count),
         "capabilities_path": str(cap_path.resolve()),
+        "layout": layout,
+        "module_candidates": as_int(metrics.get("module_candidates", 0), 0),
+        "ambiguity_ratio": float(metrics.get("ambiguity_ratio", 0.0) or 0.0),
+        "limits_hit": bool(metrics.get("limits_hit", False)),
+        "limits": metrics.get("limits", {"max_files": None, "max_seconds": None}),
+        "scan_stats": build_scan_stats(metrics),
+        "smart_reused": bool(smart_info.get("reused", False)),
+        "reused_from_run_id": smart_info.get("reused_from_run_id"),
+        "calibration": calibration if isinstance(calibration, dict) else {},
+        "needs_human_hint": bool((calibration or {}).get("needs_human_hint", False)),
+        "confidence_tier": str((calibration or {}).get("confidence_tier", "-")),
     }
     jsonl_path.parent.mkdir(parents=True, exist_ok=True)
     with jsonl_path.open("a", encoding="utf-8") as fh:
@@ -589,6 +879,8 @@ def emit_capability_contract_lines(
     workspace: Path,
     exit_code: int,
     warnings_count: int,
+    layout: str,
+    calibration: Optional[dict] = None,
 ) -> Path:
     """
     Emit stdout/stderr contract outputs and append capabilities.jsonl.
@@ -597,6 +889,13 @@ def emit_capability_contract_lines(
       - stdout: HONGZHI_CAPS <abs_path>
       - workspace append-only jsonl summary
     """
+    if isinstance(calibration, dict):
+        metrics.setdefault("needs_human_hint", bool(calibration.get("needs_human_hint", False)))
+        metrics.setdefault("confidence_tier", str(calibration.get("confidence_tier", "-")))
+        metrics.setdefault(
+            "ambiguity_ratio",
+            float(calibration.get("metrics_snapshot", {}).get("ambiguity_ratio", metrics.get("ambiguity_ratio", 0.0)) or 0.0),
+        )
     jsonl_path = append_capabilities_jsonl(
         workspace=workspace,
         command=command,
@@ -605,6 +904,10 @@ def emit_capability_contract_lines(
         exit_code=exit_code,
         warnings_count=warnings_count,
         cap_path=cap_path,
+        metrics=metrics,
+        layout=layout,
+        smart_info=smart_info,
+        calibration=calibration,
     )
     print(f"[plugin] capabilities_jsonl: {jsonl_path}", file=sys.stderr)
     print_caps_pointer_line(cap_path)
@@ -722,6 +1025,7 @@ def attempt_smart_reuse(command: str, args, repo_root: Path, fp: str, vcs: dict,
     reused_warnings = old_caps.get("warnings", []) if isinstance(old_caps.get("warnings"), list) else []
     reused_suggestions = old_caps.get("suggestions", []) if isinstance(old_caps.get("suggestions"), list) else []
     reused_layout = old_caps.get("layout", "unknown")
+    reused_calibration = old_caps.get("calibration", {}) if isinstance(old_caps.get("calibration"), dict) else {}
 
     # Force fresh timing to reflect this run while preserving reused metrics.
     reused_metrics["scan_time_s"] = 0.0
@@ -734,6 +1038,7 @@ def attempt_smart_reuse(command: str, args, repo_root: Path, fp: str, vcs: dict,
         "artifacts": collect_command_artifacts(ws, command),
         "source_workspace": str(source_ws),
         "source_fp": source_fp,
+        "calibration": reused_calibration,
     }
     smart_info["reused"] = True
     smart_info["reused_from_run_id"] = last_success.get("run_id")
@@ -768,20 +1073,52 @@ def update_capability_registry(
 ) -> dict:
     index_path = global_state_root / "capability_index.json"
     index = load_capability_index(index_path)
+    now_ts = utc_now_iso()
+    versions = version_triplet()
+    entry_current = index.get("projects", {}).get(fp, {})
+    if not isinstance(entry_current, dict):
+        entry_current = {}
+    created_at = entry_current.get("created_at") or now_ts
     metrics_for_index = dict(metrics)
     # Preserve threshold semantics: absence means unknown; non-positive value is treated as unknown.
     if float(metrics_for_index.get("cache_hit_rate", 0) or 0) <= 0:
         metrics_for_index.pop("cache_hit_rate", None)
-    last_success = {
+    run_summary = {
         "run_id": run_id,
-        "timestamp": utc_now_iso(),
+        "timestamp": now_ts,
         "workspace": str(ws),
         "command": command,
+        "metrics": {
+            "module_candidates": as_int(metrics.get("module_candidates", 0), 0),
+            "endpoints_total": as_int(metrics.get("endpoints_total", 0), 0),
+            "scan_time_s": float(metrics.get("scan_time_s", 0.0) or 0.0),
+            "limits_hit": bool(metrics.get("limits_hit", False)),
+        },
     }
+    runs = entry_current.get("runs", [])
+    if not isinstance(runs, list):
+        runs = []
+    runs.append(run_summary)
+    runs = runs[-50:]
+    latest = dict(run_summary)
     entry_patch = {
+        "repo_fingerprint": fp,
+        "created_at": created_at,
+        "latest": latest,
+        "runs": runs,
+        "versions": {
+            "package": versions["package_version"],
+            "plugin": versions["plugin_version"],
+            "contract": versions["contract_version"],
+        },
+        "governance": {
+            "enabled": bool(governance.get("enabled", False)),
+            "token_used": bool(governance.get("token_used", False)),
+            "policy_hash": governance.get("policy_hash", ""),
+        },
         "repo_root": str(repo_root),
         "vcs": {"kind": vcs.get("kind", "none"), "head": vcs.get("head", "none")},
-        "last_success": last_success,
+        "last_success": latest,
         "metrics": metrics_for_index,
         "modules": modules,
         "warnings": warnings_list,
@@ -796,7 +1133,7 @@ def update_capability_registry(
         run_id,
         {
             "version": "1.0.0",
-            "timestamp": utc_now_iso(),
+            "timestamp": now_ts,
             "repo_fingerprint": fp,
             "repo_root": str(repo_root),
             "workspace": str(ws),
@@ -804,6 +1141,7 @@ def update_capability_registry(
             "vcs": {"kind": vcs.get("kind", "none"), "head": vcs.get("head", "none")},
             "smart": smart_info,
             "governance": governance,
+            "versions": versions,
             "metrics": metrics,
             "modules": modules,
         },
@@ -873,6 +1211,73 @@ def detect_layout(repo_root):
     return "unknown"
 
 
+def _fallback_calibration_report(workspace: Path) -> dict:
+    """Minimal fallback when calibration_engine module cannot be imported."""
+    calibration_dir = workspace / "calibration"
+    calibration_dir.mkdir(parents=True, exist_ok=True)
+    report_json = calibration_dir / "calibration_report.json"
+    report_md = calibration_dir / "calibration_report.md"
+    payload = {
+        "version": "1.0.0",
+        "timestamp": utc_now_iso(),
+        "needs_human_hint": False,
+        "confidence": 1.0,
+        "confidence_tier": "high",
+        "reasons": [],
+        "action_suggestions": ["calibration_engine import failed; fallback report used"],
+        "suggested_hints": {"identity": {"backend_package_hint": "", "web_path_hint": "", "keywords": []}},
+        "metrics_snapshot": {},
+        "report_path": str(report_md),
+        "report_json_path": str(report_json),
+        "suggested_hints_path": "",
+    }
+    atomic_write_json(report_json, payload)
+    report_md.write_text(
+        "# Calibration Report\n\n- fallback: calibration_engine unavailable\n"
+        f"- generated_at: `{payload['timestamp']}`\n",
+        encoding="utf-8",
+    )
+    return payload
+
+
+def run_discover_calibration(
+    workspace: Path,
+    candidates: List[dict],
+    metrics: dict,
+    roots_info: List[dict],
+    structure_signals: dict,
+    keywords: List[str],
+    min_confidence: float,
+    ambiguity_threshold: float,
+    emit_hints: bool,
+) -> dict:
+    """
+    Execute Round20 calibration layer and return machine-readable report.
+
+    The import is delayed to avoid runtime breakage in environments where this
+    module is not packaged; discover still remains functional with fallback.
+    """
+    try:
+        import calibration_engine as ce  # local script in prompt-dsl-system/tools
+
+        report = ce.run_calibration(
+            workspace=workspace,
+            candidates=candidates,
+            metrics=metrics,
+            roots_info=roots_info,
+            structure_signals=structure_signals,
+            keywords=keywords,
+            min_confidence=min_confidence,
+            ambiguity_threshold=ambiguity_threshold,
+            emit_hints=emit_hints,
+        )
+        if isinstance(report, dict):
+            return report
+    except Exception as exc:
+        print(f"[plugin] WARN: calibration_engine failed: {exc}", file=sys.stderr)
+    return _fallback_calibration_report(workspace)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Subcommand: discover
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -900,6 +1305,31 @@ def cmd_discover(args):
     metrics = {}
     modules_summary = {}
     roots_info = []
+    ambiguity_ratio = 0.0
+    keywords = [k.strip() for k in args.keywords.split(",") if k.strip()] if args.keywords else []
+    discover_candidates: List[dict] = []
+    calibration_report: dict = {
+        "needs_human_hint": False,
+        "confidence": 1.0,
+        "confidence_tier": "high",
+        "reasons": [],
+        "suggested_hints_path": "",
+        "report_path": "",
+        "report_json_path": "",
+        "suggested_hints": {"identity": {"backend_package_hint": "", "web_path_hint": "", "keywords": []}},
+        "action_suggestions": [],
+        "metrics_snapshot": {},
+    }
+    structure_signals = {
+        "controller_count": 0,
+        "service_count": 0,
+        "repository_count": 0,
+        "template_count": 0,
+        "endpoint_count": 0,
+        "endpoint_paths": [],
+        "templates": [],
+        "modules": {},
+    }
     smart_info = {"enabled": bool(args.smart), "reused": False, "reused_from_run_id": None}
     capability_registry = {
         "global_state_root": str(global_state_root),
@@ -937,9 +1367,21 @@ def cmd_discover(args):
             modules_summary = source_entry.get("modules", {}) if isinstance(source_entry.get("modules"), dict) else {}
         metrics.setdefault("module_candidates", len(roots_info))
         metrics.setdefault("cache_hit_rate", 1.0)
+        discover_candidates = [
+            {
+                "module_key": r.get("module_key"),
+                "package_prefix": r.get("package_prefix"),
+                "score": 1.0,
+                "confidence": 1.0,
+            }
+            for r in roots_info
+            if isinstance(r, dict)
+        ]
+        calibration_seed = reused_payload.get("calibration", {})
+        if isinstance(calibration_seed, dict):
+            calibration_report.update(calibration_seed)
         ensure_endpoints_total(metrics)
     else:
-        keywords = [k.strip() for k in args.keywords.split(",") if k.strip()] if args.keywords else []
         module_endpoints = {}
 
         # ── Step 1: auto_module_discover ──
@@ -956,11 +1398,13 @@ def cmd_discover(args):
                     for k in ("files", "controllers", "services", "repositories"):
                         all_pkgs[pkg][k] += stats[k]
             candidates = amd.cluster_modules(all_pkgs, keywords)[:args.top_k]
+            discover_candidates = candidates
             for i, c in enumerate(candidates):
                 c["confidence"] = amd.compute_confidence(candidates, i) if candidates else 0
         except Exception as e:
             print(f"[plugin] WARN: auto_module_discover failed: {e}", file=sys.stderr)
             candidates = []
+            discover_candidates = []
             java_roots = []
             all_pkgs = {}
 
@@ -968,46 +1412,28 @@ def cmd_discover(args):
         metrics["module_candidates"] = len(candidates)
         metrics["total_packages"] = len(all_pkgs)
 
-        # ── Self-check: ambiguity ──
-        if len(candidates) >= 2 and not keywords:
-            top_score = candidates[0]["score"]
+        # ── Self-check: ambiguity metrics (warning-only; strict handled by calibration) ──
+        if len(candidates) >= 2:
+            top_score = float(candidates[0].get("score", 0.0) or 0.0)
+            second_score = float(candidates[1].get("score", 0.0) or 0.0)
+            metrics["top1_score"] = round(top_score, 4)
+            metrics["top2_score"] = round(second_score, 4)
             if top_score > 0:
-                ratio = candidates[1]["score"] / top_score
-                if ratio > 0.8:
-                    warn = f"ambiguous modules: top2 score ratio={ratio:.2f} (provide --keywords to disambiguate)"
+                ratio = second_score / top_score
+                ambiguity_ratio = float(ratio)
+                metrics["top2_score_ratio"] = round(float(ratio), 4)
+                metrics["ambiguity_ratio"] = round(float(ratio), 4)
+                if ratio >= args.ambiguity_threshold and not keywords:
+                    warn = (
+                        f"ambiguous modules: top2 score ratio={ratio:.2f} "
+                        f"(provide --keywords to disambiguate)"
+                    )
                     warnings_list.append(warn)
                     print(f"[plugin] WARN: {warn}", file=sys.stderr)
-                    if args.strict:
-                        print("[plugin] STRICT: ambiguity threshold exceeded, exiting", file=sys.stderr)
-                        gov_info = getattr(args, "_gov_info", {})
-                        cap_path = write_capabilities(
-                            ws,
-                            "discover",
-                            run_id,
-                            fp,
-                            layout,
-                            [],
-                            artifacts_list,
-                            metrics,
-                            warnings_list,
-                            suggestions_list,
-                            gov_info,
-                            smart_info,
-                            capability_registry,
-                        )
-                        emit_capability_contract_lines(
-                            cap_path=cap_path,
-                            command="discover",
-                            fp=fp,
-                            run_id=run_id,
-                            smart_info=smart_info,
-                            metrics=metrics,
-                            governance=gov_info,
-                            workspace=ws,
-                            exit_code=2,
-                            warnings_count=len(warnings_list),
-                        )
-                        return 2
+        else:
+            metrics["top1_score"] = float(candidates[0].get("score", 0.0) or 0.0) if candidates else 0.0
+            metrics["top2_score"] = 0.0
+            metrics["top2_score_ratio"] = 0.0
 
         # Write candidates
         cand_path = disc_dir / "auto_discover.yaml"
@@ -1098,6 +1524,22 @@ def cmd_discover(args):
                 artifacts_list.append(str(struct_path))
                 module_endpoints[mk] = len(ep_sigs)
                 metrics[f"endpoints_{mk}"] = len(ep_sigs)
+                structure_signals["controller_count"] += int(c.get("controller_count", 0) or 0)
+                structure_signals["service_count"] += int(c.get("service_count", 0) or 0)
+                structure_signals["repository_count"] += int(c.get("repository_count", 0) or 0)
+                structure_signals["template_count"] += len(mod_tpls)
+                structure_signals["endpoint_count"] += len(ep_sigs)
+                structure_signals["endpoint_paths"].extend(
+                    [str(ep.get("path", "")) for ep in ep_sigs if isinstance(ep, dict) and ep.get("path")]
+                )
+                structure_signals["templates"].extend(mod_tpls)
+                structure_signals["modules"][mk] = {
+                    "controller_count": int(c.get("controller_count", 0) or 0),
+                    "service_count": int(c.get("service_count", 0) or 0),
+                    "repository_count": int(c.get("repository_count", 0) or 0),
+                    "template_count": len(mod_tpls),
+                    "endpoint_count": len(ep_sigs),
+                }
         else:
             metrics["cache_hit_files"] = 0
             metrics["cache_miss_files"] = 0
@@ -1105,6 +1547,13 @@ def cmd_discover(args):
             metrics["cache_hit_rate"] = 0.0
 
         ensure_endpoints_total(metrics)
+        if not structure_signals["controller_count"] and candidates:
+            structure_signals["controller_count"] = sum(int(c.get("controller_count", 0) or 0) for c in candidates[:3])
+            structure_signals["service_count"] = sum(int(c.get("service_count", 0) or 0) for c in candidates[:3])
+            structure_signals["repository_count"] = sum(int(c.get("repository_count", 0) or 0) for c in candidates[:3])
+            structure_signals["endpoint_count"] = int(metrics.get("endpoints_total", 0) or 0)
+        structure_signals["endpoint_paths"] = list(dict.fromkeys(structure_signals["endpoint_paths"]))
+        structure_signals["templates"] = list(dict.fromkeys(structure_signals["templates"]))
         roots_info = [
             {"module_key": c.get("module_key"), "package_prefix": c.get("package_prefix")}
             for c in candidates[:5]
@@ -1114,6 +1563,8 @@ def cmd_discover(args):
     scan_time = time.time() - t_start
     metrics["scan_time_s"] = round(scan_time, 3)
     metrics["layout"] = layout
+    metrics.setdefault("module_candidates", len(roots_info))
+    metrics.setdefault("ambiguity_ratio", round(float(ambiguity_ratio), 4))
     ensure_endpoints_total(metrics)
 
     # Snapshot after — enforce read-only contract
@@ -1121,22 +1572,60 @@ def cmd_discover(args):
     delta = diff_snapshots(snap_before, snap_after)
     enforce_read_only(delta, args.write_ok)
 
-    gov_info = getattr(args, "_gov_info", {})
-    capability_registry = update_capability_registry(
-        global_state_root,
-        fp,
-        repo_root,
-        "discover",
-        run_id,
-        ws,
-        vcs,
-        metrics,
-        modules_summary,
-        warnings_list,
-        suggestions_list,
-        smart_info,
-        gov_info,
+    limits_hit, limit_codes, limit_texts = evaluate_limits(args, metrics, scan_time)
+    for reason in limit_texts:
+        warnings_list.append(f"limits_hit: {reason}")
+        print(f"[plugin] WARN: limits_hit: {reason}", file=sys.stderr)
+    final_exit_code = 0
+    if limits_hit and args.strict:
+        final_exit_code = LIMIT_EXIT_CODE
+        print("[plugin] STRICT: limits hit, exiting with code 20", file=sys.stderr)
+
+    calibration_report = run_discover_calibration(
+        workspace=ws,
+        candidates=discover_candidates,
+        metrics=metrics,
+        roots_info=roots_info,
+        structure_signals=structure_signals,
+        keywords=keywords,
+        min_confidence=float(args.min_confidence),
+        ambiguity_threshold=float(args.ambiguity_threshold),
+        emit_hints=bool(args.emit_hints),
     )
+    metrics["needs_human_hint"] = bool(calibration_report.get("needs_human_hint", False))
+    metrics["confidence_tier"] = str(calibration_report.get("confidence_tier", "low"))
+    metrics["calibration_confidence"] = float(calibration_report.get("confidence", 0.0) or 0.0)
+    metrics["exit_hint"] = "-"
+    for action in calibration_report.get("action_suggestions", []):
+        if action not in suggestions_list:
+            suggestions_list.append(action)
+    if metrics["needs_human_hint"]:
+        reason_text = ",".join(calibration_report.get("reasons", [])) or "needs_human_hint"
+        warn = f"needs_human_hint: {reason_text}"
+        warnings_list.append(warn)
+        print(f"[plugin] WARN: {warn}", file=sys.stderr)
+        if args.strict:
+            final_exit_code = CALIBRATION_EXIT_CODE
+            metrics["exit_hint"] = "needs_human_hint"
+            print("[plugin] STRICT: needs_human_hint detected, exiting with code 21", file=sys.stderr)
+
+    gov_info = getattr(args, "_gov_info", {})
+    if final_exit_code == 0:
+        capability_registry = update_capability_registry(
+            global_state_root,
+            fp,
+            repo_root,
+            "discover",
+            run_id,
+            ws,
+            vcs,
+            metrics,
+            modules_summary,
+            warnings_list,
+            suggestions_list,
+            smart_info,
+            gov_info,
+        )
     cap_path = write_capabilities(
         ws,
         "discover",
@@ -1151,6 +1640,7 @@ def cmd_discover(args):
         gov_info,
         smart_info,
         capability_registry,
+        calibration_report,
     )
     print(f"[plugin] capabilities: {cap_path}", file=sys.stderr)
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
@@ -1164,10 +1654,12 @@ def cmd_discover(args):
         metrics=metrics,
         governance=gov_info,
         workspace=ws,
-        exit_code=0,
+        exit_code=final_exit_code,
         warnings_count=len(warnings_list),
+        layout=layout,
+        calibration=calibration_report,
     )
-    return 0
+    return final_exit_code
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1210,8 +1702,8 @@ def cmd_diff(args):
     metrics = {}
 
     # Snapshot before (both repos)
-    snap_old_before = take_snapshot(old_root)
-    snap_new_before = take_snapshot(new_root)
+    snap_old_before = take_snapshot(old_root, max_files=args.max_files)
+    snap_new_before = take_snapshot(new_root, max_files=args.max_files)
 
     t_start = time.time()
     smart_info, reused_payload, smart_reasons = attempt_smart_reuse(
@@ -1282,6 +1774,7 @@ def cmd_diff(args):
             "scan_time_s": round(scan_time, 3),
             "missing_classes": len(diff_result.get("missing_classes", [])),
             "new_classes": len(diff_result.get("new_classes", [])),
+            "files_scanned": len(old_classes) + len(new_classes) + len(old_templates) + len(new_templates),
         }
         ep_diff = diff_result.get("endpoint_diff", {})
         metrics["endpoints_added"] = len(ep_diff.get("added", []))
@@ -1298,8 +1791,8 @@ def cmd_diff(args):
         }
 
     # Snapshot after — enforce read-only
-    snap_old_after = take_snapshot(old_root)
-    snap_new_after = take_snapshot(new_root)
+    snap_old_after = take_snapshot(old_root, max_files=args.max_files)
+    snap_new_after = take_snapshot(new_root, max_files=args.max_files)
     delta_old = diff_snapshots(snap_old_before, snap_old_after)
     delta_new = diff_snapshots(snap_new_before, snap_new_after)
     enforce_read_only(delta_old, args.write_ok)
@@ -1307,24 +1800,35 @@ def cmd_diff(args):
 
     if "scan_time_s" not in metrics:
         metrics["scan_time_s"] = round(time.time() - t_start, 3)
+    metrics.setdefault("module_candidates", 1 if metrics.get("module_key") else 0)
+    metrics.setdefault("ambiguity_ratio", 0.0)
     ensure_endpoints_total(metrics)
+    limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
+    for reason in limit_texts:
+        warnings_list.append(f"limits_hit: {reason}")
+        print(f"[plugin] WARN: limits_hit: {reason}", file=sys.stderr)
+    final_exit_code = 0
+    if limits_hit and args.strict:
+        final_exit_code = LIMIT_EXIT_CODE
+        print("[plugin] STRICT: limits hit, exiting with code 20", file=sys.stderr)
 
     gov_info = getattr(args, "_gov_info", {})
-    capability_registry = update_capability_registry(
-        global_state_root,
-        fp,
-        new_root,
-        "diff",
-        run_id,
-        ws,
-        vcs,
-        metrics,
-        modules_summary,
-        warnings_list,
-        suggestions_list,
-        smart_info,
-        gov_info,
-    )
+    if final_exit_code == 0:
+        capability_registry = update_capability_registry(
+            global_state_root,
+            fp,
+            new_root,
+            "diff",
+            run_id,
+            ws,
+            vcs,
+            metrics,
+            modules_summary,
+            warnings_list,
+            suggestions_list,
+            smart_info,
+            gov_info,
+        )
     cap_path = write_capabilities(
         ws,
         "diff",
@@ -1352,10 +1856,11 @@ def cmd_diff(args):
         metrics=metrics,
         governance=gov_info,
         workspace=ws,
-        exit_code=0,
+        exit_code=final_exit_code,
         warnings_count=len(warnings_list),
+        layout="n/a",
     )
-    return 0
+    return final_exit_code
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1461,29 +1966,41 @@ def cmd_profile(args):
 
     if "scan_time_s" not in metrics:
         metrics["scan_time_s"] = round(time.time() - t_start, 3)
+    metrics.setdefault("module_candidates", 1 if metrics.get("module_key") and metrics.get("module_key") != "none" else 0)
+    metrics.setdefault("ambiguity_ratio", 0.0)
     ensure_endpoints_total(metrics)
+    limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
+    for reason in limit_texts:
+        warnings_list.append(f"limits_hit: {reason}")
+        print(f"[plugin] WARN: limits_hit: {reason}", file=sys.stderr)
+    final_exit_code = 0
+    if limits_hit and args.strict:
+        final_exit_code = LIMIT_EXIT_CODE
+        print("[plugin] STRICT: limits hit, exiting with code 20", file=sys.stderr)
     gov_info = getattr(args, "_gov_info", {})
-    capability_registry = update_capability_registry(
-        global_state_root,
-        fp,
-        repo_root,
-        "profile",
-        run_id,
-        ws,
-        vcs,
-        metrics,
-        modules_summary,
-        warnings_list,
-        suggestions_list,
-        smart_info,
-        gov_info,
-    )
+    if final_exit_code == 0:
+        capability_registry = update_capability_registry(
+            global_state_root,
+            fp,
+            repo_root,
+            "profile",
+            run_id,
+            ws,
+            vcs,
+            metrics,
+            modules_summary,
+            warnings_list,
+            suggestions_list,
+            smart_info,
+            gov_info,
+        )
+    layout = detect_layout(repo_root)
     cap_path = write_capabilities(
         ws,
         "profile",
         run_id,
         fp,
-        detect_layout(repo_root),
+        layout,
         roots_info,
         artifacts_list,
         metrics,
@@ -1505,10 +2022,11 @@ def cmd_profile(args):
         metrics=metrics,
         governance=gov_info,
         workspace=ws,
-        exit_code=0,
+        exit_code=final_exit_code,
         warnings_count=len(warnings_list),
+        layout=layout,
     )
-    return 0
+    return final_exit_code
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1544,7 +2062,7 @@ def cmd_migrate(args):
         "updated": False,
     }
 
-    snap_before = take_snapshot(repo_root)
+    snap_before = take_snapshot(repo_root, max_files=args.max_files)
     t_start = time.time()
 
     smart_info, reused_payload, smart_reasons = attempt_smart_reuse(
@@ -1585,35 +2103,47 @@ def cmd_migrate(args):
         scan_time = time.time() - t_start
         metrics = {"scan_time_s": round(scan_time, 3), "endpoints_total": 0}
 
-    snap_after = take_snapshot(repo_root)
+    snap_after = take_snapshot(repo_root, max_files=args.max_files)
     delta = diff_snapshots(snap_before, snap_after)
     enforce_read_only(delta, args.write_ok)
 
     if "scan_time_s" not in metrics:
         metrics["scan_time_s"] = round(time.time() - t_start, 3)
+    metrics.setdefault("module_candidates", 0)
+    metrics.setdefault("ambiguity_ratio", 0.0)
     ensure_endpoints_total(metrics)
+    limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
+    for reason in limit_texts:
+        warnings_list.append(f"limits_hit: {reason}")
+        print(f"[plugin] WARN: limits_hit: {reason}", file=sys.stderr)
+    final_exit_code = 0
+    if limits_hit and args.strict:
+        final_exit_code = LIMIT_EXIT_CODE
+        print("[plugin] STRICT: limits hit, exiting with code 20", file=sys.stderr)
     gov_info = getattr(args, "_gov_info", {})
-    capability_registry = update_capability_registry(
-        global_state_root,
-        fp,
-        repo_root,
-        "migrate",
-        run_id,
-        ws,
-        vcs,
-        metrics,
-        modules_summary,
-        warnings_list,
-        suggestions_list,
-        smart_info,
-        gov_info,
-    )
+    if final_exit_code == 0:
+        capability_registry = update_capability_registry(
+            global_state_root,
+            fp,
+            repo_root,
+            "migrate",
+            run_id,
+            ws,
+            vcs,
+            metrics,
+            modules_summary,
+            warnings_list,
+            suggestions_list,
+            smart_info,
+            gov_info,
+        )
+    layout = detect_layout(repo_root)
     cap_path = write_capabilities(
         ws,
         "migrate",
         run_id,
         fp,
-        detect_layout(repo_root),
+        layout,
         roots_info,
         artifacts_list,
         metrics,
@@ -1635,10 +2165,11 @@ def cmd_migrate(args):
         metrics=metrics,
         governance=gov_info,
         workspace=ws,
-        exit_code=0,
+        exit_code=final_exit_code,
         warnings_count=len(warnings_list),
+        layout=layout,
     )
-    return 0
+    return final_exit_code
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1706,13 +2237,25 @@ def cmd_status(args):
     policy = load_policy_yaml(args_dict)
     global_state_root = resolve_global_state(args)
     index_path = global_state_root / "capability_index.json"
+    policy_hash = compute_policy_hash(policy)
 
-    print(f"[plugin] version: {PLUGIN_VERSION}")
+    versions = version_triplet()
+    print(f"[plugin] package_version: {versions['package_version']}")
+    print(f"[plugin] plugin_version: {versions['plugin_version']}")
+    print(f"[plugin] contract_version: {versions['contract_version']}")
     print(f"[plugin] enabled: {policy['enabled']}")
     print(f"[plugin] allow_roots: {policy['allow_roots'] or '(none — all allowed)'}")
     print(f"[plugin] deny_roots: {policy['deny_roots'] or '(none)'}")
+    print(f"[plugin] policy_hash: {policy_hash}")
     print(f"[plugin] global_state_root: {global_state_root}")
     print(f"[plugin] capability_index: {index_path}")
+    print(
+        f"HONGZHI_STATUS package_version={versions['package_version']} "
+        f"plugin_version={versions['plugin_version']} "
+        f"contract_version={versions['contract_version']} "
+        f"enabled={1 if policy['enabled'] else 0} "
+        f"policy_hash={policy_hash}"
+    )
     if policy.get("permit_token_file"):
         tok_path = Path(policy["permit_token_file"]).expanduser()
         print(f"[plugin] permit_token_file: {tok_path} ({'found' if tok_path.exists() else 'missing'})")
@@ -1726,10 +2269,12 @@ def cmd_status(args):
             print(f"[plugin] repo_root={repo_root}: BLOCKED (plugin disabled)")
             return GOVERNANCE_EXIT_CODE
         else:
-            allowed, exit_code, reason, token_used = check_root_governance(
-                policy, repo_root, getattr(args, "permit_token", None))
+            allowed, exit_code, reason, token_used, token_info = check_root_governance(
+                policy, repo_root, "status", getattr(args, "permit_token", None))
             status = "ALLOWED" if allowed else "BLOCKED"
             print(f"[plugin] repo_root={repo_root}: {status} ({reason}, exit={exit_code})")
+            if token_info.get("provided"):
+                print(f"[plugin] token_reason: {token_info.get('validated_reason', token_info.get('reason', 'token_invalid'))}")
             if not allowed:
                 return exit_code
     return 0
@@ -1780,6 +2325,14 @@ def main():
     p_disc = sub.add_parser("discover", parents=[common],
                             help="Auto-discover modules, roots, structure, endpoints")
     p_disc.add_argument("--repo-root", required=True, help="Target project root")
+    p_disc.add_argument("--min-confidence", type=float, default=0.60,
+                        help="Calibration threshold: strict fails with exit=21 when confidence is below this value")
+    p_disc.add_argument("--ambiguity-threshold", type=float, default=0.80,
+                        help="Calibration ambiguity threshold for top2 score ratio / ambiguity ratio checks")
+    p_disc.add_argument("--emit-hints", dest="emit_hints", action="store_true", default=True,
+                        help="Emit workspace calibration/hints_suggested.yaml (default: true)")
+    p_disc.add_argument("--no-emit-hints", dest="emit_hints", action="store_false",
+                        help="Disable emitting calibration hints_suggested.yaml (report files still emitted)")
 
     # ── diff ──
     p_diff = sub.add_parser("diff", parents=[common],
@@ -1834,13 +2387,20 @@ def main():
                 print(f"[plugin] BLOCKED: {reason}", file=sys.stderr)
                 print(f"[plugin] This repo_root is in the deny_roots list.", file=sys.stderr)
             elif exit_code == GOVERNANCE_ALLOW_EXIT_CODE:
-                machine_reason = "repo_not_allowed"
+                if "permit-token rejected" in reason:
+                    machine_reason = "permit_token_rejected"
+                else:
+                    machine_reason = "repo_not_allowed"
                 print(f"[plugin] BLOCKED: {reason}", file=sys.stderr)
                 print(f"[plugin] Add repo path to plugin.allow_roots in policy.yaml.", file=sys.stderr)
             # Contract v4: machine-readable governance rejection line on stdout.
             print(
                 f"HONGZHI_GOV_BLOCK code={exit_code} reason={machine_reason} "
-                f"command={args.command} detail=\"{reason}\""
+                f"command={args.command} "
+                f"package_version={PACKAGE_VERSION} "
+                f"plugin_version={PLUGIN_VERSION} "
+                f"contract_version={CONTRACT_VERSION} "
+                f"detail=\"{reason}\""
             )
             sys.exit(exit_code)
         # Attach governance info for capabilities.json

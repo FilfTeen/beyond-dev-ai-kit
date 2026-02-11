@@ -18,7 +18,9 @@ from typing import Any, Dict, List, Optional, Tuple
 DEFAULT_IGNORE_PATTERNS = [
     "**/target/**",
     "**/node_modules/**",
+    "**/dist/**",
     "**/_regression_tmp/**",
+    ".DS_Store",
     "**/.DS_Store",
     "**/*.log",
 ]
@@ -53,6 +55,7 @@ ALLOWED_TOP_LEVEL_PACKAGING_FILES = {
     "setup.py",
     "setup.cfg",
     "README.md",
+    ".gitignore",
 }
 
 
@@ -82,7 +85,12 @@ def parse_scalar(value: str) -> Any:
 
 
 def normalize_rel(path: str) -> str:
-    return path.replace("\\", "/").lstrip("./")
+    rel = path.replace("\\", "/")
+    while rel.startswith("./"):
+        rel = rel[2:]
+    if rel == ".":
+        return ""
+    return rel.lstrip("/")
 
 
 def run_cmd(cmd: List[str], cwd: Path) -> Tuple[int, str, str]:

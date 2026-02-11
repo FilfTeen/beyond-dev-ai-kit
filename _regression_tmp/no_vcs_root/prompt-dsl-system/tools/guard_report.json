@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-11T06:01:14+00:00",
+  "timestamp": "2026-02-11T07:57:45+00:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/no_vcs_root",
   "mode": "validate",
   "advisory": false,
@@ -16,7 +16,9 @@
   "ignore_patterns": [
     "**/target/**",
     "**/node_modules/**",
+    "**/dist/**",
     "**/_regression_tmp/**",
+    ".DS_Store",
     "**/.DS_Store",
     "**/*.log"
   ],

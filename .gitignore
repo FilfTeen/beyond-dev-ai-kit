@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# kit generated / tmp
+_regression_tmp/
+prompt-dsl-system/tools/_tmp_*/
+prompt-dsl-system/tools/deliveries/
+prompt-dsl-system/tools/snapshots/
+prompt-dsl-system/tools/.structure_cache/
+*.discovered.yaml

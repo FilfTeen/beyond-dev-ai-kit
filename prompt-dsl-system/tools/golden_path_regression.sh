@@ -337,6 +337,8 @@ fi
 # ─── Phase 13: endpoint signature v2 smoke ───
 echo "[phase 13] endpoint signature v2 smoke"
 CASE2="$SCRIPT_DIR/_tmp_structure_cases/case2_classlevel"
+CASE4="$SCRIPT_DIR/_tmp_structure_cases/case4_endpoint_miss"
+CASE5="$SCRIPT_DIR/_tmp_structure_cases/case5_ambiguous_two_modules"
 if [ -d "$CASE2" ] && [ -f "$STRUCT_DISCOVER" ]; then
   set +e
   SD_OUT=$("$PYTHON_BIN" "$STRUCT_DISCOVER" --repo-root "$CASE2" --project-key test --module-key order --read-only 2>/dev/null)
@@ -748,6 +750,22 @@ if [ -f "$REPO_ROOT/pyproject.toml" ] && [ -f "$PLUGIN" ] && [ -d "$CASE1" ]; th
   fi
   set -e
 
+  set +e
+  P23_UNINST_ERR=$(PYTHONPATH="" "$PYTHON_BIN" -m hongzhi_ai_kit --help 2>&1 >/dev/null)
+  P23_UNINST_RC=$?
+  set -e
+  if [ "$P23_UNINST_RC" -ne 0 ]; then
+    echo "[phase 23] install hint: python3 -m pip install -U pip setuptools wheel && python3 -m pip install -e ."
+    if echo "$P23_UNINST_ERR" | grep -q "No module named hongzhi_ai_kit"; then
+      check "Phase23:uninstalled_install_hint" "PASS"
+    else
+      check "Phase23:uninstalled_install_hint" "FAIL"
+    fi
+  else
+    echo "[phase 23] note: hongzhi_ai_kit already importable in base interpreter"
+    check "Phase23:uninstalled_install_hint" "PASS"
+  fi
+
   if [ "$P23_VENV_RC" -ne 0 ] || [ "$P23_BOOTSTRAP_RC" -ne 0 ] || [ "$P23_PIP_RC" -ne 0 ]; then
     check "Phase23:package_import_smoke" "FAIL"
     check "Phase23:console_entry_smoke" "FAIL"
@@ -806,10 +824,323 @@ if [ -f "$REPO_ROOT/pyproject.toml" ] && [ -f "$PLUGIN" ] && [ -d "$CASE1" ]; th
     fi
   fi
 else
+  check "Phase23:uninstalled_install_hint" "FAIL"
   check "Phase23:package_import_smoke" "FAIL"
   check "Phase23:console_entry_smoke" "FAIL"
   check "Phase23:governance_disabled_no_outputs" "FAIL"
   check "Phase23:capabilities_stdout_contract" "FAIL"
+fi
+
+# ─── Phase 24: release_and_contract_v4_guard ───
+echo "[phase 24] release_and_contract_v4_guard"
+if [ -f "$REPO_ROOT/pyproject.toml" ] && [ -f "$PLUGIN" ] && [ -d "$CASE1" ]; then
+  P24_DIST="$REGRESSION_TMP/phase24_dist"
+  P24_BUILD_VENV="$REGRESSION_TMP/phase24_build_venv"
+  P24_WHEEL_VENV="$REGRESSION_TMP/phase24_wheel_venv"
+  P24_PROJ="$REGRESSION_TMP/phase24_proj"
+  P24_WS="$REGRESSION_TMP/phase24_ws"
+  P24_STATE="$REGRESSION_TMP/phase24_state"
+  rm -rf "$P24_DIST" "$P24_BUILD_VENV" "$P24_WHEEL_VENV" "$P24_PROJ" "$P24_WS" "$P24_STATE"
+  mkdir -p "$P24_DIST" "$P24_PROJ" "$P24_WS" "$P24_STATE"
+
+  set +e
+  "$PYTHON_BIN" -m venv "$P24_BUILD_VENV" > /dev/null 2>&1
+  P24_BUILD_VENV_RC=$?
+  if [ "$P24_BUILD_VENV_RC" -eq 0 ]; then
+    "$P24_BUILD_VENV/bin/python3" -m pip install --upgrade pip setuptools wheel build > /dev/null 2>&1
+    P24_BUILD_BOOT_RC=$?
+  else
+    P24_BUILD_BOOT_RC=1
+  fi
+  if [ "$P24_BUILD_VENV_RC" -eq 0 ] && [ "$P24_BUILD_BOOT_RC" -eq 0 ]; then
+    "$P24_BUILD_VENV/bin/python3" -m build --wheel --sdist --outdir "$P24_DIST" "$REPO_ROOT" > /dev/null 2>&1
+    P24_BUILD_RC=$?
+  else
+    P24_BUILD_RC=1
+  fi
+  set -e
+
+  if [ "$P24_BUILD_RC" -eq 0 ] && ls "$P24_DIST"/*.tar.gz >/dev/null 2>&1; then
+    check "Phase24:sdist_build_smoke" "PASS"
+  else
+    check "Phase24:sdist_build_smoke" "FAIL"
+  fi
+
+  if [ "$P24_BUILD_RC" -eq 0 ] && ls "$P24_DIST"/*.whl >/dev/null 2>&1; then
+    set +e
+    "$PYTHON_BIN" -m venv "$P24_WHEEL_VENV" > /dev/null 2>&1
+    P24_WHEEL_VENV_RC=$?
+    if [ "$P24_WHEEL_VENV_RC" -eq 0 ]; then
+      PYTHONPATH="" "$P24_WHEEL_VENV/bin/python3" -m pip install --force-reinstall "$P24_DIST"/*.whl > /dev/null 2>&1
+      P24_WHEEL_INSTALL_RC=$?
+    else
+      P24_WHEEL_INSTALL_RC=1
+    fi
+    if [ "$P24_WHEEL_INSTALL_RC" -eq 0 ]; then
+      PYTHONPATH="" "$P24_WHEEL_VENV/bin/hongzhi-ai-kit" --help > /dev/null 2>&1
+      P24_HELP_RC=$?
+      PYTHONPATH="" "$P24_WHEEL_VENV/bin/python3" -m hongzhi_ai_kit --help > /dev/null 2>&1
+      P24_MOD_HELP_RC=$?
+    else
+      P24_HELP_RC=1
+      P24_MOD_HELP_RC=1
+    fi
+    set -e
+    if [ "$P24_WHEEL_INSTALL_RC" -eq 0 ] && [ "$P24_HELP_RC" -eq 0 ] && [ "$P24_MOD_HELP_RC" -eq 0 ]; then
+      check "Phase24:wheel_install_smoke" "PASS"
+    else
+      check "Phase24:wheel_install_smoke" "FAIL"
+    fi
+  else
+    check "Phase24:wheel_install_smoke" "FAIL"
+  fi
+
+  set +e
+  P24_TRACKED_JUNK=$(git -C "$REPO_ROOT" ls-files | grep -E '(^|/)\.DS_Store$|(^|/)__pycache__/|^prompt-dsl-system/tools/deliveries/|^prompt-dsl-system/tools/snapshots/' || true)
+  set -e
+  if [ -z "$P24_TRACKED_JUNK" ]; then
+    check "Phase24:gitignore_guard" "PASS"
+  else
+    check "Phase24:gitignore_guard" "FAIL"
+  fi
+
+  if [ -d "$P24_WHEEL_VENV" ] && [ -x "$P24_WHEEL_VENV/bin/python3" ]; then
+    set +e
+    P24_STATUS_OUT=$(PYTHONPATH="" HONGZHI_PLUGIN_ENABLE=1 "$P24_WHEEL_VENV/bin/python3" -m hongzhi_ai_kit status --repo-root "$P24_PROJ" 2>/dev/null)
+    P24_STATUS_RC=$?
+    set -e
+    if [ "$P24_STATUS_RC" -eq 0 ] && echo "$P24_STATUS_OUT" | grep -q "package_version=" && echo "$P24_STATUS_OUT" | grep -q "plugin_version=" && echo "$P24_STATUS_OUT" | grep -q "contract_version="; then
+      check "Phase24:version_triple_present" "PASS"
+    else
+      check "Phase24:version_triple_present" "FAIL"
+    fi
+
+    rm -rf "$P24_WS" "$P24_STATE"
+    mkdir -p "$P24_WS" "$P24_STATE"
+    set +e
+    unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+    P24_GOV_OUT=$(PYTHONPATH="" "$P24_WHEEL_VENV/bin/python3" -m hongzhi_ai_kit discover \
+      --repo-root "$CASE1" --workspace-root "$P24_WS" --global-state-root "$P24_STATE" 2>/dev/null)
+    P24_GOV_RC=$?
+    set -e
+    P24_GOV_FILES=$(find "$P24_WS" "$P24_STATE" -type f \
+      \( -name "capabilities.json" -o -name "capabilities.jsonl" -o -name "capability_index.json" -o -name "latest.json" -o -name "run_meta.json" \) | wc -l | tr -d ' ')
+    if [ "$P24_GOV_RC" -eq 10 ] && [ "$P24_GOV_FILES" = "0" ] && \
+       echo "$P24_GOV_OUT" | grep -q "^HONGZHI_GOV_BLOCK " && \
+       echo "$P24_GOV_OUT" | grep -q "package_version=" && \
+       echo "$P24_GOV_OUT" | grep -q "plugin_version=" && \
+       echo "$P24_GOV_OUT" | grep -q "contract_version="; then
+      check "Phase24:gov_block_has_versions_and_zero_write" "PASS"
+    else
+      check "Phase24:gov_block_has_versions_and_zero_write" "FAIL"
+    fi
+  else
+    check "Phase24:version_triple_present" "FAIL"
+    check "Phase24:gov_block_has_versions_and_zero_write" "FAIL"
+  fi
+else
+  check "Phase24:version_triple_present" "FAIL"
+  check "Phase24:wheel_install_smoke" "FAIL"
+  check "Phase24:sdist_build_smoke" "FAIL"
+  check "Phase24:gitignore_guard" "FAIL"
+  check "Phase24:gov_block_has_versions_and_zero_write" "FAIL"
+fi
+
+# ─── Phase 25: governance_v3_limits_pipeline ───
+echo "[phase 25] governance_v3_limits_pipeline"
+PIPE_PLUGIN_DISCOVER="$REPO_ROOT/prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_plugin_discover.md"
+if [ -f "$PLUGIN" ] && [ -d "$CASE1" ]; then
+  P25_TMP="$REGRESSION_TMP/phase25"
+  P25_WS="$REGRESSION_TMP/phase25_ws"
+  P25_STATE="$REGRESSION_TMP/phase25_state"
+  rm -rf "$P25_TMP" "$P25_WS" "$P25_STATE"
+  mkdir -p "$P25_TMP/allowed_repo" "$P25_TMP/denied_repo" "$P25_TMP/blocked_repo" "$P25_WS" "$P25_STATE"
+  ln -s "$P25_TMP/denied_repo" "$P25_TMP/denied_link"
+  cat > "$P25_TMP/policy.yaml" <<EOF
+plugin:
+  enabled: true
+  allow_roots: ["$P25_TMP/allowed_repo"]
+  deny_roots: ["$P25_TMP/denied_repo"]
+EOF
+
+  # token_ttl_expired_block
+  P25_TOKEN_EXPIRED='{"token":"T-EXPIRED","issued_at":"2000-01-01T00:00:00Z","ttl_seconds":60,"scope":["status","discover"]}'
+  set +e
+  "$PYTHON_BIN" "$PLUGIN" status --repo-root "$P25_TMP/blocked_repo" --kit-root "$P25_TMP" --permit-token "$P25_TOKEN_EXPIRED" > /dev/null 2>&1
+  P25_TTL_RC=$?
+  set -e
+  if [ "$P25_TTL_RC" -eq 12 ]; then
+    check "Phase25:token_ttl_expired_block" "PASS"
+  else
+    check "Phase25:token_ttl_expired_block" "FAIL"
+  fi
+
+  # token_scope_block
+  P25_TOKEN_SCOPE='{"token":"T-SCOPE","scope":["discover"],"expires_at":"2999-01-01T00:00:00Z"}'
+  set +e
+  "$PYTHON_BIN" "$PLUGIN" status --repo-root "$P25_TMP/blocked_repo" --kit-root "$P25_TMP" --permit-token "$P25_TOKEN_SCOPE" > /dev/null 2>&1
+  P25_SCOPE_RC=$?
+  set -e
+  if [ "$P25_SCOPE_RC" -eq 12 ]; then
+    check "Phase25:token_scope_block" "PASS"
+  else
+    check "Phase25:token_scope_block" "FAIL"
+  fi
+
+  # symlink_bypass_denied
+  set +e
+  "$PYTHON_BIN" "$PLUGIN" status --repo-root "$P25_TMP/denied_link" --kit-root "$P25_TMP" > /dev/null 2>&1
+  P25_LINK_RC=$?
+  set -e
+  if [ "$P25_LINK_RC" -eq 11 ]; then
+    check "Phase25:symlink_bypass_denied" "PASS"
+  else
+    check "Phase25:symlink_bypass_denied" "FAIL"
+  fi
+
+  # limits_hit_normal_warn
+  set +e
+  P25_OUT_NORMAL=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P25_WS" --global-state-root "$P25_STATE" \
+    --max-files 1 2>/dev/null)
+  P25_NORMAL_RC=$?
+  set -e
+  if [ "$P25_NORMAL_RC" -eq 0 ] && echo "$P25_OUT_NORMAL" | grep -q "limits_hit=1"; then
+    check "Phase25:limits_hit_normal_warn" "PASS"
+  else
+    check "Phase25:limits_hit_normal_warn" "FAIL"
+  fi
+
+  # limits_hit_strict_fail
+  set +e
+  P25_OUT_STRICT=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P25_WS" --global-state-root "$P25_STATE" \
+    --max-files 1 --strict 2>/dev/null)
+  P25_STRICT_RC=$?
+  set -e
+  if [ "$P25_STRICT_RC" -eq 20 ] && echo "$P25_OUT_STRICT" | grep -q "limits_hit=1"; then
+    check "Phase25:limits_hit_strict_fail" "PASS"
+  else
+    check "Phase25:limits_hit_strict_fail" "FAIL"
+  fi
+
+  # capability_index_gated_by_governance
+  rm -rf "$P25_WS" "$P25_STATE"
+  mkdir -p "$P25_WS" "$P25_STATE"
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  "$PYTHON_BIN" "$PLUGIN" discover --repo-root "$CASE1" --workspace-root "$P25_WS" --global-state-root "$P25_STATE" > /dev/null 2>&1
+  P25_GOV_RC=$?
+  set -e
+  if [ "$P25_GOV_RC" -eq 10 ] && [ ! -f "$P25_STATE/capability_index.json" ]; then
+    check "Phase25:capability_index_gated_by_governance" "PASS"
+  else
+    check "Phase25:capability_index_gated_by_governance" "FAIL"
+  fi
+
+  # pipeline_status_decide_discover_smoke
+  if [ -f "$PIPE_PLUGIN_DISCOVER" ] && \
+     grep -q "Step 1 — Status" "$PIPE_PLUGIN_DISCOVER" && \
+     grep -q "Step 2 — Decide" "$PIPE_PLUGIN_DISCOVER" && \
+     grep -q "Step 3 — Discover" "$PIPE_PLUGIN_DISCOVER" && \
+     grep -q "skill_governance_plugin_status" "$PIPE_PLUGIN_DISCOVER"; then
+    check "Phase25:pipeline_status_decide_discover_smoke" "PASS"
+  else
+    check "Phase25:pipeline_status_decide_discover_smoke" "FAIL"
+  fi
+else
+  check "Phase25:token_ttl_expired_block" "FAIL"
+  check "Phase25:token_scope_block" "FAIL"
+  check "Phase25:symlink_bypass_denied" "FAIL"
+  check "Phase25:limits_hit_normal_warn" "FAIL"
+  check "Phase25:limits_hit_strict_fail" "FAIL"
+  check "Phase25:capability_index_gated_by_governance" "FAIL"
+  check "Phase25:pipeline_status_decide_discover_smoke" "FAIL"
+fi
+
+# ─── Phase 26: calibration_layer_round20 ───
+echo "[phase 26] calibration_layer_round20"
+if [ -f "$PLUGIN" ] && [ -d "$CASE4" ] && [ -d "$CASE5" ]; then
+  P26_WS="$REGRESSION_TMP/phase26_ws"
+  P26_STATE="$REGRESSION_TMP/phase26_state"
+  rm -rf "$P26_WS" "$P26_STATE"
+  mkdir -p "$P26_WS" "$P26_STATE"
+
+  # calibration_low_confidence_exit21_strict (case4 + case5)
+  set +e
+  P26_OUT_S4=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE4" --workspace-root "$P26_WS" --global-state-root "$P26_STATE" \
+    --strict 2>/dev/null)
+  P26_RC_S4=$?
+  P26_OUT_S5=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P26_WS" --global-state-root "$P26_STATE" \
+    --strict 2>/dev/null)
+  P26_RC_S5=$?
+  set -e
+  if [ "$P26_RC_S4" -eq 21 ] && [ "$P26_RC_S5" -eq 21 ] && \
+     echo "$P26_OUT_S4" | grep -q "needs_human_hint=1" && \
+     echo "$P26_OUT_S5" | grep -q "needs_human_hint=1"; then
+    check "Phase26:calibration_low_confidence_exit21_strict" "PASS"
+  else
+    check "Phase26:calibration_low_confidence_exit21_strict" "FAIL"
+  fi
+
+  # calibration_non_strict_warn_exit0 (case4)
+  set +e
+  P26_OUT_NS=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE4" --workspace-root "$P26_WS" --global-state-root "$P26_STATE" 2>/dev/null)
+  P26_RC_NS=$?
+  set -e
+  if [ "$P26_RC_NS" -eq 0 ] && echo "$P26_OUT_NS" | grep -q "needs_human_hint=1"; then
+    check "Phase26:calibration_non_strict_warn_exit0" "PASS"
+  else
+    check "Phase26:calibration_non_strict_warn_exit0" "FAIL"
+  fi
+
+  # calibration outputs exist
+  P26_CHECK3=$("$PYTHON_BIN" - <<PY
+import pathlib
+ws = pathlib.Path("$P26_WS")
+caps = sorted(ws.rglob("capabilities.json"))
+if not caps:
+    print("0")
+    raise SystemExit(0)
+latest = caps[-1].parent
+ok = (latest / "calibration" / "calibration_report.json").is_file() and \
+     (latest / "calibration" / "hints_suggested.yaml").is_file()
+print("1" if ok else "0")
+PY
+)
+  if [ "$P26_CHECK3" = "1" ]; then
+    check "Phase26:calibration_outputs_exist_in_workspace" "PASS"
+  else
+    check "Phase26:calibration_outputs_exist_in_workspace" "FAIL"
+  fi
+
+  # capabilities contains calibration fields
+  P26_CAP_LINE=$(printf '%s\n' "$P26_OUT_NS" | grep '^HONGZHI_CAPS ' || true)
+  P26_CAP_PATH=$(printf '%s\n' "$P26_CAP_LINE" | awk '{print $2}')
+  P26_CHECK4=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P26_CAP_PATH")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    cal = data.get("calibration", {})
+    ok = isinstance(cal.get("needs_human_hint"), bool) and bool(cal.get("confidence_tier"))
+print("1" if ok else "0")
+PY
+)
+  if [ "$P26_CHECK4" = "1" ]; then
+    check "Phase26:capabilities_contains_calibration_fields" "PASS"
+  else
+    check "Phase26:capabilities_contains_calibration_fields" "FAIL"
+  fi
+else
+  check "Phase26:calibration_low_confidence_exit21_strict" "FAIL"
+  check "Phase26:calibration_non_strict_warn_exit0" "FAIL"
+  check "Phase26:calibration_outputs_exist_in_workspace" "FAIL"
+  check "Phase26:capabilities_contains_calibration_fields" "FAIL"
 fi
 
 

@@ -1,19 +1,20 @@
 # FACT BASELINE (prompt-dsl-system)
 
-Generated at: 2026-02-10 (local)
+Generated at: 2026-02-11 (local)
 Scope: `prompt-dsl-system/**`
 
 ## 1) Current Skills Baseline
 
 - Active registry file: `prompt-dsl-system/05_skill_registry/skills.json`
-- Active skills count: `3`
-- Domain distribution: `universal=1, governance=2`
+- Active skills count: `4`
+- Domain distribution: `universal=1, governance=3`
 - Universal/super skill status: `present`
   - `skill_hongzhi_universal_ops` (modes: sql/code/process/frontend/release/governance/docs/meta)
   - meta mode: supports template-based skill creation + progressive disclosure
 - Governance plugin skills:
   - `skill_governance_plugin_discover` (staging)
   - `skill_governance_plugin_runner` (staging, contract v4-aware)
+  - `skill_governance_plugin_status` (staging, governance preflight only)
 - Skill templates: `prompt-dsl-system/05_skill_registry/templates/skill_template/`
   - Files: `skill.yaml.template`, `references/README.template`, `scripts/README.template`, `assets/README.template`
 - Deprecated skills status:
@@ -32,7 +33,7 @@ Scope: `prompt-dsl-system/**`
 - `pipeline_project_bootstrap.md`: `5` steps, all reference `skill_hongzhi_universal_ops` — batch skill generation + profile input
 - `pipeline_skill_promote.md`: `3` steps, all reference `skill_hongzhi_universal_ops` — staging→deployed promotion + mandatory ledger
 - `pipeline_module_migration.md`: `7` steps (Step0–Step5 + acceptance), all reference `skill_hongzhi_universal_ops` — single-module migration assembly line + materialize_skills switch + Step0 auto-discovery
-- `pipeline_plugin_discover.md`: `3` steps (status preflight → discover → capabilities read/suggestion), references `skill_governance_plugin_runner`
+- `pipeline_plugin_discover.md`: `3` steps (status → decide → discover hard gate), references `skill_governance_plugin_status` + `skill_governance_plugin_runner`
 
 ## 3) Current Tools Boundary
 
@@ -48,20 +49,21 @@ Scope: `prompt-dsl-system/**`
 - `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS) + multi-path + ignore patterns
 - `skill_template_audit.py`: post-validate audit (placeholder + schema + registry↔fs consistency + --scope + --fail-on-empty)
 - `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject + identity hints)
-- `golden_path_regression.sh`: end-to-end regression (41 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4)
+- `golden_path_regression.sh`: end-to-end regression (58 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields)
 - `module_profile_scanner.py`: generates discovered profile (Layer2) — scanning + grep + fingerprint + multi-root + concurrent + incremental + `--out-root`/`--read-only`/`--workspace-root`
 - `module_roots_discover.py`: auto-discovers module roots from identity hints + structure fallback + optional `--module-key` (auto-discover) + `--out-root`/`--read-only` (Layer2R)
 - `structure_discover.py` v2: auto-identifies module structure — endpoint v2, per-file incremental cache, `--out-root`/`--read-only`/`--workspace-root` (Layer2S)
 - `cross_project_structure_diff.py` v2: compares endpoint signatures, reports added/removed/changed, `--read-only`
 - `auto_module_discover.py`: discovers module candidates without `--module-key` — package prefix clustering, scoring, top-k, `--read-only`
 - `hongzhi_plugin.py`: v4 contract-capable runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental, capability registry, `HONGZHI_CAPS` line, capabilities.jsonl journal
+- `calibration_engine.py`: lightweight calibration layer for discover confidence, reasons enum, and workspace-only hint/report artifacts
 - `hongzhi_ai_kit`: installable python package wrapper with module/console entry support
 - `pyproject.toml` (repo root): packaging metadata + console_scripts (`hongzhi-ai-kit`, `hzkit`, `hz`)
 - `PLUGIN_RUNNER.md`: plugin runner documentation (install, governance, v3/v4 contract, workspace/global state)
 
 ## 4) Conventions Documents
 
-- `HONGZHI_COMPANY_CONSTITUTION.md`: 18 rules, company-domain governance
+- `HONGZHI_COMPANY_CONSTITUTION.md`: 19 rules, company-domain governance
 - `SKILL_SPEC.md`: YAML schema, registry contract, trace parameters, template generation, bundled resources, progressive disclosure + NavIndex, skill status lifecycle (staging/deployed/deprecated)
 - `COMPLIANCE_MATRIX.md`: 15 requirements mapped to implementation
 - `ROLLBACK_INSTRUCTIONS.md`: rollback procedure
@@ -133,4 +135,61 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Agent contract v4 additions:
   - stdout `HONGZHI_CAPS <abs_path_to_capabilities.json>`
   - workspace append-only `capabilities.jsonl` run summary journal
-  - blocked governance runs emit machine-readable `HONGZHI_GOV_BLOCK ...` and write no capabilities/state artifacts
+- blocked governance runs emit machine-readable `HONGZHI_GOV_BLOCK ...` and write no capabilities/state artifacts
+
+## 10) Release Build + Version Triplet (R18)
+
+- Version semantics are separated and emitted together:
+  - `package_version`
+  - `plugin_version`
+  - `contract_version`
+- `status` now emits machine-readable:
+  - `HONGZHI_STATUS package_version=... plugin_version=... contract_version=... enabled=...`
+- `discover` capability pointer now emits machine-readable:
+  - `HONGZHI_CAPS <abs_path> package_version=... plugin_version=... contract_version=...`
+- Governance block output carries version triplet and remains zero-write:
+  - `HONGZHI_GOV_BLOCK code=... ... package_version=... plugin_version=... contract_version=...`
+- Release build smoke is gated in regression:
+  - wheel install smoke
+  - sdist build smoke
+
+## 11) Governance v3 + Limits + Pipeline Decision Gate (R19)
+
+- Capability index entry schema upgraded (v1 fields on per-project entry):
+  - `repo_fingerprint`
+  - `created_at`
+  - `latest`
+  - `runs[]`
+  - `versions{package,plugin,contract}`
+  - `governance{enabled,token_used,policy_hash}`
+- Capabilities outputs enriched:
+  - `layout`, `module_candidates`, `ambiguity_ratio`
+  - `limits_hit`, `limits{max_files,max_seconds,...}`
+  - `scan_stats{files_scanned,cache_hit_files,...}`
+- Governance permit token supports TTL/scope JSON token format; invalid/expired/scope-mismatch token is rejected.
+- Allow/deny policy matching is realpath/symlink hardened.
+- Limits behavior:
+  - normal mode: warn + `limits_hit=true` + exit `0`
+  - strict mode: exit `20`
+- New governance-only status skill exists:
+  - `skill_governance_plugin_status`
+- Plugin discover pipeline upgraded to `status -> decide -> discover` hard-gate flow.
+
+## 12) Calibration Layer & Strict Hint Gate (R20)
+
+- Discover now produces workspace-only calibration artifacts:
+  - `calibration/calibration_report.json`
+  - `calibration/calibration_report.md`
+  - `calibration/hints_suggested.yaml` (default enabled)
+- Capabilities payloads (`capabilities.json` and `capabilities.jsonl`) now include:
+  - `calibration.needs_human_hint`
+  - `calibration.confidence`
+  - `calibration.confidence_tier`
+  - `calibration.reasons[]`
+  - `calibration.suggested_hints_path` / `calibration.report_path`
+- Strict mode gating:
+  - if `needs_human_hint=true`, discover exits `21` and emits `exit_hint=needs_human_hint` in summary.
+  - non-strict mode keeps `exit=0` with warning markers.
+- Read-only and governance guarantees remain unchanged:
+  - target `repo_root` stays no-write by default.
+  - governance block paths (`10/11/12`) still produce zero workspace/state writes.

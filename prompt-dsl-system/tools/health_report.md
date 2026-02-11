@@ -1,13 +1,13 @@
 # Health Report
-- Generated at: 2026-02-11T14:00:59+08:00
+- Generated at: 2026-02-11T15:57:17+08:00
 - Repo root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit
 - Window: last 20 traces
 
 ## Build Integrity
-- Registry entries: 3
+- Registry entries: 4
 - Pipelines checked: 10
 - Validate: PASS (errors=0, warnings=0)
-- Skills versions: 1.0.0 x1, 3.0.0 x1, 4.0.0 x1
+- Skills versions: 1.0.0 x2, 3.0.0 x1, 4.0.0 x1
 
 ## Execution Signals (last N)
 - Commands: run=14, unknown=6

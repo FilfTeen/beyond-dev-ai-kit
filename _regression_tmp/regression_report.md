@@ -1,6 +1,6 @@
 # Golden Path Regression Report
 
-Generated: 2026-02-11T06:01:14Z
+Generated: 2026-02-11T07:57:45Z
 Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit
 
 ## Results
@@ -44,14 +44,31 @@ Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-
 | 34 | Phase21:smart_reused_summary | PASS |
 | 35 | Phase21:smart_reuse_effective | PASS |
 | 36 | Phase22:governance_no_state_write | PASS |
-| 37 | Phase23:package_import_smoke | PASS |
-| 38 | Phase23:console_entry_smoke | PASS |
-| 39 | Phase23:governance_disabled_no_outputs | PASS |
-| 40 | Phase23:capabilities_stdout_contract | PASS |
-| 41 | Phase8:guard_strict_no_vcs_fails | PASS |
+| 37 | Phase23:uninstalled_install_hint | PASS |
+| 38 | Phase23:package_import_smoke | PASS |
+| 39 | Phase23:console_entry_smoke | PASS |
+| 40 | Phase23:governance_disabled_no_outputs | PASS |
+| 41 | Phase23:capabilities_stdout_contract | PASS |
+| 42 | Phase24:sdist_build_smoke | PASS |
+| 43 | Phase24:wheel_install_smoke | PASS |
+| 44 | Phase24:gitignore_guard | PASS |
+| 45 | Phase24:version_triple_present | PASS |
+| 46 | Phase24:gov_block_has_versions_and_zero_write | PASS |
+| 47 | Phase25:token_ttl_expired_block | PASS |
+| 48 | Phase25:token_scope_block | PASS |
+| 49 | Phase25:symlink_bypass_denied | PASS |
+| 50 | Phase25:limits_hit_normal_warn | PASS |
+| 51 | Phase25:limits_hit_strict_fail | PASS |
+| 52 | Phase25:capability_index_gated_by_governance | PASS |
+| 53 | Phase25:pipeline_status_decide_discover_smoke | PASS |
+| 54 | Phase26:calibration_low_confidence_exit21_strict | PASS |
+| 55 | Phase26:calibration_non_strict_warn_exit0 | PASS |
+| 56 | Phase26:calibration_outputs_exist_in_workspace | PASS |
+| 57 | Phase26:capabilities_contains_calibration_fields | PASS |
+| 58 | Phase8:guard_strict_no_vcs_fails | PASS |
 
 ## Summary
 
-**41 / 41** checks passed.
+**58 / 58** checks passed.
 
 **OVERALL: PASS**

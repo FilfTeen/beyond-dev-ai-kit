@@ -171,3 +171,19 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
   - Regression Phase22 validates disabled-state no-write behavior
 - Escalation: detected repo contamination or disabled-state write => immediate incident and rollback.
 - Rollback: remove newly created global/workspace state files and restore prior capability index snapshot if available.
+
+## Rule 19 - Governance Token & Limits Hardening
+
+- Rule: Permit token override must be constrained by TTL and command scope when token metadata is provided.
+  - Supported metadata: `expires_at`, or `issued_at + ttl_seconds`, and `scope`.
+  - Expired or scope-mismatched token must be rejected.
+- Rule: allow/deny path checks must use canonical real paths; symlink aliases cannot bypass governance.
+- Rule: performance limits must be machine-visible:
+  - `limits_hit=true` whenever scan exceeds `--max-files` or `--max-seconds`.
+  - strict mode requires hard fail (`exit=20`) on limits hit.
+  - non-strict mode may continue with warning, but must persist limits metadata.
+- Rule: governance rejection (`exit 10/11/12`) forbids all workspace/state output creation.
+- Check:
+  - Regression Phase25 validates token ttl/scope rejection, symlink hardening, limits behavior, and capability-index gating.
+- Escalation: if any limits/governance metadata is missing or bypassed, block release and open incident.
+- Rollback: revert governance token/limits changes and restore previous validated plugin baseline.

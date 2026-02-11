@@ -37,7 +37,7 @@ parameters:
   - name: "permit_token"
     type: "string"
     required: false
-    description: "Permit token to bypass allow/deny policy when authorized."
+    description: "Permit token to bypass allow/deny policy when authorized (supports JSON token with ttl/scope)."
   - name: "workspace_root"
     type: "string"
     required: false

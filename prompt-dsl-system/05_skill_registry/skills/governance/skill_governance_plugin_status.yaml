@@ -1,0 +1,76 @@
+name: "skill_governance_plugin_status"
+description: "Read-only governance preflight skill for hongzhi-ai-kit status command. Produces machine-readable HONGZHI_STATUS/HONGZHI_GOV_BLOCK signals for agent decisions."
+version: "1.0.0"
+domain: "governance"
+tags:
+  - "plugin"
+  - "status"
+  - "governance"
+  - "meta"
+  - "docs"
+  - "read-only"
+parameters:
+  - name: "repo_root"
+    type: "string"
+    required: true
+    description: "Target project root for governance status check."
+  - name: "permit_token"
+    type: "string"
+    required: false
+    description: "Optional permit token (supports ttl/scope JSON token)."
+  - name: "workspace_root"
+    type: "string"
+    required: false
+    description: "Optional workspace root for consistency in downstream commands."
+  - name: "global_state_root"
+    type: "string"
+    required: false
+    description: "Optional state root for capability registry pointers."
+
+mode: "governance"
+boundary_policy:
+  allowed_module_root: "prompt-dsl-system"
+  forbidden_paths:
+    - "/"
+  max_change_scope: "none"
+
+fact_policy:
+  require_scan_before_change: false
+  unknown_requires_user: true
+
+prompt_template: |
+  Run a governance-only status preflight and return machine-readable status lines.
+  Do not run discover/diff/profile/migrate in this skill.
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  nav_index: "list"
+  governance: "object"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      repo_root: "/workspace/demo-repo"
+    output:
+      summary: "status completed with machine-readable governance lines"
+      artifacts: []
+      nav_index: []
+      governance:
+        enabled: false
+      risks: []
+      next_actions:
+        - "If blocked, stop pipeline and surface HONGZHI_GOV_BLOCK."
+
+implementation:
+  type: "function_call"
+  tool_name: "run_command"
+  template: |
+    hongzhi-ai-kit status --repo-root "{{repo_root}}" {{#permit_token}}--permit-token '{{permit_token}}'{{/permit_token}} {{#workspace_root}}--workspace-root "{{workspace_root}}"{{/workspace_root}} {{#global_state_root}}--global-state-root "{{global_state_root}}"{{/global_state_root}}
+
+outputs:
+  - name: "governance_status_line"
+    description: "Machine-readable HONGZHI_STATUS line for downstream decision."
+  - name: "governance_block_line"
+    description: "Machine-readable HONGZHI_GOV_BLOCK line when blocked."
