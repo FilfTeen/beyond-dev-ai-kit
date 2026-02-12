@@ -195,6 +195,16 @@ def compute_confidence(file_index: dict, navindex: list) -> str:
     return "low"
 
 
+def load_scan_graph(path: Path) -> dict:
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def format_yaml_list(items: list, indent: int = 6) -> str:
     if not items:
         return " []"
@@ -281,6 +291,8 @@ def main():
                         help="Output path (default: module_profiles/<project>/<module>.discovered.yaml)")
     parser.add_argument("--out-root", "--workspace-root", default=None,
                         help="Output root directory (default: repo-root)")
+    parser.add_argument("--scan-graph", default=None,
+                        help="Optional scan_graph.json to reuse indexed files and avoid repeated walk")
     parser.add_argument("--read-only", action="store_true",
                         help="No filesystem writes; output to stdout only")
     args = parser.parse_args()
@@ -332,39 +344,70 @@ def main():
     if not declared_path.exists():
         print(f"[scanner] WARN: declared profile not found at {declared_path}, using defaults")
 
-    # Scan all roots with concurrent execution
+    # Scan all roots with concurrent execution (or reuse scan_graph if provided)
     t_start = time.time()
     merged_file_index = {k: [] for k in list(CATEGORY_PATTERNS.keys()) + ["other"]}
     merged_navindex = []
     all_scanned_files = []
 
-    def scan_single_root(sr):
-        return scan_files(repo_root, sr, hints)
-
-    with ThreadPoolExecutor(max_workers=min(4, max(1, len(scan_roots)))) as executor:
-        future_map = {executor.submit(scan_single_root, sr): sr for sr in scan_roots}
-        for future in as_completed(future_map):
-            try:
-                fi, ni, af = future.result()
-                for cat in merged_file_index:
-                    for f in fi.get(cat, []):
-                        if f not in merged_file_index[cat]:
-                            merged_file_index[cat].append(f)
-                # Merge navindex (deduplicate by pattern)
-                existing_patterns = {e["pattern"] for e in merged_navindex}
-                for entry in ni:
-                    if entry["pattern"] not in existing_patterns:
-                        merged_navindex.append(entry)
-                        existing_patterns.add(entry["pattern"])
+    if args.scan_graph:
+        sg = load_scan_graph(Path(args.scan_graph))
+        if sg:
+            file_index = sg.get("file_index", {}) if isinstance(sg.get("file_index"), dict) else {}
+            pooled = []
+            for bucket in ("java", "templates", "resources", "other"):
+                values = file_index.get(bucket, [])
+                if not isinstance(values, list):
+                    continue
+                for v in values:
+                    if isinstance(v, dict):
+                        rel = str(v.get("relpath", "") or "")
                     else:
-                        for me in merged_navindex:
-                            if me["pattern"] == entry["pattern"]:
-                                me["hit_count"] += entry["hit_count"]
-                                me["hits"].extend(entry["hits"])
-                                break
-                all_scanned_files.extend(af)
-            except Exception as e:
-                print(f"[scanner] WARN: scan error: {e}", file=sys.stderr)
+                        rel = str(v)
+                    if rel:
+                        pooled.append(rel)
+            pooled = sorted(set(pooled))
+            for rel in pooled:
+                cat = categorize_file(rel)
+                merged_file_index[cat].append(rel)
+                p = repo_root / rel
+                if p.is_file():
+                    all_scanned_files.append((p, rel))
+            # Keep navindex lightweight in scan-graph mode.
+            for pattern in hints.get("grep_patterns", []):
+                merged_navindex.append({"pattern": pattern, "hit_count": 0, "hits": []})
+            print(f"[scanner] using scan graph: {args.scan_graph} (files={len(pooled)})")
+        else:
+            print(f"[scanner] WARN: invalid --scan-graph file, fallback to filesystem scan: {args.scan_graph}", file=sys.stderr)
+
+    if not all_scanned_files:
+        def scan_single_root(sr):
+            return scan_files(repo_root, sr, hints)
+
+        with ThreadPoolExecutor(max_workers=min(4, max(1, len(scan_roots)))) as executor:
+            future_map = {executor.submit(scan_single_root, sr): sr for sr in scan_roots}
+            for future in as_completed(future_map):
+                try:
+                    fi, ni, af = future.result()
+                    for cat in merged_file_index:
+                        for f in fi.get(cat, []):
+                            if f not in merged_file_index[cat]:
+                                merged_file_index[cat].append(f)
+                    # Merge navindex (deduplicate by pattern)
+                    existing_patterns = {e["pattern"] for e in merged_navindex}
+                    for entry in ni:
+                        if entry["pattern"] not in existing_patterns:
+                            merged_navindex.append(entry)
+                            existing_patterns.add(entry["pattern"])
+                        else:
+                            for me in merged_navindex:
+                                if me["pattern"] == entry["pattern"]:
+                                    me["hit_count"] += entry["hit_count"]
+                                    me["hits"].extend(entry["hits"])
+                                    break
+                    all_scanned_files.extend(af)
+                except Exception as e:
+                    print(f"[scanner] WARN: scan error: {e}", file=sys.stderr)
 
     confidence = compute_confidence(merged_file_index, merged_navindex)
     fingerprint = compute_fingerprint(all_scanned_files)

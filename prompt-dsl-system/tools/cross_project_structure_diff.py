@@ -9,6 +9,7 @@ Standard-library only. Python 3.9+ compatible.
 """
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -135,6 +136,59 @@ def scan_templates(root, module_key):
         rel = str(p.relative_to(root)).replace("\\", "/")
         if module_key.lower() in rel.lower():
             templates.add(p.name)
+    return templates
+
+
+def load_scan_graph(path: str) -> dict:
+    if not path:
+        return {}
+    p = Path(path)
+    if not p.is_file():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def scan_classes_from_graph(graph: dict, module_key: str):
+    classes = {}
+    hints = graph.get("java_hints", []) if isinstance(graph.get("java_hints"), list) else []
+    module_key_l = str(module_key or "").lower()
+    for hint in hints:
+        if not isinstance(hint, dict):
+            continue
+        rel = str(hint.get("rel_path", "") or "")
+        pkg = str(hint.get("package", "") or "")
+        cls_name = str(hint.get("class_name", "") or "") or Path(rel).stem
+        if module_key_l and module_key_l not in pkg.lower() and module_key_l not in rel.lower() and module_key_l not in cls_name.lower():
+            continue
+        key = cls_name if cls_name not in classes else f"{cls_name}@{rel}"
+        classes[key] = {
+            "file": rel,
+            "package": pkg,
+            "endpoint_signatures": hint.get("endpoint_signatures", []) if isinstance(hint.get("endpoint_signatures", []), list) else [],
+        }
+    return classes
+
+
+def scan_templates_from_graph(graph: dict, module_key: str):
+    templates = set()
+    file_index = graph.get("file_index", {}) if isinstance(graph.get("file_index"), dict) else {}
+    entries = file_index.get("templates", []) if isinstance(file_index.get("templates"), list) else []
+    module_key_l = str(module_key or "").lower()
+    for item in entries:
+        rel = ""
+        if isinstance(item, dict):
+            rel = str(item.get("relpath", "") or "")
+        elif isinstance(item, str):
+            rel = item
+        if not rel:
+            continue
+        if module_key_l and module_key_l not in rel.lower():
+            continue
+        templates.add(Path(rel).name)
     return templates
 
 
@@ -277,6 +331,8 @@ def main():
     parser.add_argument("--old-project-root", required=True, help="Old project root")
     parser.add_argument("--new-project-root", required=True, help="New project root")
     parser.add_argument("--module-key", required=True, help="Module identifier")
+    parser.add_argument("--old-scan-graph", default=None, help="Optional old-side scan_graph.json path")
+    parser.add_argument("--new-scan-graph", default=None, help="Optional new-side scan_graph.json path")
     parser.add_argument("--out", default=None, help="Output path")
     parser.add_argument("--read-only", action="store_true", help="No fs writes; stdout only")
     args = parser.parse_args()
@@ -292,10 +348,22 @@ def main():
         print(f"FAIL: new project root not found: {new_root}", file=sys.stderr)
         sys.exit(1)
 
-    old_classes = scan_classes(old_root, args.module_key)
-    new_classes = scan_classes(new_root, args.module_key)
-    old_templates = scan_templates(old_root, args.module_key)
-    new_templates = scan_templates(new_root, args.module_key)
+    old_graph = load_scan_graph(args.old_scan_graph) if args.old_scan_graph else {}
+    new_graph = load_scan_graph(args.new_scan_graph) if args.new_scan_graph else {}
+    if old_graph and new_graph:
+        old_classes = scan_classes_from_graph(old_graph, args.module_key)
+        new_classes = scan_classes_from_graph(new_graph, args.module_key)
+        old_templates = scan_templates_from_graph(old_graph, args.module_key)
+        new_templates = scan_templates_from_graph(new_graph, args.module_key)
+        print(
+            f"[cross_project_diff] using scan graphs old={args.old_scan_graph} new={args.new_scan_graph}",
+            file=sys.stderr,
+        )
+    else:
+        old_classes = scan_classes(old_root, args.module_key)
+        new_classes = scan_classes(new_root, args.module_key)
+        old_templates = scan_templates(old_root, args.module_key)
+        new_templates = scan_templates(new_root, args.module_key)
 
     diff = diff_structures(old_classes, new_classes, old_templates, new_templates)
 

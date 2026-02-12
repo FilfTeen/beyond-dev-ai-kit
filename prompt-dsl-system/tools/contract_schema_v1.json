@@ -1,0 +1,268 @@
+{
+  "schema_version": "1.0.0",
+  "contract_version": "v1",
+  "machine_lines": {
+    "HONGZHI_CAPS": {
+      "description": "Capabilities pointer line.",
+      "allow_positional_path": true,
+      "required_fields": [
+        "path",
+        "company_scope",
+        "mismatch_reason",
+        "mismatch_detail",
+        "mismatch_suggestion",
+        "package_version",
+        "plugin_version",
+        "contract_version"
+      ],
+      "json_payload": {
+        "required": false,
+        "required_keys": [
+          "command",
+          "company_scope",
+          "path",
+          "repo_fingerprint",
+          "run_id",
+          "versions",
+          "mismatch_reason",
+          "mismatch_detail",
+          "mismatch_suggestion"
+        ],
+        "versions_required_keys": [
+          "package",
+          "plugin",
+          "contract"
+        ]
+      }
+    },
+    "HONGZHI_INDEX": {
+      "description": "Federated index pointer line.",
+      "allow_positional_path": true,
+      "required_fields": [
+        "path",
+        "company_scope",
+        "mismatch_reason",
+        "mismatch_detail",
+        "mismatch_suggestion",
+        "package_version",
+        "plugin_version",
+        "contract_version"
+      ],
+      "json_payload": {
+        "required": false,
+        "required_keys": [
+          "command",
+          "company_scope",
+          "path",
+          "repo_fingerprint",
+          "run_id",
+          "versions",
+          "mismatch_reason",
+          "mismatch_detail",
+          "mismatch_suggestion"
+        ],
+        "versions_required_keys": [
+          "package",
+          "plugin",
+          "contract"
+        ]
+      }
+    },
+    "HONGZHI_HINTS": {
+      "description": "Hint bundle pointer line.",
+      "allow_positional_path": true,
+      "required_fields": [
+        "path",
+        "company_scope",
+        "package_version",
+        "plugin_version",
+        "contract_version"
+      ],
+      "json_payload": {
+        "required": false,
+        "required_keys": [
+          "command",
+          "company_scope",
+          "path",
+          "repo_fingerprint",
+          "run_id",
+          "versions"
+        ],
+        "versions_required_keys": [
+          "package",
+          "plugin",
+          "contract"
+        ]
+      }
+    },
+    "HONGZHI_STATUS": {
+      "description": "Governance status line.",
+      "allow_positional_path": false,
+      "required_fields": [
+        "package_version",
+        "plugin_version",
+        "contract_version",
+        "enabled",
+        "policy_hash",
+        "company_scope",
+        "global_state_root"
+      ],
+      "json_payload": {
+        "required": false,
+        "required_keys": [
+          "command",
+          "company_scope",
+          "path",
+          "repo_fingerprint",
+          "run_id",
+          "versions",
+          "enabled",
+          "policy_hash"
+        ],
+        "versions_required_keys": [
+          "package",
+          "plugin",
+          "contract"
+        ]
+      }
+    },
+    "HONGZHI_GOV_BLOCK": {
+      "description": "Governance hard-block line.",
+      "allow_positional_path": false,
+      "required_fields": [
+        "code",
+        "reason",
+        "command",
+        "company_scope",
+        "package_version",
+        "plugin_version",
+        "contract_version",
+        "detail"
+      ],
+      "json_payload": {
+        "required": false,
+        "required_keys": [
+          "command",
+          "company_scope",
+          "path",
+          "repo_fingerprint",
+          "run_id",
+          "versions",
+          "code",
+          "reason",
+          "detail"
+        ],
+        "versions_required_keys": [
+          "package",
+          "plugin",
+          "contract"
+        ]
+      }
+    },
+    "HONGZHI_INDEX_BLOCK": {
+      "description": "Federated index scope block line.",
+      "allow_positional_path": false,
+      "required_fields": [
+        "code",
+        "reason",
+        "command",
+        "scope",
+        "token_scope",
+        "company_scope",
+        "package_version",
+        "plugin_version",
+        "contract_version",
+        "detail"
+      ],
+      "json_payload": {
+        "required": false,
+        "required_keys": [
+          "command",
+          "company_scope",
+          "path",
+          "repo_fingerprint",
+          "run_id",
+          "versions",
+          "code",
+          "reason",
+          "scope",
+          "token_scope",
+          "detail"
+        ],
+        "versions_required_keys": [
+          "package",
+          "plugin",
+          "contract"
+        ]
+      }
+    },
+    "HONGZHI_HINTS_BLOCK": {
+      "description": "Hint bundle scope block line.",
+      "allow_positional_path": false,
+      "required_fields": [
+        "code",
+        "reason",
+        "command",
+        "scope",
+        "company_scope",
+        "package_version",
+        "plugin_version",
+        "contract_version",
+        "detail"
+      ],
+      "json_payload": {
+        "required": false,
+        "required_keys": [
+          "command",
+          "company_scope",
+          "path",
+          "repo_fingerprint",
+          "run_id",
+          "versions",
+          "code",
+          "reason",
+          "scope",
+          "detail"
+        ],
+        "versions_required_keys": [
+          "package",
+          "plugin",
+          "contract"
+        ]
+      }
+    }
+  },
+  "enums": {
+    "mismatch_reason": [
+      "schema_version_mismatch",
+      "producer_version_mismatch",
+      "fingerprint_mismatch",
+      "corrupted_cache",
+      "unknown"
+    ],
+    "confidence_tier": [
+      "high",
+      "medium",
+      "low"
+    ]
+  },
+  "exit_codes": {
+    "0": "success",
+    "3": "read_only_contract_violation",
+    "10": "plugin_disabled",
+    "11": "repo_denied",
+    "12": "allowlist_or_token_rejected",
+    "13": "policy_parse_error",
+    "20": "limits_hit_strict",
+    "21": "needs_human_hint_strict",
+    "22": "hint_bundle_expired_or_unverified",
+    "23": "hint_bundle_scope_blocked",
+    "24": "federated_index_scope_blocked",
+    "25": "scan_graph_mismatch_strict",
+    "26": "company_scope_mismatch"
+  },
+  "additive_policy": {
+    "required_fields": "additive_only",
+    "machine_lines": "additive_only"
+  }
+}

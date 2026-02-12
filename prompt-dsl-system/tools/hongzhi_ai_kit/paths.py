@@ -46,6 +46,16 @@ def _first_writable_root(candidates: Iterable[Path], create: bool = True) -> Pat
     raise RuntimeError("cannot resolve writable root for hongzhi-ai-kit")
 
 
+def _resolve_root_read_only(candidates: Iterable[Path]) -> Path:
+    # Read-only commands must never create probe files or directories.
+    return _first_writable_root(candidates, create=False)
+
+
+def _resolve_root_writable(candidates: Iterable[Path]) -> Path:
+    # Write commands may create managed workspace/state directories.
+    return _first_writable_root(candidates, create=True)
+
+
 def resolve_global_state_root(override_root: str | None = None, read_only: bool = False) -> Path:
     """
     Resolve global state root used by capability registry/index.
@@ -67,7 +77,9 @@ def resolve_global_state_root(override_root: str | None = None, read_only: bool 
             Path("/tmp") / "hongzhi-ai-kit",
         ]
     )
-    return _first_writable_root(candidates, create=not read_only)
+    if read_only:
+        return _resolve_root_read_only(candidates)
+    return _resolve_root_writable(candidates)
 
 
 def resolve_workspace_root(override_root: str | None = None, read_only: bool = False) -> Path:
@@ -89,4 +101,6 @@ def resolve_workspace_root(override_root: str | None = None, read_only: bool = F
             Path("/tmp") / "hongzhi-ai-kit",
         ]
     )
-    return _first_writable_root(candidates, create=not read_only)
+    if read_only:
+        return _resolve_root_read_only(candidates)
+    return _resolve_root_writable(candidates)

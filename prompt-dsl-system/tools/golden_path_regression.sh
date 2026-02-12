@@ -388,6 +388,7 @@ CASE5="$SCRIPT_DIR/_tmp_structure_cases/case5_ambiguous_two_modules"
 CASE6="$SCRIPT_DIR/_tmp_structure_cases/case6_maven_multi_module"
 CASE7="$SCRIPT_DIR/_tmp_structure_cases/case7_nonstandard_java_root"
 CASE8="$SCRIPT_DIR/_tmp_structure_cases/case8_composed_annotation"
+CASE9="$SCRIPT_DIR/_tmp_structure_cases/case7_scan_graph_weird_annotations"
 if [ -d "$CASE2" ] && [ -f "$STRUCT_DISCOVER" ]; then
   set +e
   SD_OUT=$("$PYTHON_BIN" "$STRUCT_DISCOVER" --repo-root "$CASE2" --project-key test --module-key order --read-only 2>/dev/null)
@@ -1689,11 +1690,13 @@ import json, pathlib
 ok = False
 try:
     text = pathlib.Path("$P29_EXPLAIN_JSON").read_text(encoding="utf-8")
-    start = text.find("{")
-    if start >= 0:
-        data = json.loads(text[start:])
-    else:
-        data = {}
+    lines = text.splitlines()
+    start_idx = -1
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("{"):
+            start_idx = i
+            break
+    data = json.loads("\n".join(lines[start_idx:])) if start_idx >= 0 else {}
     ok = (data.get("repo_fp") == "$P29_REPO_FP") and (data.get("run", {}).get("run_id") == "$P29_RUN_ID")
 except Exception:
     ok = False
@@ -2087,6 +2090,887 @@ else
   check "Phase30:discover_io_reduction_same_output" "FAIL"
   check "Phase30:endpoint_composed_annotation_extracts" "FAIL"
   check "Phase30:hint_apply_effectiveness_signal" "FAIL"
+fi
+
+
+# ─── Phase 31: unified_scan_graph_round25 ───
+echo "[phase 31] unified_scan_graph_round25"
+SCAN_GRAPH_SCRIPT="$SCRIPT_DIR/scan_graph.py"
+if [ -f "$PLUGIN" ] && [ -f "$SCAN_GRAPH_SCRIPT" ] && [ -d "$CASE1" ] && [ -d "$CASE9" ]; then
+  P31_WS="$REGRESSION_TMP/phase31_ws"
+  P31_STATE="$REGRESSION_TMP/phase31_state"
+  rm -rf "$P31_WS" "$P31_STATE"
+  mkdir -p "$P31_WS" "$P31_STATE"
+
+  # 1) scan_graph_syntax_smoke + schema presence
+  set +e
+  "$PYTHON_BIN" "$SCAN_GRAPH_SCRIPT" --help > /dev/null 2>&1
+  P31_HELP_RC=$?
+  "$PYTHON_BIN" "$SCAN_GRAPH_SCRIPT" \
+    --repo-root "$CASE1" \
+    --workspace-root "$P31_WS" \
+    --out "$P31_WS/scan_graph_smoke.json" \
+    --keywords "notice" > /dev/null 2>&1
+  P31_SG_RC=$?
+  set -e
+  P31_SG_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+p = pathlib.Path("$P31_WS/scan_graph_smoke.json")
+ok = False
+if p.is_file():
+    data = json.loads(p.read_text(encoding="utf-8"))
+    ok = isinstance(data.get("file_index"), dict) and isinstance(data.get("io_stats"), dict) and bool(data.get("cache_key"))
+print("1" if ok else "0")
+PY
+)
+  if [ "$P31_HELP_RC" -eq 0 ] && [ "$P31_SG_RC" -eq 0 ] && [ "$P31_SG_OK" = "1" ]; then
+    check "Phase31:scan_graph_syntax_smoke" "PASS"
+  else
+    check "Phase31:scan_graph_syntax_smoke" "FAIL"
+  fi
+
+  # 2) discover_uses_scan_graph
+  set +e
+  P31_DISC_OUT=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P31_WS" --global-state-root "$P31_STATE" \
+    --keywords notice 2>/dev/null)
+  P31_DISC_RC=$?
+  set -e
+  P31_DISC_CAP=$(extract_machine_path "$(printf '%s\n' "$P31_DISC_OUT" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P31_DISC_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P31_DISC_CAP")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    sg = data.get("scan_graph", {})
+    ok = bool(sg.get("used", False))
+print("1" if ok else "0")
+PY
+)
+  if [ "$P31_DISC_RC" -eq 0 ] && echo "$P31_DISC_OUT" | grep -q "scan_graph_used=1" && [ "$P31_DISC_OK" = "1" ]; then
+    check "Phase31:discover_uses_scan_graph" "PASS"
+  else
+    check "Phase31:discover_uses_scan_graph" "FAIL"
+  fi
+
+  # 3) scan_graph_cache_warm_hit
+  set +e
+  "$PYTHON_BIN" "$SCAN_GRAPH_SCRIPT" \
+    --repo-root "$CASE1" \
+    --workspace-root "$P31_WS" \
+    --out "$P31_WS/scan_graph_warm_1.json" \
+    --keywords "notice" > /dev/null 2>&1
+  P31_WARM1_RC=$?
+  "$PYTHON_BIN" "$SCAN_GRAPH_SCRIPT" \
+    --repo-root "$CASE1" \
+    --workspace-root "$P31_WS" \
+    --out "$P31_WS/scan_graph_warm_2.json" \
+    --keywords "notice" > /dev/null 2>&1
+  P31_WARM2_RC=$?
+  set -e
+  P31_WARM_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+p = pathlib.Path("$P31_WS/scan_graph_warm_2.json")
+ok = False
+if p.is_file():
+    data = json.loads(p.read_text(encoding="utf-8"))
+    io = data.get("io_stats", {}) if isinstance(data.get("io_stats"), dict) else {}
+    ok = float(io.get("cache_hit_rate", 0.0) or 0.0) >= 0.99
+print("1" if ok else "0")
+PY
+)
+  if [ "$P31_WARM1_RC" -eq 0 ] && [ "$P31_WARM2_RC" -eq 0 ] && [ "$P31_WARM_OK" = "1" ]; then
+    check "Phase31:scan_graph_cache_warm_hit" "PASS"
+  else
+    check "Phase31:scan_graph_cache_warm_hit" "FAIL"
+  fi
+
+  # 4) discover_io_reduction_delta
+  P31_WS_IO="$REGRESSION_TMP/phase31_ws_io"
+  P31_STATE_IO="$REGRESSION_TMP/phase31_state_io"
+  rm -rf "$P31_WS_IO" "$P31_STATE_IO"
+  mkdir -p "$P31_WS_IO" "$P31_STATE_IO"
+  set +e
+  P31_IO_OUT1=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P31_WS_IO" --global-state-root "$P31_STATE_IO" \
+    --keywords notice 2>/dev/null)
+  P31_IO_RC1=$?
+  P31_IO_OUT2=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P31_WS_IO" --global-state-root "$P31_STATE_IO" \
+    --keywords notice 2>/dev/null)
+  P31_IO_RC2=$?
+  set -e
+  P31_IO_CAP1=$(extract_machine_path "$(printf '%s\n' "$P31_IO_OUT1" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P31_IO_CAP2=$(extract_machine_path "$(printf '%s\n' "$P31_IO_OUT2" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P31_IO_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+c1 = pathlib.Path("$P31_IO_CAP1")
+c2 = pathlib.Path("$P31_IO_CAP2")
+ok = False
+if c1.is_file() and c2.is_file():
+    d1 = json.loads(c1.read_text(encoding="utf-8"))
+    d2 = json.loads(c2.read_text(encoding="utf-8"))
+    b1 = int(((d1.get("scan_graph", {}) or {}).get("bytes_read", 0)) or 0)
+    b2 = int(((d2.get("scan_graph", {}) or {}).get("bytes_read", 0)) or 0)
+    m1 = int(d1.get("module_candidates", 0) or 0)
+    m2 = int(d2.get("module_candidates", 0) or 0)
+    e1 = int((d1.get("metrics", {}) or {}).get("endpoints_total", 0) or 0)
+    e2 = int((d2.get("metrics", {}) or {}).get("endpoints_total", 0) or 0)
+    ok = (m1 == m2 and e1 == e2 and b2 <= b1)
+print("1" if ok else "0")
+PY
+)
+  if [ "$P31_IO_RC1" -eq 0 ] && [ "$P31_IO_RC2" -eq 0 ] && [ "$P31_IO_OK" = "1" ]; then
+    check "Phase31:discover_io_reduction_delta" "PASS"
+  else
+    check "Phase31:discover_io_reduction_delta" "FAIL"
+  fi
+
+  # 5) profile_reuses_scan_graph
+  P31_PROFILE_SG="$P31_WS/profile_scan_graph.json"
+  "$PYTHON_BIN" "$SCAN_GRAPH_SCRIPT" \
+    --repo-root "$CASE1" \
+    --workspace-root "$P31_WS" \
+    --out "$P31_PROFILE_SG" \
+    --keywords "notice" > /dev/null 2>&1
+  set +e
+  P31_PROF_OUT=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" profile \
+    --repo-root "$CASE1" --workspace-root "$P31_WS" --global-state-root "$P31_STATE" \
+    --module-key notice --scan-graph "$P31_PROFILE_SG" 2>/dev/null)
+  P31_PROF_RC=$?
+  set -e
+  P31_PROF_CAP=$(extract_machine_path "$(printf '%s\n' "$P31_PROF_OUT" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P31_PROF_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P31_PROF_CAP")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    ok = bool((data.get("scan_graph", {}) or {}).get("used", False))
+print("1" if ok else "0")
+PY
+)
+  if [ "$P31_PROF_RC" -eq 0 ] && [ "$P31_PROF_OK" = "1" ] && echo "$P31_PROF_OUT" | grep -q "scan_graph_used=1"; then
+    check "Phase31:profile_reuses_scan_graph" "PASS"
+  else
+    check "Phase31:profile_reuses_scan_graph" "FAIL"
+  fi
+
+  # 6) diff_reuses_scan_graph
+  P31_DIFF_OLD="$REGRESSION_TMP/phase31_diff_old"
+  P31_DIFF_NEW="$REGRESSION_TMP/phase31_diff_new"
+  P31_DIFF_WS="$REGRESSION_TMP/phase31_diff_ws"
+  P31_DIFF_STATE="$REGRESSION_TMP/phase31_diff_state"
+  rm -rf "$P31_DIFF_OLD" "$P31_DIFF_NEW" "$P31_DIFF_WS" "$P31_DIFF_STATE"
+  cp -R "$CASE1" "$P31_DIFF_OLD"
+  cp -R "$CASE1" "$P31_DIFF_NEW"
+  mkdir -p "$P31_DIFF_WS" "$P31_DIFF_STATE"
+  printf '\n// diff marker\n' >> "$P31_DIFF_NEW/src/main/java/com/example/notice/controller/NoticeController.java"
+  "$PYTHON_BIN" "$SCAN_GRAPH_SCRIPT" --repo-root "$P31_DIFF_OLD" --workspace-root "$P31_DIFF_WS" --out "$P31_DIFF_WS/old_scan_graph.json" > /dev/null 2>&1
+  "$PYTHON_BIN" "$SCAN_GRAPH_SCRIPT" --repo-root "$P31_DIFF_NEW" --workspace-root "$P31_DIFF_WS" --out "$P31_DIFF_WS/new_scan_graph.json" > /dev/null 2>&1
+  set +e
+  P31_DIFF_OUT=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" diff \
+    --old-project-root "$P31_DIFF_OLD" --new-project-root "$P31_DIFF_NEW" \
+    --module-key notice \
+    --old-scan-graph "$P31_DIFF_WS/old_scan_graph.json" \
+    --new-scan-graph "$P31_DIFF_WS/new_scan_graph.json" \
+    --workspace-root "$P31_DIFF_WS" --global-state-root "$P31_DIFF_STATE" 2>/dev/null)
+  P31_DIFF_RC=$?
+  set -e
+  P31_DIFF_CAP=$(extract_machine_path "$(printf '%s\n' "$P31_DIFF_OUT" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P31_DIFF_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P31_DIFF_CAP")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    ok = bool((data.get("scan_graph", {}) or {}).get("used", False))
+print("1" if ok else "0")
+PY
+)
+  if [ "$P31_DIFF_RC" -eq 0 ] && [ "$P31_DIFF_OK" = "1" ] && echo "$P31_DIFF_OUT" | grep -q "scan_graph_used=1"; then
+    check "Phase31:diff_reuses_scan_graph" "PASS"
+  else
+    check "Phase31:diff_reuses_scan_graph" "FAIL"
+  fi
+
+  # 7) governance_disabled_zero_write_still (status/index/scan-graph/discover)
+  P31_WS_G="$REGRESSION_TMP/phase31_ws_gov"
+  P31_STATE_G="$REGRESSION_TMP/phase31_state_gov"
+  rm -rf "$P31_WS_G" "$P31_STATE_G"
+  mkdir -p "$P31_WS_G" "$P31_STATE_G"
+  P31_SIG_BEFORE=$(snapshot_sig "$P31_WS_G" "$P31_STATE_G")
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  "$PYTHON_BIN" "$PLUGIN" status --repo-root "$CASE1" --workspace-root "$P31_WS_G" --global-state-root "$P31_STATE_G" > /dev/null 2>&1
+  P31_G_RC_STATUS=$?
+  "$PYTHON_BIN" "$PLUGIN" index list --global-state-root "$P31_STATE_G" > /dev/null 2>&1
+  P31_G_RC_INDEX=$?
+  "$PYTHON_BIN" "$PLUGIN" scan-graph --repo-root "$CASE1" --workspace-root "$P31_WS_G" --global-state-root "$P31_STATE_G" > /dev/null 2>&1
+  P31_G_RC_SCAN=$?
+  "$PYTHON_BIN" "$PLUGIN" discover --repo-root "$CASE1" --workspace-root "$P31_WS_G" --global-state-root "$P31_STATE_G" > /dev/null 2>&1
+  P31_G_RC_DISC=$?
+  set -e
+  P31_SIG_AFTER=$(snapshot_sig "$P31_WS_G" "$P31_STATE_G")
+  if [ "$P31_G_RC_STATUS" -eq 10 ] && [ "$P31_G_RC_INDEX" -eq 0 ] && [ "$P31_G_RC_SCAN" -eq 10 ] && [ "$P31_G_RC_DISC" -eq 10 ] && [ "$P31_SIG_BEFORE" = "$P31_SIG_AFTER" ]; then
+    check "Phase31:governance_disabled_zero_write_still" "PASS"
+  else
+    check "Phase31:governance_disabled_zero_write_still" "FAIL"
+  fi
+
+  # 8) strict_mismatch_exit25
+  P31_WS_M="$REGRESSION_TMP/phase31_ws_mismatch"
+  P31_STATE_M="$REGRESSION_TMP/phase31_state_mismatch"
+  rm -rf "$P31_WS_M" "$P31_STATE_M"
+  mkdir -p "$P31_WS_M" "$P31_STATE_M"
+  set +e
+  P31_M_OUT_STRICT=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE9" --workspace-root "$P31_WS_M" --global-state-root "$P31_STATE_M" \
+    --strict --keywords weird 2>/dev/null)
+  P31_M_RC_STRICT=$?
+  P31_M_OUT_NSTR=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE9" --workspace-root "$P31_WS_M" --global-state-root "$P31_STATE_M" \
+    --keywords weird 2>/dev/null)
+  P31_M_RC_NSTR=$?
+  set -e
+  if [ "$P31_M_RC_STRICT" -eq 25 ] && echo "$P31_M_OUT_STRICT" | grep -q "exit_hint=scan_graph_mismatch" && \
+     [ "$P31_M_RC_NSTR" -eq 0 ] && echo "$P31_M_OUT_NSTR" | grep -q "scan_graph_used=1"; then
+    check "Phase31:strict_mismatch_exit25" "PASS"
+  else
+    check "Phase31:strict_mismatch_exit25" "FAIL"
+  fi
+else
+  check "Phase31:scan_graph_syntax_smoke" "FAIL"
+  check "Phase31:discover_uses_scan_graph" "FAIL"
+  check "Phase31:scan_graph_cache_warm_hit" "FAIL"
+  check "Phase31:discover_io_reduction_delta" "FAIL"
+  check "Phase31:profile_reuses_scan_graph" "FAIL"
+  check "Phase31:diff_reuses_scan_graph" "FAIL"
+  check "Phase31:governance_disabled_zero_write_still" "FAIL"
+  check "Phase31:strict_mismatch_exit25" "FAIL"
+fi
+
+# ─── Phase 32: scan_graph_contract_v1_1_and_reuse_guard ───
+echo "[phase 32] scan_graph_contract_v1_1_and_reuse_guard"
+if [ -f "$PLUGIN" ] && [ -f "$SCAN_GRAPH_SCRIPT" ] && [ -d "$CASE1" ] && [ -d "$CASE5" ] && [ -d "$CASE9" ]; then
+  P32_WS="$REGRESSION_TMP/phase32_ws"
+  P32_STATE="$REGRESSION_TMP/phase32_state"
+  rm -rf "$P32_WS" "$P32_STATE"
+  mkdir -p "$P32_WS" "$P32_STATE"
+
+  # 1) scan_graph schema/version/fingerprint fields present
+  set +e
+  P32_SG_OUT=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" scan-graph \
+    --repo-root "$CASE1" --workspace-root "$P32_WS" --global-state-root "$P32_STATE" \
+    --keywords notice 2>/dev/null)
+  P32_SG_RC=$?
+  set -e
+  P32_SG_CAP=$(extract_machine_path "$(printf '%s\n' "$P32_SG_OUT" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P32_SG_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap = pathlib.Path("$P32_SG_CAP")
+ok = False
+if cap.is_file():
+    data = json.loads(cap.read_text(encoding="utf-8"))
+    sg = data.get("scan_graph", {}) if isinstance(data.get("scan_graph"), dict) else {}
+    graph_path = pathlib.Path(str(sg.get("path", "") or ""))
+    if graph_path.is_file():
+        g = json.loads(graph_path.read_text(encoding="utf-8"))
+        pv = g.get("producer_versions", {}) if isinstance(g.get("producer_versions"), dict) else {}
+        ok = (
+            str(g.get("schema_version", "")) != "" and
+            str(g.get("graph_fingerprint", "")) != "" and
+            str(pv.get("package_version", "")) != "" and
+            str(pv.get("plugin_version", "")) != "" and
+            str(pv.get("contract_version", "")) != ""
+        )
+print("1" if ok else "0")
+PY
+)
+  if [ "$P32_SG_RC" -eq 0 ] && [ "$P32_SG_OK" = "1" ]; then
+    check "Phase32:scan_graph_schema_version_present" "PASS"
+  else
+    check "Phase32:scan_graph_schema_version_present" "FAIL"
+  fi
+
+  # 2) strict mismatch should emit mismatch_reason/detail + exit_hint
+  set +e
+  P32_MISMATCH_OUT=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE9" --workspace-root "$P32_WS" --global-state-root "$P32_STATE" \
+    --strict --keywords weird 2>/dev/null)
+  P32_MISMATCH_RC=$?
+  set -e
+  P32_MISMATCH_SUM=$(printf '%s\n' "$P32_MISMATCH_OUT" | grep '^hongzhi_ai_kit_summary ' | head -n 1 || true)
+  P32_MISMATCH_CAP=$(printf '%s\n' "$P32_MISMATCH_OUT" | grep '^HONGZHI_CAPS ' | head -n 1 || true)
+  if [ "$P32_MISMATCH_RC" -eq 25 ] && \
+     echo "$P32_MISMATCH_SUM" | grep -q 'exit_hint=scan_graph_mismatch' && \
+     echo "$P32_MISMATCH_SUM" | grep -q 'mismatch_reason=' && \
+     ! echo "$P32_MISMATCH_SUM" | grep -q 'mismatch_reason=-' && \
+     echo "$P32_MISMATCH_CAP" | grep -q 'mismatch_reason='; then
+    check "Phase32:scan_graph_strict_mismatch_reason_emitted" "PASS"
+  else
+    check "Phase32:scan_graph_strict_mismatch_reason_emitted" "FAIL"
+  fi
+
+  # 3) discover -> profile/diff default reuse: no rescan in profile/diff hot path
+  P32_REUSE_WS="$REGRESSION_TMP/phase32_reuse_ws"
+  P32_REUSE_STATE="$REGRESSION_TMP/phase32_reuse_state"
+  rm -rf "$P32_REUSE_WS" "$P32_REUSE_STATE"
+  mkdir -p "$P32_REUSE_WS" "$P32_REUSE_STATE"
+  set +e
+  P32_DISC_REUSE=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P32_REUSE_WS" --global-state-root "$P32_REUSE_STATE" \
+    --keywords notice 2>/dev/null)
+  P32_DISC_REUSE_RC=$?
+  P32_PROF_REUSE=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" profile \
+    --repo-root "$CASE1" --workspace-root "$P32_REUSE_WS" --global-state-root "$P32_REUSE_STATE" \
+    --module-key notice 2>/dev/null)
+  P32_PROF_REUSE_RC=$?
+  P32_DIFF_REUSE=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" diff \
+    --old-project-root "$CASE1" --new-project-root "$CASE1" --module-key notice \
+    --workspace-root "$P32_REUSE_WS" --global-state-root "$P32_REUSE_STATE" 2>/dev/null)
+  P32_DIFF_REUSE_RC=$?
+  set -e
+  P32_PROF_SUM=$(printf '%s\n' "$P32_PROF_REUSE" | grep '^hongzhi_ai_kit_summary ' | head -n 1 || true)
+  P32_DIFF_SUM=$(printf '%s\n' "$P32_DIFF_REUSE" | grep '^hongzhi_ai_kit_summary ' | head -n 1 || true)
+  if [ "$P32_DISC_REUSE_RC" -eq 0 ] && [ "$P32_PROF_REUSE_RC" -eq 0 ] && [ "$P32_DIFF_REUSE_RC" -eq 0 ] && \
+     echo "$P32_PROF_SUM" | grep -q 'scan_graph_used=1' && \
+     echo "$P32_DIFF_SUM" | grep -q 'scan_graph_used=1' && \
+     { echo "$P32_PROF_SUM" | grep -q 'bytes_read=0' || echo "$P32_PROF_SUM" | grep -q 'java_files_indexed=0'; } && \
+     { echo "$P32_DIFF_SUM" | grep -q 'bytes_read=0' || echo "$P32_DIFF_SUM" | grep -q 'java_files_indexed=0'; }; then
+    check "Phase32:discover_profile_diff_reuse_no_rescan" "PASS"
+  else
+    check "Phase32:discover_profile_diff_reuse_no_rescan" "FAIL"
+  fi
+
+  # 4) machine line json payload additive (legacy fields retained)
+  set +e
+  P32_JSON_OUT=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE5" --workspace-root "$P32_WS" --global-state-root "$P32_STATE" 2>/dev/null)
+  P32_JSON_RC=$?
+  set -e
+  P32_JSON_CAPS=$(printf '%s\n' "$P32_JSON_OUT" | grep '^HONGZHI_CAPS ' | head -n 1 || true)
+  P32_JSON_INDEX=$(printf '%s\n' "$P32_JSON_OUT" | grep '^HONGZHI_INDEX ' | head -n 1 || true)
+  P32_JSON_HINTS=$(printf '%s\n' "$P32_JSON_OUT" | grep '^HONGZHI_HINTS ' | head -n 1 || true)
+  if [ "$P32_JSON_RC" -eq 0 ] && \
+     echo "$P32_JSON_CAPS" | grep -q 'path=' && echo "$P32_JSON_CAPS" | grep -q "json='{" && \
+     echo "$P32_JSON_CAPS" | grep -q 'package_version=' && \
+     echo "$P32_JSON_INDEX" | grep -q 'path=' && echo "$P32_JSON_INDEX" | grep -q "json='{" && \
+     { [ -z "$P32_JSON_HINTS" ] || { echo "$P32_JSON_HINTS" | grep -q 'path=' && echo "$P32_JSON_HINTS" | grep -q "json='{"; }; }; then
+    check "Phase32:machine_line_json_payload_additive" "PASS"
+  else
+    check "Phase32:machine_line_json_payload_additive" "FAIL"
+  fi
+
+  # 5) governance disabled still zero write
+  P32_G_WS="$REGRESSION_TMP/phase32_g_ws"
+  P32_G_STATE="$REGRESSION_TMP/phase32_g_state"
+  rm -rf "$P32_G_WS" "$P32_G_STATE"
+  mkdir -p "$P32_G_WS" "$P32_G_STATE"
+  P32_G_SIG_BEFORE=$(snapshot_sig "$P32_G_WS" "$P32_G_STATE")
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  "$PYTHON_BIN" "$PLUGIN" status --repo-root "$CASE1" --workspace-root "$P32_G_WS" --global-state-root "$P32_G_STATE" > /dev/null 2>&1
+  P32_G_RC_STATUS=$?
+  "$PYTHON_BIN" "$PLUGIN" discover --repo-root "$CASE1" --workspace-root "$P32_G_WS" --global-state-root "$P32_G_STATE" > /dev/null 2>&1
+  P32_G_RC_DISC=$?
+  "$PYTHON_BIN" "$PLUGIN" scan-graph --repo-root "$CASE1" --workspace-root "$P32_G_WS" --global-state-root "$P32_G_STATE" > /dev/null 2>&1
+  P32_G_RC_SCAN=$?
+  "$PYTHON_BIN" "$PLUGIN" index list --global-state-root "$P32_G_STATE" > /dev/null 2>&1
+  P32_G_RC_INDEX=$?
+  set -e
+  P32_G_SIG_AFTER=$(snapshot_sig "$P32_G_WS" "$P32_G_STATE")
+  if [ "$P32_G_RC_STATUS" -eq 10 ] && [ "$P32_G_RC_DISC" -eq 10 ] && [ "$P32_G_RC_SCAN" -eq 10 ] && \
+     [ "$P32_G_RC_INDEX" -eq 0 ] && [ "$P32_G_SIG_BEFORE" = "$P32_G_SIG_AFTER" ]; then
+    check "Phase32:governance_disabled_zero_write_still" "PASS"
+  else
+    check "Phase32:governance_disabled_zero_write_still" "FAIL"
+  fi
+
+  # 6) read-only guard must remain full snapshot even with limits
+  P32_GUARD_REPO="$REGRESSION_TMP/phase32_guard_repo"
+  P32_GUARD_WS="$REGRESSION_TMP/phase32_guard_ws"
+  P32_GUARD_STATE="$REGRESSION_TMP/phase32_guard_state"
+  rm -rf "$P32_GUARD_REPO" "$P32_GUARD_WS" "$P32_GUARD_STATE"
+  mkdir -p "$P32_GUARD_REPO"
+  "$PYTHON_BIN" - <<PY
+import pathlib
+root = pathlib.Path("$P32_GUARD_REPO")
+for i in range(260):
+    d = root / "src/main/java/com/example/guard32" / f"m{i:03d}"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"G{i:03d}.java").write_text(
+        f"package com.example.guard32.m{i:03d};\\npublic class G{i:03d} {{}}\\n",
+        encoding="utf-8",
+    )
+tail = root / "zz_tail"
+tail.mkdir(parents=True, exist_ok=True)
+(tail / "late.txt").write_text("before\\n", encoding="utf-8")
+PY
+  mkdir -p "$P32_GUARD_WS" "$P32_GUARD_STATE"
+  (
+    for i in $(seq 1 220); do
+      printf 'guard32-mutated-%s\n' "$i" >> "$P32_GUARD_REPO/zz_tail/late.txt"
+      sleep 0.01
+    done
+  ) &
+  P32_BG_PID=$!
+  set +e
+  HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$P32_GUARD_REPO" --workspace-root "$P32_GUARD_WS" --global-state-root "$P32_GUARD_STATE" \
+    --max-files 10 --max-seconds 1 --top-k 3 > /dev/null 2>&1
+  P32_GUARD_RC=$?
+  set -e
+  wait "$P32_BG_PID" 2>/dev/null || true
+  if [ "$P32_GUARD_RC" -eq 3 ]; then
+    check "Phase32:read_only_guard_full_snapshot_ignores_limits" "PASS"
+  else
+    check "Phase32:read_only_guard_full_snapshot_ignores_limits" "FAIL"
+  fi
+else
+  check "Phase32:scan_graph_schema_version_present" "FAIL"
+  check "Phase32:scan_graph_strict_mismatch_reason_emitted" "FAIL"
+  check "Phase32:discover_profile_diff_reuse_no_rescan" "FAIL"
+  check "Phase32:machine_line_json_payload_additive" "FAIL"
+  check "Phase32:governance_disabled_zero_write_still" "FAIL"
+  check "Phase32:read_only_guard_full_snapshot_ignores_limits" "FAIL"
+fi
+
+# ─── Phase 33: machine-json roundtrip + deterministic ordering ───
+echo "[phase 33] machine_json_roundtrip_and_determinism"
+if [ -f "$PLUGIN" ] && [ -d "$CASE1" ] && [ -d "$CASE9" ]; then
+  P33_WS="$REGRESSION_TMP/phase33_ws"
+  P33_STATE="$REGRESSION_TMP/phase33_state"
+  rm -rf "$P33_WS" "$P33_STATE"
+  mkdir -p "$P33_WS" "$P33_STATE"
+
+  # 1) machine_json_roundtrip_parse
+  set +e
+  P33_OUT_DISC=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P33_WS" --global-state-root "$P33_STATE" \
+    --machine-json 1 --keywords notice 2>/dev/null)
+  P33_RC_DISC=$?
+  set -e
+  P33_CAPS_LINE=$(printf '%s\n' "$P33_OUT_DISC" | grep '^HONGZHI_CAPS ' | head -n 1 || true)
+  P33_JSON_OK=$("$PYTHON_BIN" - <<PY
+import json, shlex
+line = """$P33_CAPS_LINE"""
+ok = False
+try:
+    tokens = shlex.split(line)
+    payload = ""
+    for tok in tokens:
+        if tok.startswith("json="):
+            payload = tok.split("=", 1)[1]
+            break
+    if payload:
+        obj = json.loads(payload)
+        ok = isinstance(obj, dict) and "path" in obj and "versions" in obj and "repo_fingerprint" in obj and "run_id" in obj
+except Exception:
+    ok = False
+print("1" if ok else "0")
+PY
+)
+  if [ "$P33_RC_DISC" -eq 0 ] && [ -n "$P33_CAPS_LINE" ] && [ "$P33_JSON_OK" = "1" ]; then
+    check "Phase33:machine_json_roundtrip_parse" "PASS"
+  else
+    check "Phase33:machine_json_roundtrip_parse" "FAIL"
+  fi
+
+  # 2) machine_json_no_newlines
+  P33_NO_NL_OK=$("$PYTHON_BIN" - <<PY
+import shlex
+line = """$P33_CAPS_LINE"""
+ok = False
+try:
+    tokens = shlex.split(line)
+    payload = ""
+    for tok in tokens:
+        if tok.startswith("json="):
+            payload = tok.split("=", 1)[1]
+            break
+    ok = bool(payload) and ("\n" not in payload) and ("\r" not in payload)
+except Exception:
+    ok = False
+print("1" if ok else "0")
+PY
+)
+  if [ "$P33_NO_NL_OK" = "1" ]; then
+    check "Phase33:machine_json_no_newlines" "PASS"
+  else
+    check "Phase33:machine_json_no_newlines" "FAIL"
+  fi
+
+  # 3) deterministic_artifacts_order
+  P33_WS_D="$REGRESSION_TMP/phase33_ws_det"
+  P33_STATE_D="$REGRESSION_TMP/phase33_state_det"
+  rm -rf "$P33_WS_D" "$P33_STATE_D"
+  mkdir -p "$P33_WS_D" "$P33_STATE_D"
+  set +e
+  P33_OUT_D1=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P33_WS_D" --global-state-root "$P33_STATE_D" \
+    --machine-json 1 --keywords notice 2>/dev/null)
+  P33_RC_D1=$?
+  P33_OUT_D2=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P33_WS_D" --global-state-root "$P33_STATE_D" \
+    --machine-json 1 --keywords notice 2>/dev/null)
+  P33_RC_D2=$?
+  set -e
+  P33_CAP_D1=$(extract_machine_path "$(printf '%s\n' "$P33_OUT_D1" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P33_CAP_D2=$(extract_machine_path "$(printf '%s\n' "$P33_OUT_D2" | grep '^HONGZHI_CAPS ' | head -n 1 || true)")
+  P33_ART_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap1 = pathlib.Path("$P33_CAP_D1")
+cap2 = pathlib.Path("$P33_CAP_D2")
+ok = False
+if cap1.is_file() and cap2.is_file():
+    d1 = json.loads(cap1.read_text(encoding="utf-8"))
+    d2 = json.loads(cap2.read_text(encoding="utf-8"))
+    def rel_artifacts(data, cap):
+        out = []
+        for ap in data.get("artifacts", []) if isinstance(data.get("artifacts"), list) else []:
+            p = pathlib.Path(str(ap))
+            try:
+                out.append(str(p.resolve().relative_to(cap.parent.resolve())).replace("\\\\", "/"))
+            except Exception:
+                out.append(str(p))
+        return out
+    a1 = rel_artifacts(d1, cap1)
+    a2 = rel_artifacts(d2, cap2)
+    ok = a1 == a2
+print("1" if ok else "0")
+PY
+)
+  if [ "$P33_RC_D1" -eq 0 ] && [ "$P33_RC_D2" -eq 0 ] && [ "$P33_ART_OK" = "1" ]; then
+    check "Phase33:deterministic_artifacts_order" "PASS"
+  else
+    check "Phase33:deterministic_artifacts_order" "FAIL"
+  fi
+
+  # 4) deterministic_modules_order (metrics.candidates)
+  P33_MOD_OK=$("$PYTHON_BIN" - <<PY
+import json, pathlib
+cap1 = pathlib.Path("$P33_CAP_D1")
+cap2 = pathlib.Path("$P33_CAP_D2")
+ok = False
+if cap1.is_file() and cap2.is_file():
+    d1 = json.loads(cap1.read_text(encoding="utf-8"))
+    d2 = json.loads(cap2.read_text(encoding="utf-8"))
+    c1 = d1.get("metrics", {}).get("candidates", []) if isinstance(d1.get("metrics", {}), dict) else []
+    c2 = d2.get("metrics", {}).get("candidates", []) if isinstance(d2.get("metrics", {}), dict) else []
+    if isinstance(c1, list) and isinstance(c2, list):
+        s1 = [(x.get("module_key",""), float(x.get("score",0) or 0.0)) for x in c1 if isinstance(x, dict)]
+        s2 = [(x.get("module_key",""), float(x.get("score",0) or 0.0)) for x in c2 if isinstance(x, dict)]
+        ordered = all(s1[i][1] >= s1[i+1][1] for i in range(len(s1)-1))
+        ok = (s1 == s2) and ordered
+print("1" if ok else "0")
+PY
+)
+  if [ "$P33_MOD_OK" = "1" ]; then
+    check "Phase33:deterministic_modules_order" "PASS"
+  else
+    check "Phase33:deterministic_modules_order" "FAIL"
+  fi
+
+  # 5) mismatch_reason enum + mismatch_suggestion
+  P33_WS_M="$REGRESSION_TMP/phase33_ws_mismatch"
+  P33_STATE_M="$REGRESSION_TMP/phase33_state_mismatch"
+  rm -rf "$P33_WS_M" "$P33_STATE_M"
+  mkdir -p "$P33_WS_M" "$P33_STATE_M"
+  set +e
+  P33_OUT_M=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE9" --workspace-root "$P33_WS_M" --global-state-root "$P33_STATE_M" \
+    --machine-json 1 --strict --keywords weird 2>/dev/null)
+  P33_RC_M=$?
+  set -e
+  P33_SUM_M=$(printf '%s\n' "$P33_OUT_M" | grep '^hongzhi_ai_kit_summary ' | head -n 1 || true)
+  P33_MISMATCH_OK=$("$PYTHON_BIN" - <<PY
+line = """$P33_SUM_M"""
+ok = False
+reason = ""
+suggestion = ""
+for tok in line.split():
+    if tok.startswith("mismatch_reason="):
+        reason = tok.split("=",1)[1]
+    if tok.startswith("mismatch_suggestion="):
+        suggestion = tok.split("=",1)[1]
+allowed = {"schema_version_mismatch","producer_version_mismatch","fingerprint_mismatch","corrupted_cache","unknown"}
+ok = (reason in allowed) and bool(suggestion and suggestion != "-")
+print("1" if ok else "0")
+PY
+)
+  if [ "$P33_RC_M" -eq 25 ] && echo "$P33_SUM_M" | grep -q 'exit_hint=scan_graph_mismatch' && [ "$P33_MISMATCH_OK" = "1" ]; then
+    check "Phase33:mismatch_reason_enum_and_suggestion" "PASS"
+  else
+    check "Phase33:mismatch_reason_enum_and_suggestion" "FAIL"
+  fi
+
+  # 6) status/index never probe writable
+  P33_WS_G="$REGRESSION_TMP/phase33_ws_gov"
+  P33_STATE_G="$REGRESSION_TMP/phase33_state_gov"
+  rm -rf "$P33_WS_G" "$P33_STATE_G"
+  mkdir -p "$P33_WS_G" "$P33_STATE_G"
+  P33_SIG_BEFORE=$(snapshot_sig "$P33_WS_G" "$P33_STATE_G")
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  "$PYTHON_BIN" "$PLUGIN" status --repo-root "$CASE1" --workspace-root "$P33_WS_G" --global-state-root "$P33_STATE_G" --machine-json 1 > /dev/null 2>&1
+  P33_RC_STATUS=$?
+  "$PYTHON_BIN" "$PLUGIN" index list --global-state-root "$P33_STATE_G" --machine-json 1 > /dev/null 2>&1
+  P33_RC_INDEX=$?
+  set -e
+  P33_SIG_AFTER=$(snapshot_sig "$P33_WS_G" "$P33_STATE_G")
+  P33_PROBE_FILES=$(find "$P33_WS_G" "$P33_STATE_G" -type f \( -name ".write_test" -o -name "*.write_test" -o -name "*probe*" \) | wc -l | tr -d ' ')
+  if [ "$P33_RC_STATUS" -eq 10 ] && [ "$P33_RC_INDEX" -eq 0 ] && [ "$P33_SIG_BEFORE" = "$P33_SIG_AFTER" ] && [ "$P33_PROBE_FILES" = "0" ]; then
+    check "Phase33:status_index_never_probe_writable" "PASS"
+  else
+    check "Phase33:status_index_never_probe_writable" "FAIL"
+  fi
+else
+  check "Phase33:machine_json_roundtrip_parse" "FAIL"
+  check "Phase33:machine_json_no_newlines" "FAIL"
+  check "Phase33:deterministic_artifacts_order" "FAIL"
+  check "Phase33:deterministic_modules_order" "FAIL"
+  check "Phase33:mismatch_reason_enum_and_suggestion" "FAIL"
+  check "Phase33:status_index_never_probe_writable" "FAIL"
+fi
+
+# ─── Phase 34: machine-line contract schema + validator hard gate ───
+echo "[phase 34] machine_line_contract_schema_validator_round28"
+CONTRACT_SCHEMA="$SCRIPT_DIR/contract_schema_v1.json"
+CONTRACT_VALIDATOR="$SCRIPT_DIR/contract_validator.py"
+if [ -f "$CONTRACT_SCHEMA" ]; then
+  set +e
+  "$PYTHON_BIN" - <<PY
+import json
+import pathlib
+path = pathlib.Path("$CONTRACT_SCHEMA")
+json.loads(path.read_text(encoding="utf-8"))
+PY
+  P34_SCHEMA_RC=$?
+  set -e
+  [ "$P34_SCHEMA_RC" -eq 0 ] && check "Phase34:contract_schema_exists_and_valid_json" "PASS" || check "Phase34:contract_schema_exists_and_valid_json" "FAIL"
+else
+  check "Phase34:contract_schema_exists_and_valid_json" "FAIL"
+fi
+
+if [ -f "$CONTRACT_VALIDATOR" ]; then
+  set +e
+  "$PYTHON_BIN" "$CONTRACT_VALIDATOR" --help > /dev/null 2>&1
+  P34_HELP_RC=$?
+  set -e
+  [ "$P34_HELP_RC" -eq 0 ] && check "Phase34:contract_validator_smoke" "PASS" || check "Phase34:contract_validator_smoke" "FAIL"
+else
+  check "Phase34:contract_validator_smoke" "FAIL"
+fi
+
+if [ -f "$PLUGIN" ] && [ -f "$CONTRACT_SCHEMA" ] && [ -f "$CONTRACT_VALIDATOR" ] && [ -d "$CASE1" ] && [ -d "$CASE9" ]; then
+  # 3) validator on discover stdout
+  P34_WS_DISC="$REGRESSION_TMP/phase34_ws_discover"
+  P34_STATE_DISC="$REGRESSION_TMP/phase34_state_discover"
+  rm -rf "$P34_WS_DISC" "$P34_STATE_DISC"
+  mkdir -p "$P34_WS_DISC" "$P34_STATE_DISC"
+  set +e
+  P34_OUT_DISC=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P34_WS_DISC" --global-state-root "$P34_STATE_DISC" \
+    --machine-json 1 --keywords notice 2>/dev/null)
+  P34_RC_DISC=$?
+  set -e
+  printf '%s\n' "$P34_OUT_DISC" > "$REGRESSION_TMP/phase34_discover_stdout.log"
+  set +e
+  printf '%s\n' "$P34_OUT_DISC" | "$PYTHON_BIN" "$CONTRACT_VALIDATOR" \
+    --schema "$CONTRACT_SCHEMA" --stdin > "$REGRESSION_TMP/phase34_validator_discover.log" 2>&1
+  P34_VAL_DISC_RC=$?
+  set -e
+  if [ "$P34_RC_DISC" -eq 0 ] && [ "$P34_VAL_DISC_RC" -eq 0 ] && grep -q '^CONTRACT_OK=1' "$REGRESSION_TMP/phase34_validator_discover.log"; then
+    check "Phase34:contract_validator_on_discover_stdout" "PASS"
+  else
+    check "Phase34:contract_validator_on_discover_stdout" "FAIL"
+  fi
+
+  # 4) validator on governance block stdout (disabled => exit 10)
+  P34_WS_GOV="$REGRESSION_TMP/phase34_ws_gov"
+  P34_STATE_GOV="$REGRESSION_TMP/phase34_state_gov"
+  rm -rf "$P34_WS_GOV" "$P34_STATE_GOV"
+  mkdir -p "$P34_WS_GOV" "$P34_STATE_GOV"
+  set +e
+  unset HONGZHI_PLUGIN_ENABLE 2>/dev/null || true
+  P34_OUT_GOV=$("$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P34_WS_GOV" --global-state-root "$P34_STATE_GOV" \
+    --machine-json 1 2>/dev/null)
+  P34_RC_GOV=$?
+  set -e
+  printf '%s\n' "$P34_OUT_GOV" > "$REGRESSION_TMP/phase34_gov_stdout.log"
+  set +e
+  printf '%s\n' "$P34_OUT_GOV" | "$PYTHON_BIN" "$CONTRACT_VALIDATOR" \
+    --schema "$CONTRACT_SCHEMA" --stdin > "$REGRESSION_TMP/phase34_validator_gov.log" 2>&1
+  P34_VAL_GOV_RC=$?
+  set -e
+  if [ "$P34_RC_GOV" -eq 10 ] && echo "$P34_OUT_GOV" | grep -q '^HONGZHI_GOV_BLOCK ' && \
+     [ "$P34_VAL_GOV_RC" -eq 0 ] && grep -q '^CONTRACT_OK=1' "$REGRESSION_TMP/phase34_validator_gov.log"; then
+    check "Phase34:contract_validator_on_gov_block_stdout" "PASS"
+  else
+    check "Phase34:contract_validator_on_gov_block_stdout" "FAIL"
+  fi
+
+  # 5) validator on strict mismatch stdout (exit 25)
+  P34_WS_M="$REGRESSION_TMP/phase34_ws_mismatch"
+  P34_STATE_M="$REGRESSION_TMP/phase34_state_mismatch"
+  rm -rf "$P34_WS_M" "$P34_STATE_M"
+  mkdir -p "$P34_WS_M" "$P34_STATE_M"
+  set +e
+  P34_OUT_M=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE9" --workspace-root "$P34_WS_M" --global-state-root "$P34_STATE_M" \
+    --machine-json 1 --strict --keywords weird 2>/dev/null)
+  P34_RC_M=$?
+  set -e
+  printf '%s\n' "$P34_OUT_M" > "$REGRESSION_TMP/phase34_mismatch_stdout.log"
+  set +e
+  printf '%s\n' "$P34_OUT_M" | "$PYTHON_BIN" "$CONTRACT_VALIDATOR" \
+    --schema "$CONTRACT_SCHEMA" --stdin > "$REGRESSION_TMP/phase34_validator_mismatch.log" 2>&1
+  P34_VAL_M_RC=$?
+  set -e
+  if [ "$P34_RC_M" -eq 25 ] && echo "$P34_OUT_M" | grep -q 'mismatch_reason=' && \
+     [ "$P34_VAL_M_RC" -eq 0 ] && grep -q '^CONTRACT_OK=1' "$REGRESSION_TMP/phase34_validator_mismatch.log"; then
+    check "Phase34:contract_validator_on_exit25_mismatch_stdout" "PASS"
+  else
+    check "Phase34:contract_validator_on_exit25_mismatch_stdout" "FAIL"
+  fi
+
+  # 6) schema additive guard (required_fields can only grow)
+  P34_BASELINE_SCHEMA="$REGRESSION_TMP/phase34_schema_baseline.json"
+  cp "$CONTRACT_SCHEMA" "$P34_BASELINE_SCHEMA"
+  set +e
+  "$PYTHON_BIN" "$CONTRACT_VALIDATOR" \
+    --schema "$CONTRACT_SCHEMA" \
+    --baseline-schema "$P34_BASELINE_SCHEMA" \
+    --file "$REGRESSION_TMP/phase34_discover_stdout.log" > "$REGRESSION_TMP/phase34_validator_additive.log" 2>&1
+  P34_VAL_ADD_RC=$?
+  set -e
+  if [ "$P34_VAL_ADD_RC" -eq 0 ] && grep -q '^CONTRACT_OK=1' "$REGRESSION_TMP/phase34_validator_additive.log"; then
+    check "Phase34:contract_schema_additive_guard" "PASS"
+  else
+    check "Phase34:contract_schema_additive_guard" "FAIL"
+  fi
+else
+  check "Phase34:contract_validator_on_discover_stdout" "FAIL"
+  check "Phase34:contract_validator_on_gov_block_stdout" "FAIL"
+  check "Phase34:contract_validator_on_exit25_mismatch_stdout" "FAIL"
+  check "Phase34:contract_schema_additive_guard" "FAIL"
+fi
+
+# ─── Phase 35: company-scope gate + governance skills lifecycle ───
+echo "[phase 35] company_scope_gate_and_skill_lifecycle_round29"
+if [ -f "$PLUGIN" ] && [ -f "$SKILLS_JSON" ] && [ -d "$CASE1" ]; then
+  # 1) Governance plugin skills should be deployed
+  P35_SKILLS_OK=$("$PYTHON_BIN" - <<PY
+import json
+from pathlib import Path
+p = Path("$SKILLS_JSON")
+ok = False
+try:
+    data = json.loads(p.read_text(encoding="utf-8"))
+    gov = [x for x in data if isinstance(x, dict) and str(x.get("name","")).startswith("skill_governance_plugin_")]
+    ok = bool(gov) and all(str(x.get("status","")) == "deployed" for x in gov)
+except Exception:
+    ok = False
+print("1" if ok else "0")
+PY
+)
+  if [ "$P35_SKILLS_OK" = "1" ]; then
+    check "Phase35:governance_skills_deployed" "PASS"
+  else
+    check "Phase35:governance_skills_deployed" "FAIL"
+  fi
+
+  # 2) machine lines should include company_scope token
+  P35_WS_SCOPE="$REGRESSION_TMP/phase35_ws_scope"
+  P35_STATE_SCOPE="$REGRESSION_TMP/phase35_state_scope"
+  rm -rf "$P35_WS_SCOPE" "$P35_STATE_SCOPE"
+  mkdir -p "$P35_WS_SCOPE" "$P35_STATE_SCOPE"
+  set +e
+  P35_OUT_DISC=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P35_WS_SCOPE" --global-state-root "$P35_STATE_SCOPE" \
+    --machine-json 1 2>/dev/null)
+  P35_RC_DISC=$?
+  P35_OUT_STATUS=$(HONGZHI_PLUGIN_ENABLE=1 "$PYTHON_BIN" "$PLUGIN" status \
+    --repo-root "$CASE1" --workspace-root "$P35_WS_SCOPE" --global-state-root "$P35_STATE_SCOPE" \
+    --machine-json 1 2>/dev/null)
+  P35_RC_STATUS=$?
+  set -e
+  if [ "$P35_RC_DISC" -eq 0 ] && [ "$P35_RC_STATUS" -eq 0 ] && \
+     echo "$P35_OUT_DISC" | grep -q '^HONGZHI_CAPS ' && \
+     echo "$P35_OUT_DISC" | grep -q 'company_scope=' && \
+     echo "$P35_OUT_STATUS" | grep -q '^HONGZHI_STATUS ' && \
+     echo "$P35_OUT_STATUS" | grep -q 'company_scope=' && \
+     echo "$P35_OUT_DISC" | grep -q '^hongzhi_ai_kit_summary ' && \
+     echo "$P35_OUT_DISC" | grep -q 'company_scope='; then
+    check "Phase35:machine_lines_include_company_scope" "PASS"
+  else
+    check "Phase35:machine_lines_include_company_scope" "FAIL"
+  fi
+
+  # 3) default behavior: company-scope gate disabled unless explicitly required
+  set +e
+  P35_OUT_DEFAULT=$(HONGZHI_PLUGIN_ENABLE=1 HONGZHI_COMPANY_SCOPE=external-scope "$PYTHON_BIN" "$PLUGIN" status \
+    --repo-root "$CASE1" --workspace-root "$P35_WS_SCOPE" --global-state-root "$P35_STATE_SCOPE" \
+    --machine-json 1 2>/dev/null)
+  P35_RC_DEFAULT=$?
+  set -e
+  if [ "$P35_RC_DEFAULT" -eq 0 ] && echo "$P35_OUT_DEFAULT" | grep -q '^HONGZHI_STATUS '; then
+    check "Phase35:company_scope_gate_default_off" "PASS"
+  else
+    check "Phase35:company_scope_gate_default_off" "FAIL"
+  fi
+
+  # 4) required company-scope mismatch must block with exit 26
+  P35_WS_BLOCK="$REGRESSION_TMP/phase35_ws_block"
+  P35_STATE_BLOCK="$REGRESSION_TMP/phase35_state_block"
+  rm -rf "$P35_WS_BLOCK" "$P35_STATE_BLOCK"
+  mkdir -p "$P35_WS_BLOCK" "$P35_STATE_BLOCK"
+  P35_SIG_BEFORE=$(snapshot_sig "$P35_WS_BLOCK" "$P35_STATE_BLOCK")
+  set +e
+  P35_OUT_BLOCK=$(HONGZHI_PLUGIN_ENABLE=1 HONGZHI_REQUIRE_COMPANY_SCOPE=1 HONGZHI_COMPANY_SCOPE=external-scope "$PYTHON_BIN" "$PLUGIN" discover \
+    --repo-root "$CASE1" --workspace-root "$P35_WS_BLOCK" --global-state-root "$P35_STATE_BLOCK" \
+    --machine-json 1 2>/dev/null)
+  P35_RC_BLOCK=$?
+  set -e
+  P35_SIG_AFTER=$(snapshot_sig "$P35_WS_BLOCK" "$P35_STATE_BLOCK")
+  if [ "$P35_RC_BLOCK" -eq 26 ] && \
+     echo "$P35_OUT_BLOCK" | grep -q '^HONGZHI_GOV_BLOCK ' && \
+     echo "$P35_OUT_BLOCK" | grep -q 'reason=company_scope_mismatch'; then
+    check "Phase35:company_scope_mismatch_block_exit26" "PASS"
+  else
+    check "Phase35:company_scope_mismatch_block_exit26" "FAIL"
+  fi
+
+  # 5) scope mismatch block must remain zero-write
+  if [ "$P35_SIG_BEFORE" = "$P35_SIG_AFTER" ]; then
+    check "Phase35:company_scope_mismatch_zero_write" "PASS"
+  else
+    check "Phase35:company_scope_mismatch_zero_write" "FAIL"
+  fi
+
+  # 6) required scope match should allow execution
+  set +e
+  P35_OUT_MATCH=$(HONGZHI_PLUGIN_ENABLE=1 HONGZHI_REQUIRE_COMPANY_SCOPE=1 HONGZHI_COMPANY_SCOPE=hongzhi-work-dev "$PYTHON_BIN" "$PLUGIN" status \
+    --repo-root "$CASE1" --workspace-root "$P35_WS_SCOPE" --global-state-root "$P35_STATE_SCOPE" \
+    --machine-json 1 2>/dev/null)
+  P35_RC_MATCH=$?
+  set -e
+  if [ "$P35_RC_MATCH" -eq 0 ] && echo "$P35_OUT_MATCH" | grep -q '^HONGZHI_STATUS ' && \
+     echo "$P35_OUT_MATCH" | grep -q 'company_scope='; then
+    check "Phase35:company_scope_match_required_allows" "PASS"
+  else
+    check "Phase35:company_scope_match_required_allows" "FAIL"
+  fi
+else
+  check "Phase35:governance_skills_deployed" "FAIL"
+  check "Phase35:machine_lines_include_company_scope" "FAIL"
+  check "Phase35:company_scope_gate_default_off" "FAIL"
+  check "Phase35:company_scope_mismatch_block_exit26" "FAIL"
+  check "Phase35:company_scope_mismatch_zero_write" "FAIL"
+  check "Phase35:company_scope_match_required_allows" "FAIL"
 fi
 
 

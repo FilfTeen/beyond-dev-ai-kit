@@ -53,6 +53,13 @@ from hongzhi_ai_kit.federated_store import (
     atomic_append_jsonl,
 )
 from hongzhi_ai_kit.paths import resolve_global_state_root, resolve_workspace_root
+from scan_graph import (
+    SCAN_GRAPH_SCHEMA_VERSION,
+    analyze_scan_graph_payload,
+    build_scan_graph,
+    load_scan_graph,
+    save_scan_graph,
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Configuration & Constants
@@ -66,13 +73,37 @@ GOVERNANCE_EXIT_CODE = 10
 GOVERNANCE_DENY_EXIT_CODE = 11
 GOVERNANCE_ALLOW_EXIT_CODE = 12
 POLICY_PARSE_EXIT_CODE = 13
+COMPANY_SCOPE_EXIT_CODE = 26
 LIMIT_EXIT_CODE = 20
 CALIBRATION_EXIT_CODE = 21
 HINT_VERIFY_EXIT_CODE = 22
 HINT_SCOPE_EXIT_CODE = 23
 INDEX_SCOPE_EXIT_CODE = 24
+SCAN_GRAPH_MISMATCH_EXIT_CODE = 25
+MACHINE_JSON_ENV = "HONGZHI_MACHINE_JSON_ENABLE"
+MACHINE_JSON_CLI_DEFAULT = "1"
+COMPANY_SCOPE_ENV = "HONGZHI_COMPANY_SCOPE"
+COMPANY_SCOPE_REQUIRE_ENV = "HONGZHI_REQUIRE_COMPANY_SCOPE"
+COMPANY_SCOPE_DEFAULT = "hongzhi-work-dev"
 GLOBAL_STATE_ENV = "HONGZHI_PLUGIN_GLOBAL_STATE_ROOT"
 HINT_BUNDLE_VERSION = "1.0.0"
+MISMATCH_REASON_ALLOWED = {
+    "schema_version_mismatch",
+    "producer_version_mismatch",
+    "fingerprint_mismatch",
+    "corrupted_cache",
+    "unknown",
+}
+MISMATCH_REASON_SUGGESTIONS = {
+    "schema_version_mismatch": "clear scan_cache and rerun discover with current plugin",
+    "producer_version_mismatch": "rerun discover to rebuild scan graph with matching versions",
+    "fingerprint_mismatch": "disable smart reuse or rerun discover without cached graph",
+    "corrupted_cache": "delete scan_cache files and rerun discover",
+    "unknown": "rerun discover --strict and inspect scan_graph_spot_check details",
+}
+MACHINE_JSON_ENABLED_RUNTIME = True
+COMPANY_SCOPE_RUNTIME = COMPANY_SCOPE_DEFAULT
+COMPANY_SCOPE_REQUIRED_RUNTIME = False
 
 SNAPSHOT_EXCLUDES = {
     ".git", ".idea", ".DS_Store", "target", "build", "node_modules",
@@ -107,6 +138,116 @@ def version_triplet() -> dict:
 
 def quote_machine_value(value: Any) -> str:
     return json.dumps(str(value), ensure_ascii=False)
+
+
+def machine_json_field(
+    *,
+    path_value: str | Path,
+    command: str,
+    repo_fingerprint: str,
+    run_id: str,
+    extra: Optional[dict] = None,
+) -> str:
+    versions = version_triplet()
+    payload = {
+        "path": str(Path(path_value).expanduser().resolve()),
+        "command": str(command or "-"),
+        "versions": {
+            "package": versions["package_version"],
+            "plugin": versions["plugin_version"],
+            "contract": versions["contract_version"],
+        },
+        "company_scope": str(company_scope_runtime()),
+        "repo_fingerprint": str(repo_fingerprint or "-"),
+        "run_id": str(run_id or "-"),
+    }
+    if isinstance(extra, dict):
+        for key, value in extra.items():
+            if value is None:
+                continue
+            payload[str(key)] = value
+    encoded = json.dumps(payload, separators=(",", ":"), ensure_ascii=False, sort_keys=True)
+    # Keep single-token shell-friendly field: json='<one-line-json>'
+    encoded = encoded.replace("'", "\\u0027")
+    return f"'{encoded}'"
+
+
+def parse_bool_switch(value: Any, default: bool = True) -> bool:
+    if value is None:
+        return bool(default)
+    text = str(value).strip().lower()
+    if text in {"1", "true", "on", "yes"}:
+        return True
+    if text in {"0", "false", "off", "no"}:
+        return False
+    return bool(default)
+
+
+def set_machine_json_runtime(cli_value: Any = None) -> None:
+    global MACHINE_JSON_ENABLED_RUNTIME
+    env_value = os.environ.get(MACHINE_JSON_ENV)
+    if env_value is not None:
+        MACHINE_JSON_ENABLED_RUNTIME = parse_bool_switch(env_value, default=True)
+        return
+    MACHINE_JSON_ENABLED_RUNTIME = parse_bool_switch(
+        cli_value if cli_value is not None else MACHINE_JSON_CLI_DEFAULT,
+        default=True,
+    )
+
+
+def machine_json_enabled() -> bool:
+    return bool(MACHINE_JSON_ENABLED_RUNTIME)
+
+
+def set_company_scope_runtime(args: argparse.Namespace) -> None:
+    global COMPANY_SCOPE_RUNTIME
+    global COMPANY_SCOPE_REQUIRED_RUNTIME
+
+    env_scope = os.environ.get(COMPANY_SCOPE_ENV)
+    cli_scope = getattr(args, "company_scope", COMPANY_SCOPE_DEFAULT)
+    scope_value = str(env_scope if env_scope is not None else cli_scope).strip() or COMPANY_SCOPE_DEFAULT
+    COMPANY_SCOPE_RUNTIME = scope_value
+
+    env_required = os.environ.get(COMPANY_SCOPE_REQUIRE_ENV)
+    cli_required = getattr(args, "require_company_scope", "0")
+    if env_required is not None:
+        COMPANY_SCOPE_REQUIRED_RUNTIME = parse_bool_switch(env_required, default=False)
+    else:
+        COMPANY_SCOPE_REQUIRED_RUNTIME = parse_bool_switch(cli_required, default=False)
+
+
+def company_scope_runtime() -> str:
+    return str(COMPANY_SCOPE_RUNTIME or COMPANY_SCOPE_DEFAULT)
+
+
+def company_scope_required_runtime() -> bool:
+    return bool(COMPANY_SCOPE_REQUIRED_RUNTIME)
+
+
+def check_company_scope_gate(command: str) -> Tuple[bool, int, str]:
+    if not company_scope_required_runtime():
+        return True, 0, "company_scope_not_required"
+    actual = company_scope_runtime()
+    expected = COMPANY_SCOPE_DEFAULT
+    if actual == expected:
+        return True, 0, "company_scope_matched"
+    return (
+        False,
+        COMPANY_SCOPE_EXIT_CODE,
+        f"company_scope mismatch: expected={expected}, actual={actual}, command={command}",
+    )
+
+
+def normalize_mismatch_reason(value: Any) -> str:
+    text = str(value or "").strip()
+    if text not in MISMATCH_REASON_ALLOWED:
+        return "unknown"
+    return text
+
+
+def mismatch_suggestion_for(reason: Any) -> str:
+    normalized = normalize_mismatch_reason(reason)
+    return str(MISMATCH_REASON_SUGGESTIONS.get(normalized, MISMATCH_REASON_SUGGESTIONS["unknown"]))
 
 
 def canonical_path(path_value: str | Path) -> Path:
@@ -460,12 +601,27 @@ def emit_hint_bundle(
     return str(bundle_path.resolve())
 
 
-def print_hints_pointer_line(hints_path: str) -> None:
+def print_hints_pointer_line(
+    hints_path: str,
+    *,
+    command: str = "-",
+    repo_fingerprint: str = "-",
+    run_id: str = "-",
+) -> None:
     versions = version_triplet()
     resolved = Path(hints_path).resolve()
+    json_field = machine_json_field(
+        path_value=resolved,
+        command=command,
+        repo_fingerprint=repo_fingerprint,
+        run_id=run_id,
+    )
+    json_part = f"json={json_field} " if machine_json_enabled() else ""
     print(
         f"HONGZHI_HINTS {resolved} "
         f"path={quote_machine_value(str(resolved))} "
+        f"{json_part}"
+        f"company_scope={quote_machine_value(company_scope_runtime())} "
         f"package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']}"
@@ -475,9 +631,24 @@ def print_hints_pointer_line(hints_path: str) -> None:
 def print_hints_block_line(code: int, reason: str, command: str, detail: str, token_scope: list | None) -> None:
     versions = version_triplet()
     scope_text = ",".join(token_scope or ["*"])
+    json_field = machine_json_field(
+        path_value="-",
+        command=command,
+        repo_fingerprint="-",
+        run_id="-",
+        extra={
+            "code": int(code),
+            "reason": str(reason),
+            "scope": scope_text,
+            "detail": str(detail),
+        },
+    )
+    json_part = f"json={json_field} " if machine_json_enabled() else ""
     print(
         f"HONGZHI_HINTS_BLOCK code={int(code)} reason={reason} command={command} "
         f"scope={scope_text} "
+        f"{json_part}"
+        f"company_scope={quote_machine_value(company_scope_runtime())} "
         f"package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']} "
@@ -496,12 +667,38 @@ def hint_bundle_scope_allowed(governance: dict) -> Tuple[bool, str]:
     return False, "token_scope_missing"
 
 
-def print_index_pointer_line(index_path: Path) -> None:
+def print_index_pointer_line(
+    index_path: Path,
+    *,
+    command: str = "-",
+    repo_fingerprint: str = "-",
+    run_id: str = "-",
+    mismatch_reason: str = "-",
+    mismatch_detail: str = "-",
+    mismatch_suggestion: str = "-",
+) -> None:
     versions = version_triplet()
     resolved = index_path.resolve()
+    json_field = machine_json_field(
+        path_value=resolved,
+        command=command,
+        repo_fingerprint=repo_fingerprint,
+        run_id=run_id,
+        extra={
+            "mismatch_reason": str(mismatch_reason or "-"),
+            "mismatch_detail": str(mismatch_detail or "-"),
+            "mismatch_suggestion": str(mismatch_suggestion or "-"),
+        },
+    )
+    json_part = f"json={json_field} " if machine_json_enabled() else ""
     print(
         f"HONGZHI_INDEX {resolved} "
         f"path={quote_machine_value(str(resolved))} "
+        f"{json_part}"
+        f"mismatch_reason={str(mismatch_reason or '-')} "
+        f"mismatch_detail={quote_machine_value(str(mismatch_detail or '-'))} "
+        f"mismatch_suggestion={quote_machine_value(str(mismatch_suggestion or '-'))} "
+        f"company_scope={quote_machine_value(company_scope_runtime())} "
         f"package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']}"
@@ -519,10 +716,26 @@ def print_index_block_line(
     versions = version_triplet()
     scope_text = str(required_scope or "federated_index")
     token_scope_text = ",".join(token_scope or ["*"])
+    json_field = machine_json_field(
+        path_value="-",
+        command=command,
+        repo_fingerprint="-",
+        run_id="-",
+        extra={
+            "code": int(code),
+            "reason": str(reason),
+            "scope": scope_text,
+            "token_scope": token_scope_text,
+            "detail": str(detail),
+        },
+    )
+    json_part = f"json={json_field} " if machine_json_enabled() else ""
     print(
         f"HONGZHI_INDEX_BLOCK code={int(code)} reason={reason} command={command} "
         f"scope={scope_text} "
         f"token_scope={token_scope_text} "
+        f"{json_part}"
+        f"company_scope={quote_machine_value(company_scope_runtime())} "
         f"package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']} "
@@ -755,6 +968,272 @@ def load_workspace_capabilities(workspace: Path) -> dict:
     except (OSError, json.JSONDecodeError):
         pass
     return {}
+
+
+def resolve_scan_graph_roots(
+    repo_root: Path,
+    java_roots: List[Path],
+    template_roots: List[Path],
+) -> List[str]:
+    roots: List[str] = []
+    seen = set()
+    for p in (java_roots or []) + (template_roots or []):
+        if not isinstance(p, Path):
+            continue
+        if not p.is_dir():
+            continue
+        try:
+            rel = str(p.resolve().relative_to(repo_root.resolve())).replace("\\", "/")
+            if rel and rel not in seen:
+                seen.add(rel)
+                roots.append(rel)
+        except ValueError:
+            continue
+    return roots
+
+
+def build_discover_scan_graph(
+    *,
+    repo_root: Path,
+    workspace: Path,
+    roots: List[str],
+    keywords: List[str],
+    max_files: Optional[int],
+    max_seconds: Optional[int],
+    producer_versions: Optional[dict] = None,
+) -> Tuple[dict, Path]:
+    cache_dir = workspace / "scan_cache"
+    payload = build_scan_graph(
+        repo_root=repo_root,
+        roots=roots,
+        max_files=max_files,
+        max_seconds=max_seconds,
+        keywords=keywords,
+        cache_dir=cache_dir,
+        producer_versions=producer_versions,
+    )
+    out_path = workspace / "discover" / "scan_graph.json"
+    save_scan_graph(out_path, payload)
+    return payload, out_path
+
+
+def load_scan_graph_any(path_value: str | Path) -> dict:
+    try:
+        return load_scan_graph(Path(path_value).expanduser().resolve())
+    except Exception:
+        return {}
+
+
+def scan_graph_to_structure_inputs(payload: dict) -> Tuple[List[dict], List[str], dict]:
+    file_index = payload.get("file_index", {}) if isinstance(payload.get("file_index"), dict) else {}
+    java_hints = payload.get("java_hints", []) if isinstance(payload.get("java_hints"), list) else []
+    template_items = file_index.get("templates", []) if isinstance(file_index.get("templates"), list) else []
+
+    java_results: List[dict] = []
+    for hint in java_hints:
+        if not isinstance(hint, dict):
+            continue
+        java_results.append(
+            {
+                "rel_path": str(hint.get("rel_path", "") or ""),
+                "package": str(hint.get("package", "") or ""),
+                "is_controller": bool(hint.get("is_controller", False)),
+                "is_service": bool(hint.get("is_service", False)),
+                "is_repository": bool(hint.get("is_repository", False)),
+                "is_entity": bool(hint.get("is_entity", False)),
+                "is_dto": bool(hint.get("is_dto", False)),
+                "endpoints": hint.get("endpoints", []) if isinstance(hint.get("endpoints", []), list) else [],
+                "endpoint_signatures": hint.get("endpoint_signatures", []) if isinstance(hint.get("endpoint_signatures", []), list) else [],
+                "class_name": str(hint.get("class_name", "") or ""),
+                "parse_uncertain": bool(hint.get("parse_uncertain", False)),
+            }
+        )
+
+    templates: List[str] = []
+    for item in template_items:
+        if isinstance(item, dict):
+            rel = str(item.get("relpath", "") or "")
+            if rel:
+                templates.append(rel)
+        elif isinstance(item, str):
+            templates.append(item)
+
+    io_stats = payload.get("io_stats", {}) if isinstance(payload.get("io_stats"), dict) else {}
+    return java_results, sorted(set(templates)), io_stats
+
+
+def scan_graph_spot_check(repo_root: Path, java_results: List[dict], sample_size: int = 8) -> dict:
+    """
+    Spot-check scan_graph Java hints against full parser on a deterministic sample.
+    """
+    if not java_results:
+        return {"sampled": 0, "mismatches": 0, "ratio": 0.0, "details": []}
+
+    try:
+        import structure_discover as sd  # local script import
+    except Exception:
+        return {"sampled": 0, "mismatches": 0, "ratio": 0.0, "details": []}
+
+    sample = sorted(
+        [r for r in java_results if isinstance(r, dict) and r.get("rel_path")],
+        key=lambda x: str(x.get("rel_path", "")),
+    )[: max(1, int(sample_size))]
+    mismatches = 0
+    details: List[str] = []
+    for item in sample:
+        rel = str(item.get("rel_path", ""))
+        fp = repo_root / rel
+        if not fp.is_file():
+            continue
+        try:
+            full = sd.scan_java_file(fp, repo_root)
+        except Exception:
+            continue
+        checks = [
+            ("controller", bool(item.get("is_controller", False)), bool(full.get("is_controller", False))),
+            ("service", bool(item.get("is_service", False)), bool(full.get("is_service", False))),
+            ("repository", bool(item.get("is_repository", False)), bool(full.get("is_repository", False))),
+        ]
+        lite_ep = len(item.get("endpoint_signatures", []) if isinstance(item.get("endpoint_signatures", []), list) else [])
+        full_ep = len(full.get("endpoint_signatures", []) if isinstance(full.get("endpoint_signatures", []), list) else [])
+        mismatch_here = False
+        for tag, lval, fval in checks:
+            if lval != fval:
+                mismatch_here = True
+                details.append(f"{rel}:{tag}:{int(lval)}!={int(fval)}")
+        if lite_ep != full_ep:
+            mismatch_here = True
+            details.append(f"{rel}:endpoint_count:{lite_ep}!={full_ep}")
+        if mismatch_here:
+            mismatches += 1
+
+    sampled = len(sample)
+    ratio = float(mismatches) / float(sampled) if sampled > 0 else 0.0
+    return {"sampled": sampled, "mismatches": mismatches, "ratio": round(ratio, 4), "details": details[:12]}
+
+
+def find_latest_scan_graph_by_fp(
+    global_state_root: Path,
+    fp: str,
+    workspace_root_hint: Optional[Path] = None,
+) -> str:
+    latest_path = global_state_root / fp / "latest.json"
+    latest_workspace = ""
+    if latest_path.is_file():
+        try:
+            latest = json.loads(latest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            latest = {}
+        if isinstance(latest, dict):
+            latest_workspace = str(latest.get("workspace", "") or "")
+
+    if latest_workspace:
+        candidate = Path(latest_workspace).expanduser().resolve() / "discover" / "scan_graph.json"
+        if candidate.is_file():
+            return str(candidate)
+
+    search_roots: List[Path] = []
+    if latest_workspace:
+        ws_path = Path(latest_workspace).expanduser().resolve()
+        if ws_path.parent.name == fp:
+            search_roots.append(ws_path.parent)
+        elif ws_path.name == fp:
+            search_roots.append(ws_path)
+    if isinstance(workspace_root_hint, Path):
+        hinted = workspace_root_hint.expanduser().resolve() / fp
+        if hinted not in search_roots:
+            search_roots.append(hinted)
+    try:
+        default_ws = resolve_workspace_root(read_only=True) / fp
+        if default_ws not in search_roots:
+            search_roots.append(default_ws)
+    except Exception:
+        pass
+
+    latest_graph = ""
+    latest_mtime = -1
+    for root in search_roots:
+        if not root.exists():
+            continue
+        for candidate in root.rglob("discover/scan_graph.json"):
+            if not candidate.is_file():
+                continue
+            try:
+                st = candidate.stat()
+            except OSError:
+                continue
+            if st.st_mtime_ns > latest_mtime:
+                latest_mtime = st.st_mtime_ns
+                latest_graph = str(candidate.resolve())
+    return latest_graph
+
+
+def classes_from_scan_graph(payload: dict, module_key: str) -> dict:
+    classes: dict = {}
+    hints = payload.get("java_hints", []) if isinstance(payload.get("java_hints"), list) else []
+    module_key_l = str(module_key or "").lower()
+    for hint in hints:
+        if not isinstance(hint, dict):
+            continue
+        pkg = str(hint.get("package", "") or "")
+        rel = str(hint.get("rel_path", "") or "")
+        cls_name = str(hint.get("class_name", "") or "") or Path(rel).stem
+        if module_key_l and module_key_l not in pkg.lower() and module_key_l not in cls_name.lower() and module_key_l not in rel.lower():
+            continue
+        key = cls_name
+        if key in classes:
+            key = f"{cls_name}@{rel}"
+        classes[key] = {
+            "file": rel,
+            "package": pkg,
+            "endpoint_signatures": hint.get("endpoint_signatures", []) if isinstance(hint.get("endpoint_signatures", []), list) else [],
+        }
+    return classes
+
+
+def templates_from_scan_graph(payload: dict, module_key: str) -> set:
+    file_index = payload.get("file_index", {}) if isinstance(payload.get("file_index"), dict) else {}
+    entries = file_index.get("templates", []) if isinstance(file_index.get("templates"), list) else []
+    module_key_l = str(module_key or "").lower()
+    out = set()
+    for item in entries:
+        rel = ""
+        if isinstance(item, dict):
+            rel = str(item.get("relpath", "") or "")
+        elif isinstance(item, str):
+            rel = item
+        if not rel:
+            continue
+        if module_key_l and module_key_l not in rel.lower():
+            continue
+        out.add(Path(rel).name)
+    return out
+
+
+def write_profile_from_scan_graph(profile_path: Path, module_key: str, scan_graph_payload: dict) -> None:
+    file_index = scan_graph_payload.get("file_index", {}) if isinstance(scan_graph_payload.get("file_index"), dict) else {}
+    io_stats = scan_graph_payload.get("io_stats", {}) if isinstance(scan_graph_payload.get("io_stats"), dict) else {}
+    lines = [
+        "# Auto-generated by hongzhi_plugin profile --scan-graph",
+        f'module_key: "{module_key}"',
+        f'generated_at: "{utc_now_iso()}"',
+        "source:",
+        f'  kind: "scan_graph"',
+        f'  cache_key: "{scan_graph_payload.get("cache_key", "")}"',
+        f'  cache_source: "{scan_graph_payload.get("cache_source", "")}"',
+        "scan_io_stats:",
+        f'  files_indexed: {int(io_stats.get("files_indexed", 0) or 0)}',
+        f'  java_scanned: {int(io_stats.get("java_scanned", 0) or 0)}',
+        f'  template_scanned: {int(io_stats.get("template_scanned", 0) or 0)}',
+        f'  bytes_read: {int(io_stats.get("bytes_read", 0) or 0)}',
+        "",
+        "file_index_counts:",
+    ]
+    for key in ("java", "templates", "resources", "other"):
+        values = file_index.get(key, []) if isinstance(file_index.get(key), list) else []
+        lines.append(f"  {key}: {len(values)}")
+    profile_path.parent.mkdir(parents=True, exist_ok=True)
+    profile_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def summarize_governance(gov_info: dict) -> str:
@@ -1057,6 +1536,8 @@ def check_governance_full(args):
         "token_reason": "token_not_provided",
         "token_scope": ["*"],
         "policy_parse_error": bool(policy.get("_parse_error", False)),
+        "company_scope": company_scope_runtime(),
+        "company_scope_required": bool(company_scope_required_runtime()),
         "federated_index_enabled": fed_enabled,
         "federated_index_write_jsonl": bool(fed_policy.get("write_jsonl", True)),
         "federated_index_write_repo_mirror": bool(fed_policy.get("write_repo_mirror", True)),
@@ -1192,6 +1673,71 @@ def enforce_read_only(delta, write_ok):
 #  Capabilities output
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def sort_artifacts_stable(artifacts: List[Any], workspace: Path) -> List[Any]:
+    def key_for(item: Any) -> tuple:
+        text = str(item)
+        try:
+            p = Path(text).expanduser().resolve()
+            if is_path_within(p, workspace):
+                rel = str(p.relative_to(workspace)).replace("\\", "/")
+                return (0, rel)
+            if is_path_within(p, workspace.parent):
+                rel = str(p.relative_to(workspace.parent)).replace("\\", "/")
+                return (1, rel)
+            return (2, str(p))
+        except Exception:
+            return (3, text)
+    return sorted(list(artifacts or []), key=key_for)
+
+
+def sort_roots_stable(roots: List[Any]) -> List[Any]:
+    normalized: List[dict] = []
+    for item in roots or []:
+        if not isinstance(item, dict):
+            continue
+        entry = dict(item)
+        nested_roots = entry.get("roots", [])
+        if isinstance(nested_roots, list):
+            sorted_nested = []
+            for root_item in nested_roots:
+                if isinstance(root_item, dict):
+                    sorted_nested.append(dict(root_item))
+            sorted_nested.sort(
+                key=lambda r: (
+                    str(r.get("category", "")),
+                    str(r.get("kind", "")),
+                    str(r.get("path", "")),
+                )
+            )
+            entry["roots"] = sorted_nested
+        normalized.append(entry)
+    normalized.sort(
+        key=lambda e: (
+            str(e.get("module_key", "")),
+            str(e.get("category", "")),
+            str(e.get("path", "")),
+            str(e.get("package_prefix", "")),
+        )
+    )
+    return normalized
+
+
+def sort_candidates_stable(candidates: List[Any]) -> List[Any]:
+    normalized: List[dict] = []
+    for item in candidates or []:
+        if isinstance(item, dict):
+            normalized.append(dict(item))
+    normalized.sort(
+        key=lambda c: (
+            -float(c.get("score", 0.0) or 0.0),
+            str(c.get("module_key", "")),
+            str(c.get("package_prefix", "")),
+            str(c.get("path", "")),
+        )
+    )
+    return normalized
+
+
 def write_capabilities(
     workspace,
     command,
@@ -1252,12 +1798,19 @@ def write_capabilities(
         "created_at": str(hint_bundle_payload.get("created_at", "") or ""),
         "expires_at": str(hint_bundle_payload.get("expires_at", "") or ""),
     }
+    metrics_payload = dict(metrics) if isinstance(metrics, dict) else {}
+    if isinstance(metrics_payload.get("candidates"), list):
+        metrics_payload["candidates"] = sort_candidates_stable(metrics_payload.get("candidates", []))
+    if isinstance(metrics_payload.get("module_candidates_list"), list):
+        metrics_payload["module_candidates_list"] = sort_candidates_stable(metrics_payload.get("module_candidates_list", []))
+
     caps = {
         "version": PLUGIN_VERSION,
         "package_version": versions["package_version"],
         "plugin_version": versions["plugin_version"],
         "contract_version": versions["contract_version"],
         "summary_version": SUMMARY_VERSION,
+        "company_scope": company_scope_runtime(),
         "command": command,
         "run_id": run_id,
         "repo_fingerprint": repo_fingerprint,
@@ -1275,13 +1828,14 @@ def write_capabilities(
         },
         "scan_stats": scan_stats,
         "scan_io_stats": metrics.get("scan_io_stats", {}) if isinstance(metrics.get("scan_io_stats"), dict) else {},
+        "scan_graph": metrics.get("scan_graph", {}) if isinstance(metrics.get("scan_graph"), dict) else {},
         "layout_details": layout_details_payload,
         "hints": hints_payload,
         "hint_bundle": hint_bundle_payload,
         "calibration": calibration_payload,
-        "roots": roots,
-        "artifacts": artifacts,
-        "metrics": metrics,
+        "roots": sort_roots_stable(roots if isinstance(roots, list) else []),
+        "artifacts": sort_artifacts_stable(artifacts if isinstance(artifacts, list) else [], Path(workspace)),
+        "metrics": metrics_payload,
         "warnings": warnings,
         "suggestions": suggestions,
         "governance": governance or {},
@@ -1331,12 +1885,45 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
     hint_expired = 1 if metrics.get("hint_expired") else 0
     hint_effective = 1 if metrics.get("hint_effective") else 0
     confidence_delta = float(metrics.get("confidence_delta", 0.0) or 0.0)
+    mismatch_reason = str(metrics.get("mismatch_reason", "-") or "-")
+    mismatch_detail = str(metrics.get("mismatch_detail", "-") or "-").replace(" ", "_")
+    mismatch_suggestion = str(metrics.get("mismatch_suggestion", "-") or "-").replace(" ", "_")
+    scan_graph_payload = metrics.get("scan_graph", {}) if isinstance(metrics.get("scan_graph"), dict) else {}
+    scan_graph_used = 1 if scan_graph_payload.get("used") else 0
+    scan_cache_hit_rate = float(
+        scan_graph_payload.get(
+            "cache_hit_rate",
+            scan_graph_payload.get("io_stats", {}).get("cache_hit_rate", 0.0)
+            if isinstance(scan_graph_payload.get("io_stats"), dict)
+            else 0.0,
+        )
+        or 0.0
+    )
+    java_files_indexed = int(
+        scan_graph_payload.get(
+            "java_files_indexed",
+            scan_graph_payload.get("io_stats", {}).get("java_scanned", 0)
+            if isinstance(scan_graph_payload.get("io_stats"), dict)
+            else 0,
+        )
+        or 0
+    )
+    scan_bytes_read = int(
+        scan_graph_payload.get(
+            "bytes_read",
+            scan_graph_payload.get("io_stats", {}).get("bytes_read", 0)
+            if isinstance(scan_graph_payload.get("io_stats"), dict)
+            else 0,
+        )
+        or 0
+    )
     print(
         "hongzhi_ai_kit_summary "
         f"version={SUMMARY_VERSION} "
         f"package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']} "
+        f"company_scope={company_scope_runtime().replace(' ', '_')} "
         f"command={command} "
         f"fp={fp} "
         f"run_id={run_id} "
@@ -1353,23 +1940,56 @@ def print_summary_line(command, fp, run_id, smart_info, metrics, governance):
         f"hint_expired={hint_expired} "
         f"hint_effective={hint_effective} "
         f"confidence_delta={confidence_delta:.4f} "
+        f"mismatch_reason={mismatch_reason} "
+        f"mismatch_detail={mismatch_detail} "
+        f"mismatch_suggestion={mismatch_suggestion} "
         f"exit_hint={exit_hint} "
         f"limits_hit={limits_hit} "
         f"limits_reason={limits_reason_code} "
         f"modules={modules} "
         f"endpoints={endpoints} "
         f"scan_time_s={scan_time} "
+        f"scan_graph_used={scan_graph_used} "
+        f"scan_cache_hit_rate={scan_cache_hit_rate:.4f} "
+        f"java_files_indexed={java_files_indexed} "
+        f"bytes_read={scan_bytes_read} "
         f"governance={gov_state}"
     )
 
 
-def print_caps_pointer_line(cap_path: Path) -> None:
+def print_caps_pointer_line(
+    cap_path: Path,
+    *,
+    command: str,
+    repo_fingerprint: str,
+    run_id: str,
+    mismatch_reason: str = "-",
+    mismatch_detail: str = "-",
+    mismatch_suggestion: str = "-",
+) -> None:
     """Contract v4 machine-readable pointer to capabilities.json."""
     versions = version_triplet()
     resolved = cap_path.resolve()
+    json_field = machine_json_field(
+        path_value=resolved,
+        command=command,
+        repo_fingerprint=repo_fingerprint,
+        run_id=run_id,
+        extra={
+            "mismatch_reason": str(mismatch_reason or "-"),
+            "mismatch_detail": str(mismatch_detail or "-"),
+            "mismatch_suggestion": str(mismatch_suggestion or "-"),
+        },
+    )
+    json_part = f"json={json_field} " if machine_json_enabled() else ""
     print(
         f"HONGZHI_CAPS {resolved} "
         f"path={quote_machine_value(str(resolved))} "
+        f"{json_part}"
+        f"mismatch_reason={str(mismatch_reason or '-')} "
+        f"mismatch_detail={quote_machine_value(str(mismatch_detail or '-'))} "
+        f"mismatch_suggestion={quote_machine_value(str(mismatch_suggestion or '-'))} "
+        f"company_scope={quote_machine_value(company_scope_runtime())} "
         f"package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']}"
@@ -1405,6 +2025,7 @@ def append_capabilities_jsonl(
         "package_version": PACKAGE_VERSION,
         "plugin_version": PLUGIN_VERSION,
         "contract_version": CONTRACT_VERSION,
+        "company_scope": company_scope_runtime(),
         "command": command,
         "repo_fp": repo_fp,
         "run_id": run_id,
@@ -1419,6 +2040,7 @@ def append_capabilities_jsonl(
         "limits": metrics.get("limits", {"max_files": None, "max_seconds": None}),
         "scan_stats": build_scan_stats(metrics),
         "scan_io_stats": metrics.get("scan_io_stats", {}) if isinstance(metrics.get("scan_io_stats"), dict) else {},
+        "scan_graph": metrics.get("scan_graph", {}) if isinstance(metrics.get("scan_graph"), dict) else {},
         "layout_details": layout_details if isinstance(layout_details, dict) else {},
         "smart_reused": bool(smart_info.get("reused", False)),
         "reuse_validated": bool(smart_info.get("reuse_validated", False)),
@@ -1431,6 +2053,9 @@ def append_capabilities_jsonl(
         "confidence_tier": str((calibration or {}).get("confidence_tier", "-")),
         "hint_effective": bool(metrics.get("hint_effective", False)),
         "confidence_delta": float(metrics.get("confidence_delta", 0.0) or 0.0),
+        "mismatch_reason": str(metrics.get("mismatch_reason", "-") or "-"),
+        "mismatch_detail": str(metrics.get("mismatch_detail", "-") or "-"),
+        "mismatch_suggestion": str(metrics.get("mismatch_suggestion", "-") or "-"),
     }
     atomic_append_jsonl(jsonl_path, record)
     return jsonl_path
@@ -1477,6 +2102,9 @@ def emit_capability_contract_lines(
         metrics.setdefault("hint_bundle_kind", str(hint_bundle.get("kind", "") or "-"))
         metrics.setdefault("hint_verified", bool(hint_bundle.get("verified", False)))
         metrics.setdefault("hint_expired", bool(hint_bundle.get("expired", False)))
+    metrics.setdefault("mismatch_reason", "-")
+    metrics.setdefault("mismatch_detail", "-")
+    metrics.setdefault("mismatch_suggestion", "-")
     jsonl_path = append_capabilities_jsonl(
         workspace=workspace,
         command=command,
@@ -1495,9 +2123,22 @@ def emit_capability_contract_lines(
         layout_details=layout_details,
     )
     print(f"[plugin] capabilities_jsonl: {jsonl_path}", file=sys.stderr)
-    print_caps_pointer_line(cap_path)
+    print_caps_pointer_line(
+        cap_path,
+        command=command,
+        repo_fingerprint=fp,
+        run_id=run_id,
+        mismatch_reason=str(metrics.get("mismatch_reason", "-") or "-"),
+        mismatch_detail=str(metrics.get("mismatch_detail", "-") or "-"),
+        mismatch_suggestion=str(metrics.get("mismatch_suggestion", "-") or "-"),
+    )
     if isinstance(hints, dict) and hints.get("emitted") and hints.get("bundle_path"):
-        print_hints_pointer_line(str(hints.get("bundle_path")))
+        print_hints_pointer_line(
+            str(hints.get("bundle_path")),
+            command=command,
+            repo_fingerprint=fp,
+            run_id=run_id,
+        )
     print_summary_line(command, fp, run_id, smart_info, metrics, governance)
     return jsonl_path
 
@@ -2164,6 +2805,9 @@ def cmd_discover(args):
         "templates": [],
         "modules": {},
     }
+    scan_graph_mismatch_detected = False
+    scan_graph_mismatch_reason = "-"
+    scan_graph_mismatch_detail = "-"
     smart_info = {
         "enabled": bool(args.smart),
         "reused": False,
@@ -2285,14 +2929,16 @@ def cmd_discover(args):
                         all_pkgs[pkg] = {"files": 0, "controllers": 0, "services": 0, "repositories": 0}
                     for k in ("files", "controllers", "services", "repositories"):
                         all_pkgs[pkg][k] += stats[k]
-            candidates = amd.cluster_modules(all_pkgs, keywords)[: args.top_k]
+            candidates = sort_candidates_stable(amd.cluster_modules(all_pkgs, keywords)[: args.top_k])
             pre_hint_conf = amd.compute_confidence(candidates, 0) if candidates else 0.0
             pre_hint_top_score = float(candidates[0].get("score", 0.0) or 0.0) if candidates else 0.0
             if hint_state.get("applied"):
-                candidates = apply_hint_boost_to_candidates(
-                    candidates,
-                    hint_state.get("identity", {}),
-                    hint_state.get("strategy", "conservative"),
+                candidates = sort_candidates_stable(
+                    apply_hint_boost_to_candidates(
+                        candidates,
+                        hint_state.get("identity", {}),
+                        hint_state.get("strategy", "conservative"),
+                    )
                 )
             post_hint_conf = amd.compute_confidence(candidates, 0) if candidates else 0.0
             post_hint_top_score = float(candidates[0].get("score", 0.0) or 0.0) if candidates else 0.0
@@ -2305,6 +2951,22 @@ def cmd_discover(args):
             discover_candidates = candidates
             for i, c in enumerate(candidates):
                 c["confidence"] = amd.compute_confidence(candidates, i) if candidates else 0
+            metrics["candidates"] = sort_candidates_stable(
+                [
+                    {
+                        "module_key": c.get("module_key"),
+                        "package_prefix": c.get("package_prefix"),
+                        "score": c.get("score"),
+                        "confidence": c.get("confidence"),
+                        "file_count": c.get("file_count"),
+                        "controller_count": c.get("controller_count"),
+                        "service_count": c.get("service_count"),
+                        "repository_count": c.get("repository_count"),
+                    }
+                    for c in candidates
+                    if isinstance(c, dict)
+                ]
+            )
         except Exception as e:
             print(f"[plugin] WARN: auto_module_discover failed: {e}", file=sys.stderr)
             candidates = []
@@ -2381,35 +3043,127 @@ def cmd_discover(args):
         except ImportError:
             sd = None
 
-        all_java_results: List[dict] = []
-        all_templates: List[str] = []
+        all_java_results = []
+        all_templates = []
         total_ch = 0
         total_cm = 0
         if sd and candidates:
-            # Scan once, reuse across candidates
+            # Build unified scan graph once, then reuse its indexed outputs.
             if adapter_java_roots or adapter_template_roots:
                 sd_java_roots, sd_template_roots = adapter_java_roots, adapter_template_roots
             else:
                 sd_java_roots, sd_template_roots = sd.find_scan_roots(repo_root)
-            for jr in sd_java_roots:
-                rh = sd.root_hash(str(jr))
-                # Use workspace for cache
-                cache_dir = ws / ".structure_cache"
-                file_idx = sd.load_file_index(cache_dir, rh)
-                results, new_idx, hits, misses = sd.scan_java_root_incremental(jr, repo_root, file_idx)
-                all_java_results.extend(results)
-                total_ch += hits
-                total_cm += misses
-                sd.save_file_index(cache_dir, rh, new_idx)
 
-            for tr in sd_template_roots:
-                all_templates.extend(sd.scan_templates(tr, repo_root))
+            roots_for_graph = resolve_scan_graph_roots(repo_root, sd_java_roots, sd_template_roots)
+            scan_graph_payload, scan_graph_path = build_discover_scan_graph(
+                repo_root=repo_root,
+                workspace=ws,
+                roots=roots_for_graph,
+                keywords=keywords,
+                max_files=args.max_files,
+                max_seconds=args.max_seconds,
+                producer_versions=version_triplet(),
+            )
+            artifacts_list.append(str(scan_graph_path))
 
-            clusters = sd.cluster_packages(all_java_results)
+            all_java_results, all_templates, scan_graph_io = scan_graph_to_structure_inputs(scan_graph_payload)
+            raw_scan_java_results = list(all_java_results)
+            total_ch = int(scan_graph_io.get("cache_hit_files", 0) or 0)
+            total_cm = int(scan_graph_io.get("cache_miss_files", len(all_java_results)) or 0)
             metrics["cache_hit_files"] = total_ch
             metrics["cache_miss_files"] = total_cm
-            metrics["total_scanned_files"] = total_ch + total_cm
-            metrics["cache_hit_rate"] = compute_cache_hit_rate(total_ch, total_cm)
+            metrics["total_scanned_files"] = int(scan_graph_io.get("files_indexed", len(all_java_results)) or 0)
+            metrics["cache_hit_rate"] = float(scan_graph_io.get("cache_hit_rate", 0.0) or 0.0)
+            if bool(scan_graph_payload.get("limits_hit", False)):
+                lr = str(scan_graph_payload.get("limits_reason", "") or "")
+                if lr == "max_files" and args.max_files is not None:
+                    metrics["files_scanned"] = int(args.max_files) + 1
+                metrics["scan_graph_limits_reason"] = lr
+            metrics["scan_graph"] = {
+                "used": True,
+                "cache_key": str(scan_graph_payload.get("cache_key", "")),
+                "cache_hit_rate": float(scan_graph_io.get("cache_hit_rate", 0.0) or 0.0),
+                "cache_source": str(scan_graph_payload.get("cache_source", "none")),
+                "cache_path": str(scan_graph_payload.get("cache_path", "")),
+                "path": str(scan_graph_path),
+                "java_files_indexed": int(scan_graph_io.get("java_scanned", 0) or 0),
+                "bytes_read": int(scan_graph_io.get("bytes_read", 0) or 0),
+                "limits_hit": bool(scan_graph_payload.get("limits_hit", False)),
+                "limits_reason": str(scan_graph_payload.get("limits_reason", "") or ""),
+                "io_stats": scan_graph_io,
+            }
+            sg_ok, sg_reason, sg_detail = analyze_scan_graph_payload(
+                scan_graph_payload,
+                expected_schema_version=SCAN_GRAPH_SCHEMA_VERSION,
+                expected_producer_versions=version_triplet(),
+            )
+            metrics["scan_graph"].update(
+                {
+                    "schema_version": str(scan_graph_payload.get("schema_version", "") or ""),
+                    "graph_fingerprint": str(scan_graph_payload.get("graph_fingerprint", "") or ""),
+                    "producer_versions": scan_graph_payload.get("producer_versions", {}),
+                    "validation_ok": bool(sg_ok),
+                    "validation_reason": str(sg_reason or ""),
+                }
+            )
+            if not sg_ok:
+                scan_graph_mismatch_detected = True
+                scan_graph_mismatch_reason = normalize_mismatch_reason(sg_reason)
+                scan_graph_mismatch_detail = str(sg_detail or "scan_graph_payload_invalid")
+                warn = f"scan_graph mismatch detected: reason={scan_graph_mismatch_reason}"
+                warnings_list.append(warn)
+                print(f"[plugin] WARN: {warn}", file=sys.stderr)
+
+            # Endpoint fallback for files marked uncertain / zero-endpoint controllers.
+            endpoint_fallback_files = 0
+            for i, java_item in enumerate(all_java_results):
+                if not isinstance(java_item, dict):
+                    continue
+                rel_path = str(java_item.get("rel_path", "") or "")
+                if not rel_path:
+                    continue
+                should_refresh = bool(java_item.get("parse_uncertain", False))
+                if java_item.get("is_controller") and len(java_item.get("endpoint_signatures", [])) == 0:
+                    should_refresh = True
+                if not should_refresh:
+                    continue
+                src_file = repo_root / rel_path
+                if not src_file.is_file():
+                    continue
+                try:
+                    refreshed = sd.scan_java_file(src_file, repo_root)
+                except Exception:
+                    continue
+                old_ep = len(java_item.get("endpoint_signatures", []))
+                new_ep = len(refreshed.get("endpoint_signatures", []))
+                if new_ep >= old_ep:
+                    all_java_results[i] = refreshed
+                    endpoint_fallback_files += 1
+            if isinstance(metrics.get("scan_graph"), dict):
+                metrics["scan_graph"]["endpoint_fallback_files"] = endpoint_fallback_files
+
+            # Lightweight self-check: compare scan_graph lite hints with full parser sample.
+            spot = scan_graph_spot_check(repo_root, raw_scan_java_results, sample_size=8)
+            mismatch_count = int(spot.get("mismatches", 0) or 0)
+            mismatch_ratio = float(spot.get("ratio", 0.0) or 0.0)
+            metrics["scan_graph_spot_check"] = spot
+            if isinstance(metrics.get("scan_graph"), dict):
+                metrics["scan_graph"]["spot_check"] = {
+                    "sampled": int(spot.get("sampled", 0) or 0),
+                    "mismatches": mismatch_count,
+                    "ratio": mismatch_ratio,
+                }
+            if mismatch_count > 0:
+                scan_graph_mismatch_detected = True
+                if scan_graph_mismatch_reason == "-":
+                    scan_graph_mismatch_reason = normalize_mismatch_reason("unknown")
+                if scan_graph_mismatch_detail in {"", "-"}:
+                    scan_graph_mismatch_detail = ",".join(spot.get("details", [])[:3]) if isinstance(spot.get("details"), list) else "scan_graph_spot_check_mismatch"
+                warn = f"scan_graph mismatch detected: mismatches={mismatch_count}, ratio={mismatch_ratio:.2f}"
+                warnings_list.append(warn)
+                print(f"[plugin] WARN: {warn}", file=sys.stderr)
+
+            clusters = sd.cluster_packages(all_java_results)
 
             # Per top candidate, extract structure
             for c in candidates[: min(3, len(candidates))]:
@@ -2424,12 +3178,47 @@ def cmd_discover(args):
                 # Self-check: controllers but no endpoints
                 ctrl_count = c.get("controller_count", 0)
                 if ctrl_count > 0 and len(ep_sigs) == 0:
+                    symbolic_retry_files = 0
+                    mk_lower = str(mk).lower()
+                    for i, java_item in enumerate(all_java_results):
+                        if not isinstance(java_item, dict):
+                            continue
+                        rel_path = str(java_item.get("rel_path", "") or "")
+                        if not rel_path:
+                            continue
+                        rel_norm = rel_path.replace("\\", "/").lower()
+                        pkg_norm = str(java_item.get("package", "") or "").lower()
+                        if mk_lower not in rel_norm and mk_lower not in pkg_norm:
+                            continue
+                        if isinstance(java_item.get("endpoint_signatures"), list) and java_item.get("endpoint_signatures"):
+                            continue
+                        # Composed annotations and symbolic constants often live outside controller classes.
+                        if "/annotation/" not in rel_norm and "mapping" not in rel_norm:
+                            continue
+                        src_file = repo_root / rel_path
+                        if not src_file.is_file():
+                            continue
+                        try:
+                            refreshed = sd.scan_java_file(src_file, repo_root)
+                        except Exception:
+                            continue
+                        refreshed_eps = refreshed.get("endpoint_signatures", [])
+                        if isinstance(refreshed_eps, list) and refreshed_eps:
+                            all_java_results[i] = refreshed
+                            symbolic_retry_files += 1
+                    if symbolic_retry_files > 0:
+                        ep_sigs = sd.collect_endpoint_signatures(
+                            all_java_results, module_key=mk, prefix_filter=prefix_filter
+                        )
+                        if isinstance(metrics.get("scan_graph"), dict):
+                            metrics["scan_graph"]["endpoint_symbolic_retry_files"] = int(symbolic_retry_files)
+                if ctrl_count > 0 and len(ep_sigs) == 0:
                     warn = f"module '{mk}': {ctrl_count} controller(s) but 0 endpoints — possible parsing miss"
                     warnings_list.append(warn)
                     print(f"[plugin] WARN: {warn}", file=sys.stderr)
 
                 struct_path = disc_dir / f"{mk}.structure.yaml"
-                all_paths = [r["rel_path"] for r in all_java_results] + all_templates
+                all_paths = [r["rel_path"] for r in all_java_results if isinstance(r, dict) and r.get("rel_path")] + all_templates
                 fp_data = sd.compute_fingerprint(repo_root, all_paths)
                 sd.write_structure_discovered(
                     struct_path,
@@ -2468,6 +3257,7 @@ def cmd_discover(args):
             metrics["cache_miss_files"] = 0
             metrics["total_scanned_files"] = 0
             metrics["cache_hit_rate"] = 0.0
+            metrics["scan_graph"] = {"used": False}
 
         ensure_endpoints_total(metrics)
         if not structure_signals["controller_count"] and candidates:
@@ -2519,15 +3309,20 @@ def cmd_discover(args):
     hint_state["effective"] = bool(metrics.get("hint_effective", False))
     hint_state["confidence_delta"] = float(metrics.get("confidence_delta", 0.0) or 0.0)
     scan_io_stats = metrics.get("scan_io_stats", {}) if isinstance(metrics.get("scan_io_stats"), dict) else {}
+    scan_graph_payload = metrics.get("scan_graph", {}) if isinstance(metrics.get("scan_graph"), dict) else {}
+    scan_graph_io = scan_graph_payload.get("io_stats", {}) if isinstance(scan_graph_payload.get("io_stats"), dict) else {}
     if not scan_io_stats:
         scan_io_stats = {
             "layout_adapter_runs": int(metrics.get("layout_adapter_runs", 1) or 1),
-            "java_files_scanned": int(len(all_java_results)),
-            "templates_scanned": int(len(all_templates)),
+            "java_files_scanned": int(scan_graph_io.get("java_scanned", len(all_java_results)) or 0),
+            "templates_scanned": int(scan_graph_io.get("template_scanned", len(all_templates)) or 0),
             "snapshot_files_count": int(len(snap_before)),
             "cache_hit_files": int(metrics.get("cache_hit_files", 0) or 0),
             "cache_miss_files": int(metrics.get("cache_miss_files", 0) or 0),
             "cache_hit_rate": float(metrics.get("cache_hit_rate", 0.0) or 0.0),
+            "bytes_read": int(scan_graph_io.get("bytes_read", 0) or 0),
+            "scan_graph_used": 1 if scan_graph_payload.get("used") else 0,
+            "scan_graph_cache_key": str(scan_graph_payload.get("cache_key", "") or ""),
         }
     else:
         scan_io_stats.setdefault("layout_adapter_runs", int(metrics.get("layout_adapter_runs", 1) or 1))
@@ -2537,7 +3332,18 @@ def cmd_discover(args):
         scan_io_stats.setdefault("cache_hit_files", int(metrics.get("cache_hit_files", 0) or 0))
         scan_io_stats.setdefault("cache_miss_files", int(metrics.get("cache_miss_files", 0) or 0))
         scan_io_stats.setdefault("cache_hit_rate", float(metrics.get("cache_hit_rate", 0.0) or 0.0))
+        scan_io_stats.setdefault("bytes_read", int(scan_graph_io.get("bytes_read", 0) or 0))
+        scan_io_stats.setdefault("scan_graph_used", 1 if scan_graph_payload.get("used") else 0)
+        scan_io_stats.setdefault("scan_graph_cache_key", str(scan_graph_payload.get("cache_key", "") or ""))
     metrics["scan_io_stats"] = scan_io_stats
+    if not isinstance(metrics.get("scan_graph"), dict):
+        metrics["scan_graph"] = {"used": False, "cache_key": "", "cache_hit_rate": 0.0, "java_files_indexed": 0, "bytes_read": 0}
+    else:
+        metrics["scan_graph"].setdefault("used", False)
+        metrics["scan_graph"].setdefault("cache_key", "")
+        metrics["scan_graph"].setdefault("cache_hit_rate", float(scan_io_stats.get("cache_hit_rate", 0.0) or 0.0))
+        metrics["scan_graph"].setdefault("java_files_indexed", int(scan_io_stats.get("java_files_scanned", 0) or 0))
+        metrics["scan_graph"].setdefault("bytes_read", int(scan_io_stats.get("bytes_read", 0) or 0))
     metrics.setdefault("hint_bundle", "-")
     metrics.setdefault("hints_emitted", False)
     metrics.setdefault("module_candidates", len(roots_info))
@@ -2587,6 +3393,22 @@ def cmd_discover(args):
             final_exit_code = CALIBRATION_EXIT_CODE
             metrics["exit_hint"] = "needs_human_hint"
             print("[plugin] STRICT: needs_human_hint detected, exiting with code 21", file=sys.stderr)
+
+    if scan_graph_mismatch_detected:
+        metrics["mismatch_reason"] = normalize_mismatch_reason(scan_graph_mismatch_reason or "unknown")
+        metrics["mismatch_detail"] = str(scan_graph_mismatch_detail or "scan_graph_mismatch")
+        metrics["mismatch_suggestion"] = mismatch_suggestion_for(metrics["mismatch_reason"])
+
+    if scan_graph_mismatch_detected and args.strict and final_exit_code == 0:
+        final_exit_code = SCAN_GRAPH_MISMATCH_EXIT_CODE
+        metrics["exit_hint"] = "scan_graph_mismatch"
+        if scan_graph_mismatch_detail and str(scan_graph_mismatch_detail) != "-":
+            warnings_list.append(f"scan_graph_mismatch_detail: {scan_graph_mismatch_detail}")
+        print("[plugin] STRICT: scan_graph mismatch detected, exiting with code 25", file=sys.stderr)
+    else:
+        metrics.setdefault("mismatch_reason", "-")
+        metrics.setdefault("mismatch_detail", "-")
+        metrics.setdefault("mismatch_suggestion", "-")
 
     gov_info = getattr(args, "_gov_info", {})
     hint_scope_allowed, hint_scope_reason = hint_bundle_scope_allowed(gov_info)
@@ -2718,7 +3540,15 @@ def cmd_discover(args):
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
     if federated_registry.get("updated"):
-        print_index_pointer_line(Path(str(federated_registry["path"])))
+        print_index_pointer_line(
+            Path(str(federated_registry["path"])),
+            command="discover",
+            repo_fingerprint=fp,
+            run_id=run_id,
+            mismatch_reason=str(metrics.get("mismatch_reason", "-") or "-"),
+            mismatch_detail=str(metrics.get("mismatch_detail", "-") or "-"),
+            mismatch_suggestion=str(metrics.get("mismatch_suggestion", "-") or "-"),
+        )
     emit_capability_contract_lines(
         cap_path=cap_path,
         command="discover",
@@ -2839,11 +3669,55 @@ def cmd_diff(args):
                 module_key = cands[0]["module_key"] if cands else "unknown"
             except Exception:
                 module_key = "unknown"
+        old_scan_graph_path = str(getattr(args, "old_scan_graph", "") or "").strip()
+        new_scan_graph_path = str(getattr(args, "new_scan_graph", "") or "").strip()
+        ws_hint = Path(args.workspace_root).resolve() if getattr(args, "workspace_root", None) else None
+        if not old_scan_graph_path:
+            old_scan_graph_path = find_latest_scan_graph_by_fp(
+                global_state_root,
+                compute_project_fingerprint(old_root),
+                workspace_root_hint=ws_hint,
+            )
+        if not new_scan_graph_path:
+            new_scan_graph_path = find_latest_scan_graph_by_fp(
+                global_state_root,
+                fp,
+                workspace_root_hint=ws_hint,
+            )
+        old_scan_graph = load_scan_graph_any(old_scan_graph_path) if old_scan_graph_path else {}
+        new_scan_graph = load_scan_graph_any(new_scan_graph_path) if new_scan_graph_path else {}
 
-        old_classes = cpsd.scan_classes(old_root, module_key)
-        new_classes = cpsd.scan_classes(new_root, module_key)
-        old_templates = cpsd.scan_templates(old_root, module_key)
-        new_templates = cpsd.scan_templates(new_root, module_key)
+        if old_scan_graph and new_scan_graph:
+            old_classes = classes_from_scan_graph(old_scan_graph, module_key)
+            new_classes = classes_from_scan_graph(new_scan_graph, module_key)
+            old_templates = templates_from_scan_graph(old_scan_graph, module_key)
+            new_templates = templates_from_scan_graph(new_scan_graph, module_key)
+            old_io = old_scan_graph.get("io_stats", {}) if isinstance(old_scan_graph.get("io_stats"), dict) else {}
+            new_io = new_scan_graph.get("io_stats", {}) if isinstance(new_scan_graph.get("io_stats"), dict) else {}
+            metrics["scan_graph"] = {
+                "used": True,
+                "old_path": old_scan_graph_path,
+                "new_path": new_scan_graph_path,
+                "old_cache_key": str(old_scan_graph.get("cache_key", "") or ""),
+                "new_cache_key": str(new_scan_graph.get("cache_key", "") or ""),
+                "cache_hit_rate": float(new_io.get("cache_hit_rate", 0.0) or 0.0),
+                "java_files_indexed": 0,
+                "bytes_read": 0,
+                "source_java_files_indexed": int(new_io.get("java_scanned", 0) or 0),
+                "source_bytes_read": int(new_io.get("bytes_read", 0) or 0),
+                "io_stats": {
+                    "old": old_io,
+                    "new": new_io,
+                },
+            }
+        else:
+            if (old_scan_graph_path and not old_scan_graph) or (new_scan_graph_path and not new_scan_graph):
+                warnings_list.append("scan_graph_not_usable_for_diff")
+            old_classes = cpsd.scan_classes(old_root, module_key)
+            new_classes = cpsd.scan_classes(new_root, module_key)
+            old_templates = cpsd.scan_templates(old_root, module_key)
+            new_templates = cpsd.scan_templates(new_root, module_key)
+            metrics["scan_graph"] = {"used": False}
 
         diff_result = cpsd.diff_structures(old_classes, new_classes, old_templates, new_templates)
         scan_time = time.time() - t_start
@@ -2860,6 +3734,7 @@ def cmd_diff(args):
         )
         artifacts_list.append(str(out_path))
         metrics = {
+            **metrics,
             "module_key": module_key,
             "scan_time_s": round(scan_time, 3),
             "missing_classes": len(diff_result.get("missing_classes", [])),
@@ -2895,6 +3770,24 @@ def cmd_diff(args):
     metrics.setdefault("confidence_tier", "high")
     metrics.setdefault("keywords_used", [])
     metrics.setdefault("endpoint_paths", [])
+    if not isinstance(metrics.get("scan_io_stats"), dict):
+        metrics["scan_io_stats"] = {}
+    if isinstance(metrics.get("scan_graph"), dict):
+        sg = metrics["scan_graph"]
+        sg_io = sg.get("io_stats", {}) if isinstance(sg.get("io_stats"), dict) else {}
+        new_io = sg_io.get("new", {}) if isinstance(sg_io.get("new"), dict) else {}
+        metrics["scan_io_stats"].setdefault("java_files_scanned", 0)
+        metrics["scan_io_stats"].setdefault("templates_scanned", 0)
+        metrics["scan_io_stats"].setdefault("bytes_read", 0)
+        metrics["scan_io_stats"].setdefault("cache_hit_rate", float(new_io.get("cache_hit_rate", 0.0) or 0.0))
+        metrics["scan_io_stats"].setdefault("source_java_files_indexed", int(new_io.get("java_scanned", 0) or 0))
+        metrics["scan_io_stats"].setdefault("source_templates_indexed", int(new_io.get("template_scanned", 0) or 0))
+        metrics["scan_io_stats"].setdefault("source_bytes_read", int(new_io.get("bytes_read", 0) or 0))
+        sg.setdefault("cache_hit_rate", float(new_io.get("cache_hit_rate", 0.0) or 0.0))
+        sg.setdefault("java_files_indexed", 0)
+        sg.setdefault("bytes_read", 0)
+        sg.setdefault("source_java_files_indexed", int(new_io.get("java_scanned", 0) or 0))
+        sg.setdefault("source_bytes_read", int(new_io.get("bytes_read", 0) or 0))
     ensure_endpoints_total(metrics)
     limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
     metrics["limits_suggestion"] = build_limits_suggestion(_limit_codes, "diff", [])
@@ -2960,7 +3853,15 @@ def cmd_diff(args):
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
     if federated_registry.get("updated"):
-        print_index_pointer_line(Path(str(federated_registry["path"])))
+        print_index_pointer_line(
+            Path(str(federated_registry["path"])),
+            command="diff",
+            repo_fingerprint=fp,
+            run_id=run_id,
+            mismatch_reason=str(metrics.get("mismatch_reason", "-") or "-"),
+            mismatch_detail=str(metrics.get("mismatch_detail", "-") or "-"),
+            mismatch_suggestion=str(metrics.get("mismatch_suggestion", "-") or "-"),
+        )
     emit_capability_contract_lines(
         cap_path=cap_path,
         command="diff",
@@ -3043,6 +3944,20 @@ def cmd_profile(args):
         ensure_endpoints_total(metrics)
     else:
         sys.path.insert(0, str(SCRIPT_DIR))
+        scan_graph_payload = {}
+        scan_graph_path = str(getattr(args, "scan_graph", "") or "").strip()
+        if not scan_graph_path:
+            ws_hint = Path(args.workspace_root).resolve() if getattr(args, "workspace_root", None) else None
+            scan_graph_path = find_latest_scan_graph_by_fp(
+                global_state_root,
+                fp,
+                workspace_root_hint=ws_hint,
+            )
+        if scan_graph_path:
+            scan_graph_payload = load_scan_graph_any(scan_graph_path)
+            if not scan_graph_payload:
+                warnings_list.append(f"scan_graph_not_usable: {scan_graph_path}")
+
         # Auto-discover if no module_key
         if not module_key:
             try:
@@ -3066,25 +3981,52 @@ def cmd_profile(args):
             warnings_list.append("no module candidates found for profile generation")
             print("[plugin] WARN: no module candidates found", file=sys.stderr)
         else:
-            # Run scanner with output into workspace
-            try:
-                import module_profile_scanner as mps  # noqa: F401
-
-                print(f"[plugin] generating profile for module: {module_key}", file=sys.stderr)
-                prof_file = prof_dir / f"{module_key}.profile.yaml"
+            print(f"[plugin] generating profile for module: {module_key}", file=sys.stderr)
+            prof_file = prof_dir / f"{module_key}.profile.yaml"
+            if scan_graph_payload:
+                write_profile_from_scan_graph(prof_file, module_key, scan_graph_payload)
+                io_stats = scan_graph_payload.get("io_stats", {}) if isinstance(scan_graph_payload.get("io_stats"), dict) else {}
+                metrics["scan_graph"] = {
+                    "used": True,
+                    "path": scan_graph_path,
+                    "cache_key": str(scan_graph_payload.get("cache_key", "") or ""),
+                    "cache_hit_rate": float(io_stats.get("cache_hit_rate", 0.0) or 0.0),
+                    "java_files_indexed": 0,
+                    "bytes_read": 0,
+                    "source_java_files_indexed": int(io_stats.get("java_scanned", 0) or 0),
+                    "source_bytes_read": int(io_stats.get("bytes_read", 0) or 0),
+                    "io_stats": io_stats,
+                }
+                metrics["scan_io_stats"] = {
+                    "java_files_scanned": 0,
+                    "templates_scanned": 0,
+                    "bytes_read": 0,
+                    "cache_hit_rate": float(io_stats.get("cache_hit_rate", 0.0) or 0.0),
+                    "scan_graph_used": 1,
+                    "source_java_files_indexed": int(io_stats.get("java_scanned", 0) or 0),
+                    "source_templates_indexed": int(io_stats.get("template_scanned", 0) or 0),
+                    "source_bytes_read": int(io_stats.get("bytes_read", 0) or 0),
+                }
+                metrics["files_scanned"] = int(io_stats.get("files_indexed", 0) or 0)
+            else:
+                # Keep backward-compatible fallback when scan graph is unavailable.
                 prof_file.write_text(f"# Profile for {module_key}\n", encoding="utf-8")
-                artifacts_list.append(str(prof_file))
-            except ImportError:
-                warnings_list.append("module_profile_scanner not available")
+                metrics["scan_graph"] = {"used": False}
+            artifacts_list.append(str(prof_file))
 
         scan_time = time.time() - t_start
-        metrics = {"module_key": module_key or "none", "scan_time_s": round(scan_time, 3), "endpoints_total": 0}
+        metrics = {
+            **metrics,
+            "module_key": module_key or "none",
+            "scan_time_s": round(scan_time, 3),
+            "endpoints_total": int(metrics.get("endpoints_total", 0) or 0),
+        }
         if module_key:
             modules_summary[module_key] = {
                 "package_prefix": module_key,
                 "confidence": 1.0,
                 "roots": [],
-                "endpoints": 0,
+                "endpoints": int(metrics.get("endpoints_total", 0) or 0),
             }
 
     snap_after = take_snapshot(repo_root)
@@ -3099,6 +4041,20 @@ def cmd_profile(args):
     metrics.setdefault("confidence_tier", "high")
     metrics.setdefault("keywords_used", keywords_used)
     metrics.setdefault("endpoint_paths", [])
+    if not isinstance(metrics.get("scan_graph"), dict):
+        metrics["scan_graph"] = {"used": False}
+    if not isinstance(metrics.get("scan_io_stats"), dict):
+        metrics["scan_io_stats"] = {}
+    if isinstance(metrics.get("scan_graph"), dict):
+        sg = metrics["scan_graph"]
+        sg_io = sg.get("io_stats", {}) if isinstance(sg.get("io_stats"), dict) else {}
+        metrics["scan_io_stats"].setdefault("java_files_scanned", int(sg_io.get("java_scanned", 0) or 0))
+        metrics["scan_io_stats"].setdefault("templates_scanned", int(sg_io.get("template_scanned", 0) or 0))
+        metrics["scan_io_stats"].setdefault("bytes_read", int(sg_io.get("bytes_read", 0) or 0))
+        metrics["scan_io_stats"].setdefault("cache_hit_rate", float(sg_io.get("cache_hit_rate", 0.0) or 0.0))
+        sg.setdefault("cache_hit_rate", float(sg_io.get("cache_hit_rate", 0.0) or 0.0))
+        sg.setdefault("java_files_indexed", int(sg_io.get("java_scanned", 0) or 0))
+        sg.setdefault("bytes_read", int(sg_io.get("bytes_read", 0) or 0))
     ensure_endpoints_total(metrics)
     limits_hit, _limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
     metrics["limits_suggestion"] = build_limits_suggestion(_limit_codes, "profile", keywords_used)
@@ -3164,7 +4120,15 @@ def cmd_profile(args):
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
     if federated_registry.get("updated"):
-        print_index_pointer_line(Path(str(federated_registry["path"])))
+        print_index_pointer_line(
+            Path(str(federated_registry["path"])),
+            command="profile",
+            repo_fingerprint=fp,
+            run_id=run_id,
+            mismatch_reason=str(metrics.get("mismatch_reason", "-") or "-"),
+            mismatch_detail=str(metrics.get("mismatch_detail", "-") or "-"),
+            mismatch_suggestion=str(metrics.get("mismatch_suggestion", "-") or "-"),
+        )
     emit_capability_contract_lines(
         cap_path=cap_path,
         command="profile",
@@ -3344,7 +4308,15 @@ def cmd_migrate(args):
     print(f"[plugin] capability_index: {capability_registry['index_path']}", file=sys.stderr)
     print(f"[plugin] latest_pointer: {capability_registry['latest_path']}", file=sys.stderr)
     if federated_registry.get("updated"):
-        print_index_pointer_line(Path(str(federated_registry["path"])))
+        print_index_pointer_line(
+            Path(str(federated_registry["path"])),
+            command="migrate",
+            repo_fingerprint=fp,
+            run_id=run_id,
+            mismatch_reason=str(metrics.get("mismatch_reason", "-") or "-"),
+            mismatch_detail=str(metrics.get("mismatch_detail", "-") or "-"),
+            mismatch_suggestion=str(metrics.get("mismatch_suggestion", "-") or "-"),
+        )
     emit_capability_contract_lines(
         cap_path=cap_path,
         command="migrate",
@@ -3372,11 +4344,15 @@ def cmd_index(args):
     fed_path = global_state_root / "federated_index.json"
     fed = load_federated_index(fed_path)
     repos = fed.get("repos", {}) if isinstance(fed.get("repos"), dict) else {}
+    subcmd = getattr(args, "index_command", None)
     print(f"[plugin] federated_index: {fed_path}")
     print(f"[plugin] federated_index_repos: {len(repos)}")
-    print_index_pointer_line(fed_path)
-
-    subcmd = getattr(args, "index_command", None)
+    print_index_pointer_line(
+        fed_path,
+        command=f"index:{subcmd or 'list'}",
+        repo_fingerprint="-",
+        run_id="-",
+    )
     if subcmd == "list":
         top_k = max(1, int(getattr(args, "top_k", 20) or 20))
         rows = []
@@ -3448,6 +4424,198 @@ def cmd_index(args):
 
     print("FAIL: missing index subcommand (use: index list|query|explain)", file=sys.stderr)
     return 1
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Subcommand: scan-graph
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def cmd_scan_graph(args):
+    repo_root = Path(args.repo_root).resolve()
+    if not repo_root.is_dir():
+        print(f"FAIL: repo-root not found: {repo_root}", file=sys.stderr)
+        return 1
+
+    fp = compute_project_fingerprint(repo_root)
+    run_id = utc_now_run_id()
+    ws = resolve_workspace(fp, run_id, args.workspace_root)
+    global_state_root = resolve_global_state(args)
+    vcs = detect_vcs_info(repo_root)
+    assert_output_roots_safe(repo_root, ws, global_state_root)
+    sg_dir = ws / "scan_graph"
+    sg_dir.mkdir(parents=True, exist_ok=True)
+
+    warnings_list: List[str] = []
+    suggestions_list: List[str] = []
+    artifacts_list: List[str] = []
+    roots_info: List[dict] = []
+    modules_summary: Dict[str, dict] = {}
+    smart_info = {
+        "enabled": False,
+        "reused": False,
+        "reused_from_run_id": None,
+        "reuse_validated": False,
+    }
+    capability_registry = {
+        "global_state_root": str(global_state_root),
+        "index_path": str(global_state_root / "capability_index.json"),
+        "latest_path": "",
+        "run_meta_path": "",
+        "updated": False,
+    }
+    federated_registry = {
+        "path": str(global_state_root / "federated_index.json"),
+        "jsonl_path": str(global_state_root / "federated_index.jsonl"),
+        "mirror_path": "",
+        "updated": False,
+        "blocked_reason": "",
+    }
+    metrics: Dict[str, Any] = {}
+
+    snap_before = take_snapshot(repo_root)
+    t_start = time.time()
+    keywords = [k.strip() for k in args.keywords.split(",") if k.strip()] if getattr(args, "keywords", "") else []
+    adapter = run_layout_adapters(
+        repo_root=repo_root,
+        candidates=[],
+        keywords=keywords,
+        hint_identity={},
+        fallback_layout=detect_layout(repo_root),
+    )
+    java_roots = [Path(p) for p in adapter.get("java_roots", []) if Path(p).is_dir()]
+    tpl_roots = [Path(p) for p in adapter.get("template_roots", []) if Path(p).is_dir()]
+    roots_for_graph = resolve_scan_graph_roots(repo_root, java_roots, tpl_roots)
+
+    payload = build_scan_graph(
+        repo_root=repo_root,
+        roots=roots_for_graph,
+        max_files=args.max_files,
+        max_seconds=args.max_seconds,
+        keywords=keywords,
+        cache_dir=ws / "scan_cache",
+        producer_versions=version_triplet(),
+    )
+    scan_graph_path = sg_dir / "scan_graph.json"
+    save_scan_graph(scan_graph_path, payload)
+    artifacts_list.append(str(scan_graph_path))
+
+    io_stats = payload.get("io_stats", {}) if isinstance(payload.get("io_stats"), dict) else {}
+    endpoints_total = 0
+    for hint in payload.get("java_hints", []) if isinstance(payload.get("java_hints"), list) else []:
+        if isinstance(hint, dict):
+            endpoints_total += len(hint.get("endpoint_signatures", []) if isinstance(hint.get("endpoint_signatures", []), list) else [])
+    metrics = {
+        "scan_time_s": round(time.time() - t_start, 3),
+        "module_candidates": 0,
+        "ambiguity_ratio": 0.0,
+        "confidence_tier": "high",
+        "keywords_used": keywords[:8],
+        "endpoint_paths": [],
+        "endpoints_total": int(endpoints_total),
+        "scan_graph": {
+            "used": True,
+            "path": str(scan_graph_path),
+            "cache_key": str(payload.get("cache_key", "") or ""),
+            "cache_hit_rate": float(io_stats.get("cache_hit_rate", 0.0) or 0.0),
+            "java_files_indexed": int(io_stats.get("java_scanned", 0) or 0),
+            "bytes_read": int(io_stats.get("bytes_read", 0) or 0),
+            "io_stats": io_stats,
+        },
+        "scan_io_stats": {
+            "java_files_scanned": int(io_stats.get("java_scanned", 0) or 0),
+            "templates_scanned": int(io_stats.get("template_scanned", 0) or 0),
+            "bytes_read": int(io_stats.get("bytes_read", 0) or 0),
+            "cache_hit_rate": float(io_stats.get("cache_hit_rate", 0.0) or 0.0),
+            "scan_graph_used": 1,
+            "scan_graph_cache_key": str(payload.get("cache_key", "") or ""),
+        },
+        "layout_details": adapter.get("layout_details", {}) if isinstance(adapter.get("layout_details"), dict) else {},
+        "files_scanned": int(io_stats.get("files_indexed", 0) or 0),
+    }
+    if bool(payload.get("limits_hit", False)):
+        lr = str(payload.get("limits_reason", "") or "")
+        if lr == "max_files" and args.max_files is not None:
+            metrics["files_scanned"] = int(args.max_files) + 1
+
+    snap_after = take_snapshot(repo_root)
+    delta = diff_snapshots(snap_before, snap_after)
+    enforce_read_only(delta, args.write_ok)
+
+    limits_hit, limit_codes, limit_texts = evaluate_limits(args, metrics, float(metrics["scan_time_s"]))
+    metrics["limits_suggestion"] = build_limits_suggestion(limit_codes, "scan-graph", keywords)
+    for reason in limit_texts:
+        warnings_list.append(f"limits_hit: {reason}")
+    final_exit_code = 0
+    if limits_hit and args.strict:
+        final_exit_code = LIMIT_EXIT_CODE
+        metrics["exit_hint"] = "limits_hit"
+
+    gov_info = getattr(args, "_gov_info", {})
+    if final_exit_code == 0:
+        capability_registry = update_capability_registry(
+            global_state_root,
+            fp,
+            repo_root,
+            "scan-graph",
+            run_id,
+            ws,
+            vcs,
+            metrics,
+            modules_summary,
+            warnings_list,
+            suggestions_list,
+            smart_info,
+            gov_info,
+        )
+    layout = str(adapter.get("layout", detect_layout(repo_root)))
+    final_exit_code, federated_registry = maybe_update_federated_registry(
+        command="scan-graph",
+        args=args,
+        final_exit_code=final_exit_code,
+        global_state_root=global_state_root,
+        repo_root=repo_root,
+        fp=fp,
+        run_id=run_id,
+        ws=ws,
+        metrics=metrics,
+        layout=layout,
+        governance=gov_info,
+        capability_registry=capability_registry,
+        warnings_list=warnings_list,
+    )
+
+    cap_path = write_capabilities(
+        workspace=ws,
+        command="scan-graph",
+        run_id=run_id,
+        repo_fingerprint=fp,
+        layout=layout,
+        roots=roots_info,
+        artifacts=artifacts_list,
+        metrics=metrics,
+        warnings=warnings_list,
+        suggestions=suggestions_list,
+        governance=gov_info,
+        smart=smart_info,
+        capability_registry=capability_registry,
+        federated_index=federated_registry,
+    )
+    emit_capability_contract_lines(
+        cap_path=cap_path,
+        command="scan-graph",
+        fp=fp,
+        run_id=run_id,
+        smart_info=smart_info,
+        metrics=metrics,
+        governance=gov_info,
+        workspace=ws,
+        exit_code=final_exit_code,
+        warnings_count=len(warnings_list),
+        layout=layout,
+        federated_index=federated_registry,
+        layout_details=metrics.get("layout_details", {}),
+    )
+    return final_exit_code
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -3530,23 +4698,60 @@ def cmd_status(args):
     print(f"[plugin] allow_roots: {policy['allow_roots'] or '(none — all allowed)'}")
     print(f"[plugin] deny_roots: {policy['deny_roots'] or '(none)'}")
     print(f"[plugin] policy_hash: {policy_hash}")
+    print(f"[plugin] company_scope: {company_scope_runtime()}")
+    print(f"[plugin] company_scope_required: {1 if company_scope_required_runtime() else 0}")
     print(f"[plugin] global_state_root: {global_state_root}")
     print(f"[plugin] capability_index: {index_path}")
     print(f"[plugin] federated_index: {federated_path}")
     print(f"[plugin] federated_index_enabled: {1 if fed_enabled else 0}")
+    status_fp = "-"
+    if args.repo_root:
+        try:
+            status_fp = compute_project_fingerprint(Path(args.repo_root).resolve())
+        except Exception:
+            status_fp = "-"
+    status_json = machine_json_field(
+        path_value=global_state_root.resolve(),
+        command="status",
+        repo_fingerprint=status_fp,
+        run_id="-",
+        extra={
+            "enabled": 1 if policy["enabled"] else 0,
+            "policy_hash": policy_hash,
+            "company_scope_required": 1 if company_scope_required_runtime() else 0,
+        },
+    )
+    status_json_part = f"json={status_json} " if machine_json_enabled() else ""
     print(
         f"HONGZHI_STATUS package_version={versions['package_version']} "
         f"plugin_version={versions['plugin_version']} "
         f"contract_version={versions['contract_version']} "
         f"enabled={1 if policy['enabled'] else 0} "
         f"policy_hash={policy_hash} "
+        f"company_scope={quote_machine_value(company_scope_runtime())} "
+        f"company_scope_required={1 if company_scope_required_runtime() else 0} "
+        f"{status_json_part}"
         f'global_state_root={quote_machine_value(str(global_state_root.resolve()))}'
     )
     if policy.get("_parse_error"):
         detail = str(policy.get("_parse_error_reason", "policy_parse_error"))
+        gov_json = machine_json_field(
+            path_value="-",
+            command="status",
+            repo_fingerprint=status_fp,
+            run_id="-",
+            extra={
+                "code": int(POLICY_PARSE_EXIT_CODE),
+                "reason": "policy_parse_error",
+                "detail": detail,
+            },
+        )
+        gov_json_part = f"json={gov_json} " if machine_json_enabled() else ""
         print(
             f"HONGZHI_GOV_BLOCK code={POLICY_PARSE_EXIT_CODE} reason=policy_parse_error "
             f"command=status "
+            f"{gov_json_part}"
+            f"company_scope={quote_machine_value(company_scope_runtime())} "
             f"package_version={PACKAGE_VERSION} "
             f"plugin_version={PLUGIN_VERSION} "
             f"contract_version={CONTRACT_VERSION} "
@@ -3554,7 +4759,12 @@ def cmd_status(args):
         )
         return POLICY_PARSE_EXIT_CODE
     if federated_path.exists():
-        print_index_pointer_line(federated_path)
+        print_index_pointer_line(
+            federated_path,
+            command="status",
+            repo_fingerprint=status_fp,
+            run_id="-",
+        )
     if policy.get("permit_token_file"):
         tok_path = Path(policy["permit_token_file"]).expanduser()
         print(f"[plugin] permit_token_file: {tok_path} ({'found' if tok_path.exists() else 'missing'})")
@@ -3600,7 +4810,7 @@ def main():
     common.add_argument("--write-ok", action="store_true",
                         help="Explicitly allow writes into project repo (default: false)")
     common.add_argument("--max-files", type=int, default=None,
-                        help="Max files for snapshot (early stop with WARN if hit)")
+                        help="Max files for scan stage (read-only snapshot guard remains full)")
     common.add_argument("--max-seconds", type=int, default=None,
                         help="Max seconds for scan (early stop with WARN if hit)")
     common.add_argument("--keywords", default="",
@@ -3611,6 +4821,12 @@ def main():
                         help="Path to kit root for policy/tools resolution")
     common.add_argument("--permit-token", default=None,
                         help="One-time token to bypass allowlist/denylist")
+    common.add_argument("--machine-json", choices=["0", "1"], default=MACHINE_JSON_CLI_DEFAULT,
+                        help="Emit additive machine-line json payload (default: 1, env override via HONGZHI_MACHINE_JSON_ENABLE)")
+    common.add_argument("--company-scope", default=COMPANY_SCOPE_DEFAULT,
+                        help=f"Company scope marker for machine outputs (default: {COMPANY_SCOPE_DEFAULT}, env override via {COMPANY_SCOPE_ENV})")
+    common.add_argument("--require-company-scope", choices=["0", "1"], default="0",
+                        help=f"Enable hard gate for company scope match (default: 0, env override via {COMPANY_SCOPE_REQUIRE_ENV})")
     common.add_argument("--smart", action="store_true",
                         help="Enable smart incremental reuse from previous successful run")
     common.add_argument("--smart-max-age-seconds", type=int, default=600,
@@ -3625,6 +4841,12 @@ def main():
                               help="Override global state root for federated index")
     index_common.add_argument("--strict", action="store_true",
                               help="Strict query mode: ignore limits_hit runs unless --include-limits-hit")
+    index_common.add_argument("--machine-json", choices=["0", "1"], default=MACHINE_JSON_CLI_DEFAULT,
+                              help="Emit additive machine-line json payload (default: 1, env override via HONGZHI_MACHINE_JSON_ENABLE)")
+    index_common.add_argument("--company-scope", default=COMPANY_SCOPE_DEFAULT,
+                              help=f"Company scope marker for machine outputs (default: {COMPANY_SCOPE_DEFAULT}, env override via {COMPANY_SCOPE_ENV})")
+    index_common.add_argument("--require-company-scope", choices=["0", "1"], default="0",
+                              help=f"Enable hard gate for company scope match (default: 0, env override via {COMPANY_SCOPE_REQUIRE_ENV})")
 
     # ── discover ──
     p_disc = sub.add_parser("discover", parents=[common],
@@ -3653,17 +4875,30 @@ def main():
     p_diff.add_argument("--old-project-root", required=True, help="Old repo root")
     p_diff.add_argument("--new-project-root", required=True, help="New repo root")
     p_diff.add_argument("--module-key", default=None, help="Module to diff")
+    p_diff.add_argument("--old-scan-graph", default=None,
+                        help="Optional old-side scan_graph.json path for cross-command reuse")
+    p_diff.add_argument("--new-scan-graph", default=None,
+                        help="Optional new-side scan_graph.json path for cross-command reuse")
 
     # ── profile ──
     p_prof = sub.add_parser("profile", parents=[common],
                             help="Generate effective profile into workspace")
     p_prof.add_argument("--repo-root", required=True, help="Target project root")
     p_prof.add_argument("--module-key", default=None, help="Module key (auto-detected if omitted)")
+    p_prof.add_argument("--scan-graph", default=None,
+                        help="Optional scan_graph.json path to avoid repeated profile walk")
 
     # ── migrate ──
     p_mig = sub.add_parser("migrate", parents=[common],
                            help="Pipeline dry-run (read-only)")
     p_mig.add_argument("--repo-root", required=True, help="Target project root")
+
+    # ── scan-graph ──
+    p_sg = sub.add_parser("scan-graph", parents=[common],
+                          help="Build unified scan graph (workspace-only)")
+    p_sg.add_argument("--repo-root", required=True, help="Target project root")
+    p_sg.add_argument("--root", action="append", default=[],
+                      help="Optional scan root (absolute or repo-relative), repeatable")
 
     # ── status ──
     p_status = sub.add_parser("status", parents=[common],
@@ -3694,12 +4929,42 @@ def main():
     p_idx_explain.add_argument("run_id", help="Run identifier")
 
     args = parser.parse_args()
+    set_machine_json_runtime(getattr(args, "machine_json", MACHINE_JSON_CLI_DEFAULT))
+    set_company_scope_runtime(args)
 
     if not args.command:
         parser.print_help()
         sys.exit(0)
 
     args._run_command = args.command
+
+    # ── Optional company-scope hard gate (default: disabled) ──
+    if args.command != "clean":
+        scope_ok, scope_code, scope_reason = check_company_scope_gate(args.command)
+        if not scope_ok:
+            gov_json = machine_json_field(
+                path_value="-",
+                command=args.command,
+                repo_fingerprint="-",
+                run_id="-",
+                extra={
+                    "code": int(scope_code),
+                    "reason": "company_scope_mismatch",
+                    "detail": str(scope_reason),
+                },
+            )
+            gov_json_part = f"json={gov_json} " if machine_json_enabled() else ""
+            print(
+                f"HONGZHI_GOV_BLOCK code={scope_code} reason=company_scope_mismatch "
+                f"command={args.command} "
+                f"{gov_json_part}"
+                f"company_scope={quote_machine_value(company_scope_runtime())} "
+                f"package_version={PACKAGE_VERSION} "
+                f"plugin_version={PLUGIN_VERSION} "
+                f"contract_version={CONTRACT_VERSION} "
+                f"detail={quote_machine_value(scope_reason)}"
+            )
+            sys.exit(scope_code)
 
     # ── Governance gate (skip for clean/status/help) ──
     if args.command not in ("clean", "status", "index"):
@@ -3725,10 +4990,24 @@ def main():
             elif exit_code == POLICY_PARSE_EXIT_CODE:
                 machine_reason = "policy_parse_error"
                 print(f"[plugin] BLOCKED: governance policy parse failed: {reason}", file=sys.stderr)
+            gov_json = machine_json_field(
+                path_value="-",
+                command=args.command,
+                repo_fingerprint="-",
+                run_id="-",
+                extra={
+                    "code": int(exit_code),
+                    "reason": machine_reason,
+                    "detail": str(reason),
+                },
+            )
+            gov_json_part = f"json={gov_json} " if machine_json_enabled() else ""
             # Contract v4: machine-readable governance rejection line on stdout.
             print(
                 f"HONGZHI_GOV_BLOCK code={exit_code} reason={machine_reason} "
                 f"command={args.command} "
+                f"{gov_json_part}"
+                f"company_scope={quote_machine_value(company_scope_runtime())} "
                 f"package_version={PACKAGE_VERSION} "
                 f"plugin_version={PLUGIN_VERSION} "
                 f"contract_version={CONTRACT_VERSION} "
@@ -3744,6 +5023,7 @@ def main():
         "diff": cmd_diff,
         "profile": cmd_profile,
         "migrate": cmd_migrate,
+        "scan-graph": cmd_scan_graph,
         "index": cmd_index,
         "status": cmd_status,
         "clean": cmd_clean,

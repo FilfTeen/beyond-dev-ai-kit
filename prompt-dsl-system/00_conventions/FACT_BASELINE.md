@@ -12,10 +12,10 @@ Scope: `prompt-dsl-system/**`
   - `skill_hongzhi_universal_ops` (modes: sql/code/process/frontend/release/governance/docs/meta)
   - meta mode: supports template-based skill creation + progressive disclosure
 - Governance plugin skills:
-  - `skill_governance_plugin_discover` (staging)
-  - `skill_governance_plugin_runner` (staging, contract v4-aware)
-  - `skill_governance_plugin_status` (staging, governance preflight only)
-  - `skill_governance_plugin_discover_with_hints` (staging, hint-loop aware discover orchestration)
+  - `skill_governance_plugin_discover` (deployed)
+  - `skill_governance_plugin_runner` (deployed, contract v4-aware)
+  - `skill_governance_plugin_status` (deployed, governance preflight only)
+  - `skill_governance_plugin_discover_with_hints` (deployed, hint-loop aware discover orchestration)
 - Skill templates: `prompt-dsl-system/05_skill_registry/templates/skill_template/`
   - Files: `skill.yaml.template`, `references/README.template`, `scripts/README.template`, `assets/README.template`
 - Deprecated skills status:
@@ -50,7 +50,7 @@ Scope: `prompt-dsl-system/**`
 - `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS) + multi-path + ignore patterns
 - `skill_template_audit.py`: post-validate audit (placeholder + schema + registry↔fs consistency + --scope + --fail-on-empty)
 - `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject + identity hints)
-- `golden_path_regression.sh`: end-to-end regression (86 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics + Phase28 profile_delta hint assetization/verification/scope gating/index gating + Phase29 federated index write/query/explain/scope gating/zero-write governance + Phase30 zero-touch/status-index, full snapshot guard, policy parse fail-closed, machine-path safety, jsonl concurrency, IO stats stability, composed endpoint extraction, hint effectiveness)
+- `golden_path_regression.sh`: end-to-end regression (118 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics + Phase28 profile_delta hint assetization/verification/scope gating/index gating + Phase29 federated index write/query/explain/scope gating/zero-write governance + Phase30 zero-touch/status-index, full snapshot guard, policy parse fail-closed, machine-path safety, jsonl concurrency, IO stats stability, composed endpoint extraction, hint effectiveness + Phase31 unified scan graph/cross-command reuse/mismatch gate + Phase32 schema/versioned scan-graph + mismatch reason + machine-line json + default hot-reuse/no-rescan + governance zero-write + full snapshot/limits decoupling guard + Phase33 machine-json roundtrip/no-newline + deterministic artifacts/candidates ordering + mismatch enum/suggestion + read-command zero-touch probe guard + Phase34 machine-line contract schema/validator hard gate + Phase35 company scope gate + governance skill lifecycle convergence)
 - `module_profile_scanner.py`: generates discovered profile (Layer2) — scanning + grep + fingerprint + multi-root + concurrent + incremental + `--out-root`/`--read-only`/`--workspace-root`
 - `module_roots_discover.py`: auto-discovers module roots from identity hints + structure fallback + optional `--module-key` (auto-discover) + `--out-root`/`--read-only` (Layer2R)
 - `structure_discover.py` v2: auto-identifies module structure — endpoint v2, per-file incremental cache, `--out-root`/`--read-only`/`--workspace-root` (Layer2S)
@@ -59,6 +59,7 @@ Scope: `prompt-dsl-system/**`
 - `hongzhi_plugin.py`: v4 contract-capable runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental, capability registry, `HONGZHI_CAPS` line, capabilities.jsonl journal
 - `calibration_engine.py`: lightweight calibration layer for discover confidence, reasons enum, and workspace-only hint/report artifacts
 - `layout_adapters.py`: layout adapters v1 for multi-module/non-standard Java root detection and roots mapping
+- `scan_graph.py`: Unified Scan Graph v1 (single walk file index + java/template hints + cache key + io stats)
 - `hongzhi_ai_kit/hint_bundle.py`: profile_delta hint bundle schema/build/verify helpers (path + inline JSON)
 - `hongzhi_ai_kit/federated_store.py`: federated index persistence/query helpers (atomic write + bounded runs + ranking)
 - `hongzhi_ai_kit`: installable python package wrapper with module/console entry support
@@ -257,8 +258,98 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Concurrency hardening:
   - `capability_store` and `federated_store` atomic JSON writes now use unique temp files + fsync.
   - `atomic_append_jsonl` uses locked append (`flock` fallback lockfile) to avoid dropped lines under parallel runs.
+
+## 17) Contract Schema v1 + Validator Hard Gate (R28)
+
+- Added schema file:
+  - `prompt-dsl-system/tools/contract_schema_v1.json`
+  - defines machine line types, required fields, json payload required keys, enums, exit code map, additive policy.
+- Added zero-dependency validator:
+  - `prompt-dsl-system/tools/contract_validator.py`
+  - validates stdout logs from `--stdin` or `--file`.
+  - output: `CONTRACT_OK=1` (exit 0) or `CONTRACT_OK=0 ...` (exit 2).
+- Golden regression hard gate:
+  - Phase34 validates schema JSON, validator CLI, discover/gov-block/exit25 stdout contract compliance, and additive schema guard.
 - Discover observability additions:
   - `scan_io_stats` (`layout_adapter_runs`, `java_files_scanned`, `templates_scanned`, `snapshot_files_count`, cache stats).
   - `hint_effective` + `confidence_delta` emitted in summary and capabilities (`hints` payload).
 - Endpoint extraction hardening:
   - `structure_discover.py` gains composed-annotation/symbolic path fallback; symbolic signals persisted in structure output.
+
+## 17) Unified Scan Graph & Cross-Command Reuse (R25)
+
+- Added `scan_graph.py` as a reusable scan middle layer:
+  - output: workspace `scan_graph.json`
+  - cache: workspace `scan_cache/<cache_key>.json`
+  - payload: `file_index`, `java_hints`, `template_hints`, `io_stats`, `cache_key`
+- Discover now consumes scan graph and publishes additive contract fields:
+  - `scan_graph{used,cache_key,cache_hit_rate,java_files_indexed,bytes_read,io_stats}`
+  - summary adds `scan_graph_used`, `scan_cache_hit_rate`, `java_files_indexed`, `bytes_read`
+- Profile/diff support scan graph reuse:
+  - `profile --scan-graph <path>`
+  - `diff --old-scan-graph <path> --new-scan-graph <path>`
+- Strict consistency guard:
+  - scan graph spot-check mismatch in strict mode exits `25` (`exit_hint=scan_graph_mismatch`)
+
+## 18) Additive Contract & Scan Graph Explainability (R26)
+
+- Scan graph contract is versioned and auditable:
+  - `schema_version` (v1.1 additive field)
+  - `producer_versions` (`package_version`, `plugin_version`, `contract_version`)
+  - `graph_fingerprint` (stable fingerprint on roots + indexed file metadata)
+- Strict mismatch (`exit=25`) now provides machine-readable explainability:
+  - summary fields: `mismatch_reason`, `mismatch_detail`
+  - `HONGZHI_CAPS` / `HONGZHI_INDEX` additive fields include same mismatch markers
+  - mismatch reasons enum includes:
+    - `schema_version_mismatch`
+    - `fingerprint_mismatch`
+    - `producer_version_mismatch`
+    - `cache_corrupt`
+    - `unknown`
+- Machine line additive JSON payload:
+  - `HONGZHI_CAPS` / `HONGZHI_INDEX` / `HONGZHI_HINTS` append `json='{"path":...}'`
+  - payload includes `path`, `command`, `versions`, `repo_fingerprint`, `run_id`
+  - rollback switch: `HONGZHI_MACHINE_JSON_ENABLE=0` (legacy-only output fallback)
+- Cross-command default reuse strengthened:
+  - `profile`/`diff` can auto-locate latest discover scan graph even if latest pointer was updated by non-discover run.
+  - hot reuse emits command-local no-rescan counters (`java_files_indexed=0`, `bytes_read=0`) while preserving source stats additively.
+
+## 19) Machine JSON Roundtrip & Deterministic Output (R27)
+
+- Machine-line additive JSON payload contract is now roundtrip-safe:
+  - single-line payload
+  - direct `json.loads(...)` parse success
+  - backward-compatible legacy machine fields retained
+- Machine JSON control:
+  - CLI: `--machine-json 0|1` (default `1`)
+  - env override (higher priority): `HONGZHI_MACHINE_JSON_ENABLE`
+- Unified machine JSON encoding is applied to all machine lines:
+  - `HONGZHI_CAPS`, `HONGZHI_INDEX`, `HONGZHI_HINTS`
+  - `HONGZHI_STATUS`, `HONGZHI_GOV_BLOCK`
+  - `HONGZHI_INDEX_BLOCK`, `HONGZHI_HINTS_BLOCK`
+- Discover output determinism hardening:
+  - `capabilities.artifacts[]` stable sorted output (relpath-based)
+  - `capabilities.roots[]` stable sorted output (`module_key + category + path`)
+  - `metrics.candidates[]` stable sorted output (`score desc`, tie-breakers by identity fields)
+- Strict mismatch (`exit=25`) now includes:
+  - `mismatch_reason` (enum-constrained)
+  - `mismatch_detail`
+  - `mismatch_suggestion` (short remediation guidance)
+
+## 20) Company Scope Gate & Skills Lifecycle Convergence (R29)
+
+- Governance plugin skills lifecycle converged to deployed state:
+  - `skill_governance_plugin_discover`
+  - `skill_governance_plugin_runner`
+  - `skill_governance_plugin_status`
+  - `skill_governance_plugin_discover_with_hints`
+- Added additive company scope signal across machine outputs:
+  - summary includes `company_scope=...`
+  - machine lines include `company_scope=\"...\"`
+  - machine JSON payload includes `company_scope`
+- Added optional hard gate (default off):
+  - enable by env `HONGZHI_REQUIRE_COMPANY_SCOPE=1`
+  - scope source precedence: env `HONGZHI_COMPANY_SCOPE` > CLI `--company-scope` > default `hongzhi-work-dev`
+  - mismatch blocks with `HONGZHI_GOV_BLOCK reason=company_scope_mismatch` and exit `26`
+- Regression hardening:
+  - Phase35 validates lifecycle convergence, company scope machine fields, mismatch block semantics, and mismatch-path zero-write.

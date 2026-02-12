@@ -187,3 +187,18 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
   - Regression Phase25 validates token ttl/scope rejection, symlink hardening, limits behavior, and capability-index gating.
 - Escalation: if any limits/governance metadata is missing or bypassed, block release and open incident.
 - Rollback: revert governance token/limits changes and restore previous validated plugin baseline.
+
+## Rule 20 - Company Scope Signal & Optional Hard Gate
+
+- Rule: plugin machine outputs must carry `company_scope` for agent-side routing and audit traceability.
+  - Applies to: summary line and all `HONGZHI_*` machine lines.
+- Rule: company scope hard gate is optional and disabled by default.
+  - Enable via `HONGZHI_REQUIRE_COMPANY_SCOPE=1`.
+  - Scope value precedence: `HONGZHI_COMPANY_SCOPE` > CLI `--company-scope` > default `hongzhi-work-dev`.
+  - Mismatch behavior: block with `HONGZHI_GOV_BLOCK reason=company_scope_mismatch` and exit code `26`.
+- Rule: company scope mismatch block must preserve zero-write guarantee.
+  - No writes to workspace/state/index/latest/run_meta on exit `26`.
+- Check:
+  - Regression Phase35 validates machine scope fields, mismatch blocking, and zero-write behavior.
+- Escalation: unexpected scope block or missing scope metadata => hold release and investigate parser/environment drift.
+- Rollback: disable hard gate (`HONGZHI_REQUIRE_COMPANY_SCOPE=0`) and revert scope-related additive changes if required.

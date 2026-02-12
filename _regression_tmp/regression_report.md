@@ -1,6 +1,6 @@
 # Golden Path Regression Report
 
-Generated: 2026-02-11T10:12:53Z
+Generated: 2026-02-11T13:55:15Z
 Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit
 
 ## Results
@@ -93,10 +93,42 @@ Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-
 | 83 | Phase30:discover_io_reduction_same_output | PASS |
 | 84 | Phase30:endpoint_composed_annotation_extracts | PASS |
 | 85 | Phase30:hint_apply_effectiveness_signal | PASS |
-| 86 | Phase8:guard_strict_no_vcs_fails | PASS |
+| 86 | Phase31:scan_graph_syntax_smoke | PASS |
+| 87 | Phase31:discover_uses_scan_graph | PASS |
+| 88 | Phase31:scan_graph_cache_warm_hit | PASS |
+| 89 | Phase31:discover_io_reduction_delta | PASS |
+| 90 | Phase31:profile_reuses_scan_graph | PASS |
+| 91 | Phase31:diff_reuses_scan_graph | PASS |
+| 92 | Phase31:governance_disabled_zero_write_still | PASS |
+| 93 | Phase31:strict_mismatch_exit25 | PASS |
+| 94 | Phase32:scan_graph_schema_version_present | PASS |
+| 95 | Phase32:scan_graph_strict_mismatch_reason_emitted | PASS |
+| 96 | Phase32:discover_profile_diff_reuse_no_rescan | PASS |
+| 97 | Phase32:machine_line_json_payload_additive | PASS |
+| 98 | Phase32:governance_disabled_zero_write_still | PASS |
+| 99 | Phase32:read_only_guard_full_snapshot_ignores_limits | PASS |
+| 100 | Phase33:machine_json_roundtrip_parse | PASS |
+| 101 | Phase33:machine_json_no_newlines | PASS |
+| 102 | Phase33:deterministic_artifacts_order | PASS |
+| 103 | Phase33:deterministic_modules_order | PASS |
+| 104 | Phase33:mismatch_reason_enum_and_suggestion | PASS |
+| 105 | Phase33:status_index_never_probe_writable | PASS |
+| 106 | Phase34:contract_schema_exists_and_valid_json | PASS |
+| 107 | Phase34:contract_validator_smoke | PASS |
+| 108 | Phase34:contract_validator_on_discover_stdout | PASS |
+| 109 | Phase34:contract_validator_on_gov_block_stdout | PASS |
+| 110 | Phase34:contract_validator_on_exit25_mismatch_stdout | PASS |
+| 111 | Phase34:contract_schema_additive_guard | PASS |
+| 112 | Phase35:governance_skills_deployed | PASS |
+| 113 | Phase35:machine_lines_include_company_scope | PASS |
+| 114 | Phase35:company_scope_gate_default_off | PASS |
+| 115 | Phase35:company_scope_mismatch_block_exit26 | PASS |
+| 116 | Phase35:company_scope_mismatch_zero_write | PASS |
+| 117 | Phase35:company_scope_match_required_allows | PASS |
+| 118 | Phase8:guard_strict_no_vcs_fails | PASS |
 
 ## Summary
 
-**86 / 86** checks passed.
+**118 / 118** checks passed.
 
 **OVERALL: PASS**

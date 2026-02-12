@@ -1,19 +1,19 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-02-11T10:12:32Z",
+  "updated_at": "2026-02-11T13:54:44Z",
   "projects": {
     "fe14de08caf3": {
       "repo_fingerprint": "fe14de08caf3",
-      "created_at": "2026-02-11T10:12:32Z",
+      "created_at": "2026-02-11T13:54:44Z",
       "latest": {
-        "run_id": "20260211_101232512574Z",
-        "timestamp": "2026-02-11T10:12:32Z",
-        "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_101232512574Z",
+        "run_id": "20260211_135444706037Z",
+        "timestamp": "2026-02-11T13:54:44Z",
+        "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z",
         "command": "discover",
         "metrics": {
           "module_candidates": 1,
           "endpoints_total": 4,
-          "scan_time_s": 0.013,
+          "scan_time_s": 0.012,
           "limits_hit": false,
           "hint_applied": false,
           "hints_emitted": false,
@@ -25,14 +25,14 @@
       },
       "runs": [
         {
-          "run_id": "20260211_101232512574Z",
-          "timestamp": "2026-02-11T10:12:32Z",
-          "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_101232512574Z",
+          "run_id": "20260211_135444706037Z",
+          "timestamp": "2026-02-11T13:54:44Z",
+          "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z",
           "command": "discover",
           "metrics": {
             "module_candidates": 1,
             "endpoints_total": 4,
-            "scan_time_s": 0.013,
+            "scan_time_s": 0.012,
             "limits_hit": false,
             "hint_applied": false,
             "hints_emitted": false,
@@ -59,14 +59,14 @@
         "head": "none"
       },
       "last_success": {
-        "run_id": "20260211_101232512574Z",
-        "timestamp": "2026-02-11T10:12:32Z",
-        "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_101232512574Z",
+        "run_id": "20260211_135444706037Z",
+        "timestamp": "2026-02-11T13:54:44Z",
+        "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z",
         "command": "discover",
         "metrics": {
           "module_candidates": 1,
           "endpoints_total": 4,
-          "scan_time_s": 0.013,
+          "scan_time_s": 0.012,
           "limits_hit": false,
           "hint_applied": false,
           "hints_emitted": false,
@@ -82,6 +82,18 @@
         "hint_confidence_post": 0.95,
         "confidence_delta": 0.0,
         "hint_score_delta": 0.0,
+        "candidates": [
+          {
+            "module_key": "notice",
+            "package_prefix": "com.example.notice",
+            "score": 5.3,
+            "confidence": 0.95,
+            "file_count": 3,
+            "controller_count": 1,
+            "service_count": 1,
+            "repository_count": 1
+          }
+        ],
         "java_roots": 1,
         "module_candidates": 1,
         "total_packages": 3,
@@ -89,11 +101,56 @@
         "top2_score": 0.0,
         "top2_score_ratio": 0.0,
         "cache_hit_files": 0,
-        "cache_miss_files": 3,
-        "total_scanned_files": 3,
+        "cache_miss_files": 4,
+        "total_scanned_files": 4,
+        "scan_graph": {
+          "used": true,
+          "cache_key": "cb0708391c04860de49570d9",
+          "cache_hit_rate": 0.0,
+          "cache_source": "miss",
+          "cache_path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z/scan_cache/cb0708391c04860de49570d9.json",
+          "path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z/discover/scan_graph.json",
+          "java_files_indexed": 3,
+          "bytes_read": 806,
+          "limits_hit": false,
+          "limits_reason": "",
+          "io_stats": {
+            "files_seen": 4,
+            "files_indexed": 4,
+            "java_scanned": 3,
+            "template_scanned": 1,
+            "bytes_read": 806,
+            "scan_time_s": 0.0021,
+            "cache_hit_files": 0,
+            "cache_miss_files": 4,
+            "cache_hit_rate": 0.0,
+            "parse_uncertain_files": 0
+          },
+          "schema_version": "1.1",
+          "graph_fingerprint": "984003dabb433ca6cf4a4135",
+          "producer_versions": {
+            "package_version": "4.0.0",
+            "plugin_version": "4.0.0",
+            "contract_version": "4.0.0"
+          },
+          "validation_ok": true,
+          "validation_reason": "",
+          "endpoint_fallback_files": 0,
+          "spot_check": {
+            "sampled": 3,
+            "mismatches": 0,
+            "ratio": 0.0
+          }
+        },
+        "scan_graph_spot_check": {
+          "sampled": 3,
+          "mismatches": 0,
+          "ratio": 0.0,
+          "details": []
+        },
         "endpoints_notice": 4,
         "endpoints_total": 4,
-        "scan_time_s": 0.013,
+        "scan_time_s": 0.012,
         "layout": "single-module-java",
         "layout_details": {
           "adapter_used": "layout_adapters_v1",
@@ -115,16 +172,19 @@
           "templates_scanned": 1,
           "snapshot_files_count": 4,
           "cache_hit_files": 0,
-          "cache_miss_files": 3,
-          "cache_hit_rate": 0.0
+          "cache_miss_files": 4,
+          "cache_hit_rate": 0.0,
+          "bytes_read": 806,
+          "scan_graph_used": 1,
+          "scan_graph_cache_key": "cb0708391c04860de49570d9"
         },
         "hint_bundle": "-",
         "hints_emitted": false,
         "ambiguity_ratio": 0.0,
         "scan_stats": {
-          "files_scanned": 3,
+          "files_scanned": 4,
           "cache_hit_files": 0,
-          "cache_miss_files": 3,
+          "cache_miss_files": 4,
           "cache_hit_rate": 0.0
         },
         "limits": {
@@ -139,6 +199,9 @@
         "confidence_tier": "high",
         "calibration_confidence": 0.95,
         "exit_hint": "-",
+        "mismatch_reason": "-",
+        "mismatch_detail": "-",
+        "mismatch_suggestion": "-",
         "hint_bundle_expires_at": "",
         "hint_bundle_created_at": "",
         "keywords_used": [],

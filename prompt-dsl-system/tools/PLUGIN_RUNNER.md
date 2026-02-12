@@ -1,6 +1,6 @@
 # PLUGIN_RUNNER.md — Hongzhi AI-Kit Plugin Runner
 
-Version: 4.0.0 (R24 Hardening + Phase30)
+Version: 4.0.0 (R29 Company Scope Gate + Phase35)
 
 ## Install
 
@@ -32,6 +32,17 @@ hongzhi-ai-kit discover \
   --repo-root /path/to/project \
   --smart --smart-max-age-seconds 600 --smart-min-cache-hit 0.90
 
+# Control additive machine-line json field (default on)
+hongzhi-ai-kit status --repo-root /path/to/project --machine-json 1
+# env override has higher priority
+HONGZHI_MACHINE_JSON_ENABLE=0 hongzhi-ai-kit status --repo-root /path/to/project --machine-json 1
+
+# Company scope marker (additive machine field, default: hongzhi-work-dev)
+hongzhi-ai-kit status --repo-root /path/to/project --company-scope hongzhi-work-dev
+# Optional hard gate (default off): mismatch -> exit 26
+HONGZHI_REQUIRE_COMPANY_SCOPE=1 HONGZHI_COMPANY_SCOPE=hongzhi-work-dev \
+  hongzhi-ai-kit discover --repo-root /path/to/project
+
 # Discover with calibration thresholds
 hongzhi-ai-kit discover \
   --repo-root /path/to/project \
@@ -58,6 +69,14 @@ hongzhi-ai-kit discover \
 hongzhi-ai-kit index list --top-k 20
 hongzhi-ai-kit index query --keyword notice --endpoint /notice --top-k 10
 hongzhi-ai-kit index explain <repo_fp> <run_id>
+
+# Build unified scan graph (workspace-only)
+hongzhi-ai-kit scan-graph --repo-root /path/to/project
+
+# Reuse discover scan_graph in profile/diff
+hongzhi-ai-kit profile --repo-root /path/to/project --module-key notice --scan-graph /abs/ws/.../discover/scan_graph.json
+hongzhi-ai-kit diff --old-project-root /path/old --new-project-root /path/new --module-key notice \
+  --old-scan-graph /abs/ws/old_scan_graph.json --new-scan-graph /abs/ws/new_scan_graph.json
 ```
 
 ## Governance & Security
@@ -70,12 +89,14 @@ The plugin enforces a strict governance model (enabled -> deny -> allow).
 | **Deny List** | If `repo_root` matches `deny_roots` | **11** (Blocked) |
 | **Allow List** | If `allow_roots` defined and `repo_root` NOT in it | **12** (Blocked) |
 | **Policy Parse** | `policy.yaml` parse error (fail-closed) | **13** (Blocked) |
+| **Company Scope** | Optional required scope mismatch (`HONGZHI_REQUIRE_COMPANY_SCOPE=1`) | **26** (Blocked) |
 | **Permit Token** | `--permit-token <TOKEN>` bypasses allow/deny | **0** (Allowed) |
+| **Scan Graph Mismatch** | strict spot-check detects scan_graph mismatch | **25** |
 
-When blocked (10/11/12/13), the runner emits machine-readable stdout:
+When blocked (10/11/12/13/26), the runner emits machine-readable stdout:
 
 ```text
-HONGZHI_GOV_BLOCK code=<10|11|12|13> reason=<...> command=<...> package_version=<...> plugin_version=<...> contract_version=<...> detail=<json_quoted_string>
+HONGZHI_GOV_BLOCK code=<10|11|12|13|26> reason=<...> command=<...> company_scope="<...>" package_version=<...> plugin_version=<...> contract_version=<...> detail=<json_quoted_string>
 ```
 
 Hint bundle scope block line (strict mode can return exit `23`):
@@ -200,19 +221,49 @@ hongzhi_ai_kit_summary version=3.0 command=discover fp=<...> run_id=<...> smart_
 1. stdout capability pointer line:
 
 ```text
-HONGZHI_CAPS <abs_path_to_capabilities.json> path="<abs_path_to_capabilities.json>" package_version=<...> plugin_version=<...> contract_version=<...>
+HONGZHI_CAPS <abs_path_to_capabilities.json> path="<abs_path_to_capabilities.json>" json='{"path":"...","command":"discover","versions":{"package":"...","plugin":"...","contract":"..."},"repo_fingerprint":"...","run_id":"..."}' mismatch_reason=<...> mismatch_detail="<...>" package_version=<...> plugin_version=<...> contract_version=<...>
 ```
 
 1.1 stdout hint bundle pointer line (when emitted):
 
 ```text
-HONGZHI_HINTS <abs_path_to_discover/hints.json> path="<abs_path_to_discover/hints.json>" package_version=<...> plugin_version=<...> contract_version=<...>
+HONGZHI_HINTS <abs_path_to_discover/hints.json> path="<abs_path_to_discover/hints.json>" json='{"path":"...","command":"discover","versions":{"package":"...","plugin":"...","contract":"..."},"repo_fingerprint":"...","run_id":"..."}' package_version=<...> plugin_version=<...> contract_version=<...>
 ```
+
+`json='...'` is additive and enabled by default.  
+Temporary fallback switch: set `HONGZHI_MACHINE_JSON_ENABLE=0` to suppress `json=` field without changing legacy parsers.
+CLI toggle is also available: `--machine-json 0|1` (env override wins if both are set).
+
+### Contract schema + validator (zero deps)
+
+- Contract schema file:
+  - `prompt-dsl-system/tools/contract_schema_v1.json`
+- Validator script:
+  - `prompt-dsl-system/tools/contract_validator.py`
+
+Examples:
+
+```bash
+# Validate machine-lines from discover stdout
+HONGZHI_PLUGIN_ENABLE=1 hongzhi-ai-kit discover --repo-root /path/to/project --machine-json 1 \
+  | python3 prompt-dsl-system/tools/contract_validator.py --stdin
+
+# Validate machine-lines from an existing log file
+python3 prompt-dsl-system/tools/contract_validator.py \
+  --schema prompt-dsl-system/tools/contract_schema_v1.json \
+  --file /tmp/hz_discover_stdout.log
+```
+
+Validator output contract:
+
+- success: `CONTRACT_OK=1 ...` and exit `0`
+- failure: `CONTRACT_OK=0 CONTRACT_ERR=<code> CONTRACT_MSG=\"...\"` and exit `2`
 
 2. status machine line:
 
 ```text
 HONGZHI_STATUS package_version=<...> plugin_version=<...> contract_version=<...> enabled=<0|1> global_state_root="<abs_path>"
+HONGZHI_STATUS ... company_scope="<hongzhi-work-dev>" company_scope_required=<0|1> ...
 ```
 
 3. workspace append-only summary journal:
@@ -247,6 +298,8 @@ HONGZHI_STATUS package_version=<...> plugin_version=<...> contract_version=<...>
 - `limits` (`max_files`, `max_seconds`, reason fields)
 - `scan_stats` (`files_scanned`, cache counters, cache hit rate)
 - `scan_io_stats` (`layout_adapter_runs`, `java_files_scanned`, `templates_scanned`, `snapshot_files_count`, cache counters)
+- `scan_graph` (`used`, `cache_key`, `cache_hit_rate`, `java_files_indexed`, `bytes_read`, `io_stats`)
+- `scan_graph.schema_version`, `scan_graph.producer_versions`, `scan_graph.graph_fingerprint`
 - `layout_details` (`adapter_used`, roots detection details, fallback reason)
 - `hints` (`emitted`, `applied`, `bundle_path`, `source_path`, `strategy`, `hint_effective`, `confidence_delta`)
 - `calibration`:
@@ -266,6 +319,8 @@ HONGZHI_STATUS package_version=<...> plugin_version=<...> contract_version=<...>
 - `reuse_validated`
 - `hint_applied` and `hint_bundle`
 - `hint_effective` and `confidence_delta`
+- `mismatch_reason` and `mismatch_detail`
+- `scan_graph_used`, `scan_cache_hit_rate`, `java_files_indexed`, `bytes_read`
 
 ### Federated Index (R23)
 
@@ -288,8 +343,14 @@ Global state federated files:
 Machine-readable pointer when updated:
 
 ```text
-HONGZHI_INDEX <abs_path_to_federated_index.json> path="<abs_path_to_federated_index.json>" package_version=<...> plugin_version=<...> contract_version=<...>
+HONGZHI_INDEX <abs_path_to_federated_index.json> path="<abs_path_to_federated_index.json>" json='{"path":"...","command":"discover","versions":{"package":"...","plugin":"...","contract":"..."},"repo_fingerprint":"...","run_id":"..."}' mismatch_reason=<...> mismatch_detail="<...>" package_version=<...> plugin_version=<...> contract_version=<...>
 ```
+
+Block/status lines also expose additive `json='...'` with the same encoding function:
+- `HONGZHI_STATUS`
+- `HONGZHI_GOV_BLOCK`
+- `HONGZHI_INDEX_BLOCK`
+- `HONGZHI_HINTS_BLOCK`
 
 Policy schema extension:
 
@@ -367,6 +428,25 @@ Backfill flow:
 - `versions` (`package`, `plugin`, `contract`)
 - `governance` (`enabled`, `token_used`, `policy_hash`)
 
+## Unified Scan Graph v1.1 (R26 additive)
+
+- `scan_graph.json` now includes additive metadata:
+  - `schema_version`
+  - `producer_versions` (`package_version`, `plugin_version`, `contract_version`)
+  - `graph_fingerprint` (stable fingerprint on roots + file index meta)
+- Strict mismatch (`exit=25`) now emits explainable fields:
+  - summary: `mismatch_reason`, `mismatch_detail`
+  - summary and pointers add `mismatch_suggestion`
+  - `HONGZHI_CAPS` / `HONGZHI_INDEX`: additive `mismatch_reason`, `mismatch_detail`, `mismatch_suggestion`
+
+`mismatch_reason` enum:
+- `schema_version_mismatch`
+- `producer_version_mismatch`
+- `fingerprint_mismatch`
+- `corrupted_cache`
+- `unknown`
+- `profile` / `diff` default to reusing latest discover scan graph when available; hot reuse reports command-local no-rescan counters (`java_files_indexed=0`, `bytes_read=0`) while preserving source index stats in additive fields.
+
 ## Exit Codes
 
 | Code | Meaning |
@@ -380,6 +460,9 @@ Backfill flow:
 | 22 | Strict hint verification failure (e.g., expired/invalid apply-hints bundle) |
 | 23 | Strict hint-bundle emission blocked by token scope (missing `hint_bundle`) |
 | 24 | Strict federated-index write blocked by token scope (missing `federated_index`) |
+| 25 | Strict scan-graph mismatch gate (schema/fingerprint/version/consistency mismatch) |
+| 26 | Company scope mismatch (only when company-scope hard gate is enabled) |
+| 13 | Policy parse error (fail-closed) |
 | 10 | Plugin disabled |
 | 11 | Repo denied by policy |
 | 12 | Repo not in allow list |
