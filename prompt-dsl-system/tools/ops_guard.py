@@ -15,8 +15,15 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 DEFAULT_FORBIDDEN = ["/sys", "/error", "/util", "/vote"]
-IGNORE_PATTERNS = ["_regression_tmp/", ".structure_cache/", ".discovered.yaml",
-                    "_tmp_structure_cases/", "generated-sources/", "generated-test-sources/"]
+IGNORE_PATTERNS = [
+    "_regression_tmp/",
+    ".structure_cache/",
+    ".discovered.yaml",
+    "testdata/structure_cases/",
+    "_tmp_structure_cases/",
+    "generated-sources/",
+    "generated-test-sources/",
+]
 REPORT_REL_PATH = "prompt-dsl-system/tools/ops_guard_report.json"
 import os
 

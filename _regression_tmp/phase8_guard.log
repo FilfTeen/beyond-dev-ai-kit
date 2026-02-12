@@ -1,3 +1,0 @@
-[guard][error] No git/svn metadata found; strict mode requires VCS presence.
-[guard][warn] No git/svn metadata found; guard runs in non-blocking mode.
-[guard] decision=fail report=prompt-dsl-system/tools/guard_report.json

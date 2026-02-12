@@ -1,10 +1,10 @@
 {
   "tool": "baseline_provenance_guard",
   "provenance_version": "1.0.0",
-  "generated_at": "2026-02-12T09:19:32+00:00",
+  "generated_at": "2026-02-12T09:45:33+00:00",
   "repo_root": ".",
   "repo_snapshot": {
-    "git_head": "4a77eec6b8e51cb896aca8e804326c2d8e5289e2",
+    "git_head": "e8f21f0127f2ea6fc6a255a13e7052b815b77c76",
     "git_head_available": true
   },
   "tracked": {
@@ -48,7 +48,7 @@
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "10dc29f01c75d29915385ecf22f9719c03c2980e2718189569cae424ec5ba9a5",
-    "signed_at": "2026-02-12T09:19:32+00:00"
+    "content_sha256": "f0594f5aa74a7ba33820f46e5f5ff0b2ee27489877b6863a7e9d21c0134f845b",
+    "signed_at": "2026-02-12T09:45:33+00:00"
   }
 }

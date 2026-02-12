@@ -118,6 +118,8 @@
 - `prompt-dsl-system/tools/RISK_GATE_TOKEN.json`：高风险 ACK 结构化令牌（供 `--ack-latest/--ack-file` 使用）。
 - `prompt-dsl-system/tools/risk_gate_report.json`：risk gate 结构化审计报告。
 - `prompt-dsl-system/tools/snapshots/snapshot_*/`：apply 前自动快照（status/diff/inputs/manifest）。
+- `prompt-dsl-system/tools/testdata/`：版本化回归样例（`structure_cases/verify_cases/verify_followup`）。
+- `_regression_tmp*/`：回归运行期临时目录（gitignored，禁止作为版本化资产提交）。
 
 ## Health Report（validate 自动生成）
 `validate` 成功结束后会自动调用 `health_reporter.py` 生成：
@@ -560,6 +562,12 @@ HONGZHI_BASELINE_SIGN_KEY='your-secret-key' \
 
 ```bash
 /usr/bin/python3 prompt-dsl-system/tools/tool_syntax_guard.py --repo-root .
+
+# optional: explicit cache control (default cache is enabled)
+/usr/bin/python3 prompt-dsl-system/tools/tool_syntax_guard.py \
+  --repo-root . \
+  --use-cache true \
+  --cache-file prompt-dsl-system/tools/.cache/tool_syntax_guard_cache.json
 ```
 
 ## Pipeline Trust Coverage Guard（全量信任覆盖门禁）

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-12T16:20:06+08:00",
+  "generated_at": "2026-02-12T17:54:55+08:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
   "window": 20,
   "timezone": "local",
@@ -39,12 +39,12 @@
     "window_records": 20,
     "total_runs": 20,
     "command_distribution": {
-      "run": 14,
-      "unknown": 6
+      "run": 15,
+      "unknown": 5
     },
     "exit_code_distribution": {
-      "0": 9,
-      "unknown": 6,
+      "0": 10,
+      "unknown": 5,
       "4": 3,
       "2": 1,
       "3": 1
@@ -56,9 +56,9 @@
       "loop_gate": 1
     },
     "verify_status_distribution": {
-      "PASS": 9,
-      "MISSING": 6,
-      "FAIL": 5
+      "PASS": 10,
+      "FAIL": 5,
+      "MISSING": 5
     },
     "ack_used_distribution": {
       "none": 18,
@@ -95,5 +95,61 @@
     "use_rg": true,
     "trace_load_warnings": [],
     "loop_summary_warnings": []
+  },
+  "post_validate_gates": {
+    "generated_at": "2026-02-12T09:54:56+00:00",
+    "overall_status": "PASS",
+    "gates": [
+      {
+        "name": "skill_template_audit",
+        "status": "PASS",
+        "exit_code": 0
+      },
+      {
+        "name": "pipeline_contract_lint",
+        "status": "PASS",
+        "exit_code": 0
+      },
+      {
+        "name": "governance_consistency_guard",
+        "status": "PASS",
+        "exit_code": 0
+      },
+      {
+        "name": "tool_syntax_guard",
+        "status": "PASS",
+        "exit_code": 0
+      },
+      {
+        "name": "pipeline_trust_coverage_guard",
+        "status": "PASS",
+        "exit_code": 0
+      },
+      {
+        "name": "baseline_provenance_guard",
+        "status": "PASS",
+        "exit_code": 0
+      },
+      {
+        "name": "gate_mutation_guard",
+        "status": "PASS",
+        "exit_code": 0
+      },
+      {
+        "name": "performance_budget_guard",
+        "status": "PASS",
+        "exit_code": 0
+      },
+      {
+        "name": "contract_sample_replay",
+        "status": "PASS",
+        "exit_code": 0
+      },
+      {
+        "name": "kit_template_guard",
+        "status": "PASS",
+        "exit_code": 0
+      }
+    ]
   }
 }

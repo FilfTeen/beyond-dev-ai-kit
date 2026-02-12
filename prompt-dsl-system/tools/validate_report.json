@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-02-12T08:20:06+00:00",
+  "generated_at": "2026-02-12T09:54:55+00:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
   "scope": {
-    "effective_module_path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
-    "module_path_source": "cli",
+    "effective_module_path": null,
+    "module_path_source": "none",
     "guard_report_path": "prompt-dsl-system/tools/guard_report.json",
     "guard_messages": [],
     "guard_decision_reason": "all changed files are within allowed scope"

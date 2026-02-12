@@ -14,9 +14,13 @@ dist/
 
 # kit generated / tmp
 _regression_tmp/
+_regression_tmp*/
 prompt-dsl-system/tools/_tmp_*/
 prompt-dsl-system/tools/deliveries/
 prompt-dsl-system/tools/snapshots/
 prompt-dsl-system/tools/.structure_cache/
+prompt-dsl-system/tools/.cache/
+prompt-dsl-system/tools/kit_selfcheck_report.json
+prompt-dsl-system/tools/kit_selfcheck_report.md
 prompt-dsl-system/tools/performance_history.jsonl
 *.discovered.yaml

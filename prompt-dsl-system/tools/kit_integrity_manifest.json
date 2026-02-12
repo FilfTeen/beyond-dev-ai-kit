@@ -1,7 +1,7 @@
 {
   "tool": "kit_integrity_guard",
   "manifest_version": "1.1.0",
-  "generated_at": "2026-02-12T09:19:51+00:00",
+  "generated_at": "2026-02-12T09:45:43+00:00",
   "repo_root": ".",
   "tracked": {
     "paths": [
@@ -136,7 +136,7 @@
     },
     {
       "path": "prompt-dsl-system/tools/baseline_provenance.json",
-      "sha256": "8b1994e25a249e7136ff1cf57fb32937e192f0855cb70a1fbf7fff40c1bc78d4",
+      "sha256": "7711e155eae7c1ae161b63366f20eece515086392e1f2fc5cda0f268c28ba3b9",
       "size": 1772
     },
     {
@@ -186,8 +186,8 @@
     },
     {
       "path": "prompt-dsl-system/tools/golden_path_regression.sh",
-      "sha256": "b8d35a6da867476b7f79442f6f8565e61c22934d82d14fd65813aa3d956dd497",
-      "size": 171179
+      "sha256": "94cf137bab3a12deb7c1e9c744c60536263ef7d75561930de4177805641aa0bf",
+      "size": 171046
     },
     {
       "path": "prompt-dsl-system/tools/governance_consistency_guard.py",
@@ -261,8 +261,8 @@
     },
     {
       "path": "prompt-dsl-system/tools/tool_syntax_guard.py",
-      "sha256": "a7e198c2f518a6ecb0cecab95f4064a7cc4aa951e5349363f5d5fa982a6b4e5e",
-      "size": 7563
+      "sha256": "0e52f509f61e16458745b6acb64ca7265fdbb912a4bf64939f068456509102bd",
+      "size": 13556
     }
   ],
   "summary": {
@@ -270,7 +270,7 @@
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "94f60a62a8f90ef59ead976db615e01f920b87a9a052411c28f8da43021c636a",
-    "signed_at": "2026-02-12T09:19:51+00:00"
+    "content_sha256": "161f9d39e3ec493b70ec612960a54495f17e4c8fb68ce72b2ec3b0b5957885e2",
+    "signed_at": "2026-02-12T09:45:43+00:00"
   }
 }

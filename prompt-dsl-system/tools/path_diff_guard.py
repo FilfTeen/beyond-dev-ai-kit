@@ -395,6 +395,16 @@ def evaluate_changes(
         if not rel_norm:
             continue
 
+        ignore_hit = None
+        for pattern in ignore_patterns:
+            if path_matches_pattern(rel_norm, pattern):
+                ignore_hit = pattern
+                break
+
+        if ignore_hit is not None:
+            ignored_files.append(rel_norm)
+            continue
+
         forbidden_hit = None
         for pattern in forbidden_patterns:
             if path_matches_pattern(rel_norm, pattern):
@@ -412,16 +422,6 @@ def evaluate_changes(
                 }
             )
             filtered_changed.append(rel_norm)
-            continue
-
-        ignore_hit = None
-        for pattern in ignore_patterns:
-            if path_matches_pattern(rel_norm, pattern):
-                ignore_hit = pattern
-                break
-
-        if ignore_hit is not None:
-            ignored_files.append(rel_norm)
             continue
 
         allowed = False

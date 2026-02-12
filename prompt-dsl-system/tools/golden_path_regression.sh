@@ -247,14 +247,15 @@ rm -rf "$REGRESSION_TMP"
 mkdir -p "$REGRESSION_TMP"
 
 # Shared fixtures (needed by shard execution too).
-CASE1="$SCRIPT_DIR/_tmp_structure_cases/case1_standard"
-CASE2="$SCRIPT_DIR/_tmp_structure_cases/case2_classlevel"
-CASE4="$SCRIPT_DIR/_tmp_structure_cases/case4_endpoint_miss"
-CASE5="$SCRIPT_DIR/_tmp_structure_cases/case5_ambiguous_two_modules"
-CASE6="$SCRIPT_DIR/_tmp_structure_cases/case6_maven_multi_module"
-CASE7="$SCRIPT_DIR/_tmp_structure_cases/case7_nonstandard_java_root"
-CASE8="$SCRIPT_DIR/_tmp_structure_cases/case8_composed_annotation"
-CASE9="$SCRIPT_DIR/_tmp_structure_cases/case7_scan_graph_weird_annotations"
+STRUCTURE_CASES_DIR="$SCRIPT_DIR/testdata/structure_cases"
+CASE1="$STRUCTURE_CASES_DIR/case1_standard"
+CASE2="$STRUCTURE_CASES_DIR/case2_classlevel"
+CASE4="$STRUCTURE_CASES_DIR/case4_endpoint_miss"
+CASE5="$STRUCTURE_CASES_DIR/case5_ambiguous_two_modules"
+CASE6="$STRUCTURE_CASES_DIR/case6_maven_multi_module"
+CASE7="$STRUCTURE_CASES_DIR/case7_nonstandard_java_root"
+CASE8="$STRUCTURE_CASES_DIR/case8_composed_annotation"
+CASE9="$STRUCTURE_CASES_DIR/case7_scan_graph_weird_annotations"
 PLUGIN="$SCRIPT_DIR/hongzhi_plugin.py"
 PLUGIN_STATE="$REGRESSION_TMP/plugin_global_state"
 mkdir -p "$PLUGIN_STATE"
@@ -523,7 +524,7 @@ if [ -f "$AUTO_DISCOVER" ]; then
   [ "$AD_RC" -eq 0 ] && check "Phase12:auto_module_discover_syntax" "PASS" || check "Phase12:auto_module_discover_syntax" "FAIL"
 
   # Run on test fixtures — should find at least 1 candidate
-  CASE1="$SCRIPT_DIR/_tmp_structure_cases/case1_standard"
+  CASE1="$STRUCTURE_CASES_DIR/case1_standard"
   if [ -d "$CASE1" ]; then
     set +e
     AD_OUT=$("$PYTHON_BIN" "$AUTO_DISCOVER" --repo-root "$CASE1" --read-only 2>/dev/null)
@@ -544,13 +545,13 @@ fi
 
 # ─── Phase 13: endpoint signature v2 smoke ───
 echo "[phase 13] endpoint signature v2 smoke"
-CASE2="$SCRIPT_DIR/_tmp_structure_cases/case2_classlevel"
-CASE4="$SCRIPT_DIR/_tmp_structure_cases/case4_endpoint_miss"
-CASE5="$SCRIPT_DIR/_tmp_structure_cases/case5_ambiguous_two_modules"
-CASE6="$SCRIPT_DIR/_tmp_structure_cases/case6_maven_multi_module"
-CASE7="$SCRIPT_DIR/_tmp_structure_cases/case7_nonstandard_java_root"
-CASE8="$SCRIPT_DIR/_tmp_structure_cases/case8_composed_annotation"
-CASE9="$SCRIPT_DIR/_tmp_structure_cases/case7_scan_graph_weird_annotations"
+CASE2="$STRUCTURE_CASES_DIR/case2_classlevel"
+CASE4="$STRUCTURE_CASES_DIR/case4_endpoint_miss"
+CASE5="$STRUCTURE_CASES_DIR/case5_ambiguous_two_modules"
+CASE6="$STRUCTURE_CASES_DIR/case6_maven_multi_module"
+CASE7="$STRUCTURE_CASES_DIR/case7_nonstandard_java_root"
+CASE8="$STRUCTURE_CASES_DIR/case8_composed_annotation"
+CASE9="$STRUCTURE_CASES_DIR/case7_scan_graph_weird_annotations"
 if [ -d "$CASE2" ] && [ -f "$STRUCT_DISCOVER" ]; then
   set +e
   SD_OUT=$("$PYTHON_BIN" "$STRUCT_DISCOVER" --repo-root "$CASE2" --project-key test --module-key order --read-only 2>/dev/null)
