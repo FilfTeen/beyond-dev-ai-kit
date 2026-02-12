@@ -1,0 +1,42 @@
+# XYWYGL Stack Profile (Declared)
+# Status: initialized from user-provided company baseline; scanner evidence pending.
+
+profile_kind: "declared"
+profile_version: "1.0"
+
+identity:
+  project_key: "xywygl"
+  project_name: "襄阳物业管理系统"
+  profile_id: "xywygl/stack"
+
+sources:
+  - source_type: "user_input"
+    summary: "User-declared baseline: Java8/Spring Boot/LayUI/Oracle/RESTful/Vue/uni-app/Lombok/SVN"
+  - source_type: "document"
+    summary: "prompt-dsl-system/module_profiles/xywygl/*.yaml declared profiles mention Oracle/MySQL/DM8 migration targets"
+
+stack:
+  backend_languages: ["java"]
+  backend_frameworks: ["spring-boot", "lombok"]
+  frontend_frameworks: ["vue.js"]
+  ui_frameworks: ["layui", "html", "javascript"]
+  mobile_frameworks: ["uni-app"]
+  database_engines: ["oracle", "mysql", "dm8"]
+  process_engines: ["activiti"]
+  build_tools: ["maven"]
+  vcs: ["svn"]
+
+constraints:
+  java_runtime: "java8"
+  sql_policy: "portable_first_dual_sql_when_needed"
+
+confidence:
+  overall: "medium"
+  notes:
+    - "Current facts are primarily from user input and kit-side module profiles"
+    - "Run project_stack_scanner.py on the real xywygl repository to upgrade confidence"
+
+required_additional_information:
+  - "Provide xywygl repository absolute path for scanner evidence"
+
+reconciliation_notes: []

@@ -3,6 +3,7 @@
 ## 用途
 
 为 `pipeline_project_bootstrap` 提供项目级输入元数据，使装配线能够准确理解项目边界和能力需求。
+项目技术栈信息由 `PROJECT_TECH_STACK_SPEC.md` 管理，作为可选并行输入源。
 
 ## 文件位置
 
@@ -46,3 +47,4 @@ existing_skills: []    # list of skill names that already cover some capabilitie
 
 - Profile 为可选文件。不存在时 pipeline 仍可运行（降级为手动输入模式）。
 - 没有 profile 时，所有项目信息必须通过 `project_scope` 和 `target_capabilities` 参数提供。
+- 若 `project_stacks/<project_key>/stack_profile*.yaml` 存在，应作为能力映射和技术路线决策的辅助输入。

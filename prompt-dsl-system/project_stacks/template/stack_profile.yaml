@@ -1,0 +1,39 @@
+# Project Stack Profile Template (Declared)
+# Copy to: prompt-dsl-system/project_stacks/<project_key>/stack_profile.yaml
+
+profile_kind: "declared"
+profile_version: "1.0"
+
+identity:
+  project_key: "TODO"
+  project_name: "TODO"
+  profile_id: "TODO/stack"
+
+sources:
+  - source_type: "user_input"
+    summary: "Initial stack assumptions from requirement conversation"
+
+stack:
+  backend_languages: []
+  backend_frameworks: []
+  frontend_frameworks: []
+  ui_frameworks: []
+  mobile_frameworks: []
+  database_engines: []
+  process_engines: []
+  build_tools: []
+  vcs: []
+
+constraints:
+  java_runtime: "unknown"
+  sql_policy: "portable_first_dual_sql_when_needed"
+
+confidence:
+  overall: "low"
+  notes:
+    - "Needs scanner evidence from target project repository"
+
+required_additional_information:
+  - "Provide target repo root for scanner run"
+
+reconciliation_notes: []

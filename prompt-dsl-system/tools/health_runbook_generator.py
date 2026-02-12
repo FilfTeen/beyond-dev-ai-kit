@@ -104,6 +104,15 @@ def get_int(mapping: Dict[str, Any], key: str) -> int:
         return 0
 
 
+def get_text(value: Any, fallback: str = "unknown") -> str:
+    if value is None:
+        return fallback
+    text = str(value).strip()
+    if not text:
+        return fallback
+    return text
+
+
 def get_ratio(numerator: int, denominator: int) -> float:
     if denominator <= 0:
         return 0.0
@@ -154,10 +163,20 @@ def decide_steps(report: Dict[str, Any], mode: str, include_ack_flows: bool) -> 
     build = report.get("build_integrity") if isinstance(report.get("build_integrity"), dict) else {}
     signals = report.get("execution_signals") if isinstance(report.get("execution_signals"), dict) else {}
     risk = report.get("risk_triggers") if isinstance(report.get("risk_triggers"), dict) else {}
+    post_validate = report.get("post_validate_gates") if isinstance(report.get("post_validate_gates"), dict) else {}
 
     validate_errors = get_int(build, "errors")
     validate_warnings = get_int(build, "warnings")
     total_runs = get_int(signals, "total_runs")
+    post_validate_overall_status = get_text(post_validate.get("overall_status"), fallback="UNKNOWN").upper()
+    post_validate_gate_status_counter: Dict[str, int] = {}
+    gates_raw = post_validate.get("gates")
+    if isinstance(gates_raw, list):
+        for item in gates_raw:
+            if not isinstance(item, dict):
+                continue
+            status = get_text(item.get("status"), fallback="UNKNOWN").upper()
+            post_validate_gate_status_counter[status] = post_validate_gate_status_counter.get(status, 0) + 1
 
     verify_dist = normalize_counter(signals.get("verify_status_distribution"))
     blocked_dist = normalize_counter(signals.get("blocked_by_distribution"))
@@ -189,6 +208,75 @@ def decide_steps(report: Dict[str, Any], mode: str, include_ack_flows: bool) -> 
 
     steps: List[Dict[str, Any]] = []
     sid = 1
+
+    # P0) post-validate gates fail => hard block first
+    if post_validate_overall_status == "FAIL":
+        steps.append(
+            step(
+                sid,
+                "Post-Gate Block: Re-run Validate",
+                "后置闸门失败优先阻断，先重跑 validate 刷新 post_validate_gates。",
+                build_cmd("./prompt-dsl-system/tools/run.sh", "validate", "-r", '"${REPO_ROOT}"'),
+                "validate 输出中应出现 [contract_replay] PASS 与 [template_guard] PASS。",
+                "若仍 FAIL，执行下一步逐项排查，禁止推进 run/apply。",
+            )
+        )
+        sid += 1
+        steps.append(
+            step(
+                sid,
+                "Replay Contract Samples",
+                "验证机器合约样例链路是否完整。",
+                build_cmd(
+                    "bash",
+                    "prompt-dsl-system/tools/contract_samples/replay_contract_samples.sh",
+                    "--repo-root",
+                    '"${REPO_ROOT}"',
+                ),
+                "输出 [contract_replay] PASS。",
+                "若失败，先修复 contract schema/validator/sample，再回到 Step 1。",
+            )
+        )
+        sid += 1
+        steps.append(
+            step(
+                sid,
+                "Run Template Guard",
+                "验证 A3 收尾模板完整性与占位符契约。",
+                build_cmd(
+                    "/usr/bin/python3",
+                    "prompt-dsl-system/tools/kit_self_upgrade_template_guard.py",
+                    "--repo-root",
+                    '"${REPO_ROOT}"',
+                ),
+                "输出 [template_guard] PASS。",
+                "若失败，补齐 templates 后重跑 Step 1。",
+            )
+        )
+        sid += 1
+        steps.append(
+            step(
+                sid,
+                "Stop Promotion Until Post-Gates PASS",
+                "后置闸门未通过前禁止进入 run/apply/promotion。",
+                None,
+                "仅在 post_validate_gates.overall_status=PASS 后恢复常规 runbook。",
+                "保持阻断并通知人工处理。",
+            )
+        )
+        context = {
+            "validate_errors": validate_errors,
+            "validate_warnings": validate_warnings,
+            "verify_fail_count": verify_fail_count,
+            "verify_fail_ratio": round(verify_fail_ratio, 4),
+            "bypass_attempt_count": bypass_attempt_count,
+            "dominant_block_type": "post_validate_gates",
+            "exit_code_distribution": exit_dist,
+            "top_triggers": top_triggers,
+            "post_validate_overall_status": post_validate_overall_status,
+            "post_validate_gate_status_distribution": post_validate_gate_status_counter,
+        }
+        return steps, context
 
     # A) validate errors first
     if validate_errors > 0:
@@ -510,6 +598,8 @@ def decide_steps(report: Dict[str, Any], mode: str, include_ack_flows: bool) -> 
         "dominant_block_type": dominant_block_type,
         "exit_code_distribution": exit_dist,
         "top_triggers": top_triggers,
+        "post_validate_overall_status": post_validate_overall_status,
+        "post_validate_gate_status_distribution": post_validate_gate_status_counter,
     }
     return steps, context
 
@@ -542,6 +632,7 @@ def build_runbook_json(
             "build_integrity": health_report.get("build_integrity", {}),
             "execution_signals": health_report.get("execution_signals", {}),
             "risk_triggers": health_report.get("risk_triggers", {}),
+            "post_validate_gates": health_report.get("post_validate_gates", {}),
         },
         "steps": list(steps),
     }

@@ -319,18 +319,19 @@ if [ -z "$repo_root" ]; then
 fi
 
 if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 <list|validate|run|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback> [args...]" >&2
+  echo "Usage: $0 <list|validate|run|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
   exit 2
 fi
 
 subcommand="$1"
+requested_subcommand="$subcommand"
 shift
 
 case "$subcommand" in
-  list|validate|run|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback) ;;
+  list|validate|run|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade) ;;
   *)
     echo "[ERROR] Unsupported subcommand: $subcommand" >&2
-    echo "Usage: $0 <list|validate|run|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback> [args...]" >&2
+    echo "Usage: $0 <list|validate|run|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
     exit 2
     ;;
 esac
@@ -341,6 +342,7 @@ ack_hint_window="10"
 no_ack_hint=0
 ack_latest=0
 ack_file_raw=""
+strict_self_upgrade=0
 no_snapshot_requested=0
 policy_path_raw=""
 policy_overrides=()
@@ -386,6 +388,17 @@ while [ "$#" -gt 0 ]; do
       ;;
     --ack-file=*)
       ack_file_raw="${arg#*=}"
+      ;;
+    --strict-self-upgrade)
+      strict_self_upgrade=1
+      ;;
+    --strict-self-upgrade=*)
+      parsed_bool="$(parse_bool "${arg#*=}" || true)"
+      if [ -z "$parsed_bool" ]; then
+        echo "[ERROR] Invalid value for --strict-self-upgrade: ${arg#*=}" >&2
+        exit 2
+      fi
+      strict_self_upgrade="$parsed_bool"
       ;;
     --ack-latest)
       ack_latest=1
@@ -447,6 +460,48 @@ if [ "${#converted_args[@]}" -gt 0 ]; then
   args=("${converted_args[@]}")
 else
   args=()
+fi
+
+if [ "$subcommand" = "self-upgrade" ]; then
+  has_pipeline_arg=0
+  has_module_path_arg=0
+  for arg in "${args[@]-}"; do
+    case "$arg" in
+      --pipeline|--pipeline=*)
+        has_pipeline_arg=1
+        ;;
+      --module-path|--module-path=*)
+        has_module_path_arg=1
+        ;;
+    esac
+  done
+
+  if [ "$has_module_path_arg" -eq 0 ]; then
+    if [ "${#args[@]}" -gt 0 ]; then
+      args=("--module-path" "." "${args[@]}")
+    else
+      args=("--module-path" ".")
+    fi
+  fi
+
+  if [ "$has_pipeline_arg" -eq 0 ]; then
+    args+=("--pipeline" "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md")
+  fi
+
+  subcommand="run"
+fi
+
+if [ "$requested_subcommand" = "self-upgrade" ] && [ -n "${HONGZHI_SELF_UPGRADE_STRICT:-}" ]; then
+  parsed_env_strict="$(parse_bool "${HONGZHI_SELF_UPGRADE_STRICT}" || true)"
+  if [ -z "$parsed_env_strict" ]; then
+    echo "[ERROR] Invalid HONGZHI_SELF_UPGRADE_STRICT value: ${HONGZHI_SELF_UPGRADE_STRICT}" >&2
+    exit 2
+  fi
+  strict_self_upgrade="$parsed_env_strict"
+fi
+
+if [ "$requested_subcommand" != "self-upgrade" ] && [ "$strict_self_upgrade" -eq 1 ]; then
+  echo "[hongzhi][WARN] --strict-self-upgrade is only effective with subcommand=self-upgrade; ignored" >&2
 fi
 
 if ! [[ "$ack_hint_window" =~ ^[0-9]+$ ]]; then
@@ -604,6 +659,9 @@ if [ -n "$normalized_module_path" ]; then
   module_path_observe="$normalized_module_path"
 fi
 echo "[hongzhi] cmd=$subcommand repo_root=$effective_repo_root module_path=$module_path_observe"
+if [ "$requested_subcommand" = "self-upgrade" ]; then
+  echo "[hongzhi] cmd_alias=self-upgrade->run pipeline=prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md"
+fi
 if [ "$no_snapshot_requested" -eq 1 ] && { [ "$subcommand" = "apply-move" ] || [ "$subcommand" = "resolve-move-conflicts" ] || [ "$subcommand" = "apply-followup-fixes" ]; }; then
   echo "[hongzhi][WARN] snapshot disabled by --no-snapshot; apply will proceed without automatic restore point." >&2
 fi
@@ -700,6 +758,148 @@ if [ "$subcommand" = "rollback" ]; then
   exit "$rollback_rc"
 fi
 
+if [ "$subcommand" = "selfcheck" ]; then
+  SELFCHECK_SCRIPT="${SCRIPT_DIR}/kit_selfcheck.py"
+  if [ ! -f "$SELFCHECK_SCRIPT" ]; then
+    echo "[ERROR] kit_selfcheck.py not found: $SELFCHECK_SCRIPT" >&2
+    exit 2
+  fi
+  set +e
+  "$PYTHON_BIN" "$SELFCHECK_SCRIPT" "${invoke_args[@]-}"
+  selfcheck_rc=$?
+  set -e
+  exit "$selfcheck_rc"
+fi
+
+if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 1 ]; then
+  echo "[hongzhi][self-upgrade][strict] preflight start (selfcheck(contract) -> selfcheck_gate -> lint -> audit -> validate)"
+
+  SELFCHECK_SCRIPT="${SCRIPT_DIR}/kit_selfcheck.py"
+  SELFCHECK_GATE_SCRIPT="${SCRIPT_DIR}/kit_selfcheck_gate.py"
+  VALIDATOR_SCRIPT="${SCRIPT_DIR}/contract_validator.py"
+  LINT_SCRIPT="${SCRIPT_DIR}/pipeline_contract_lint.py"
+  AUDIT_SCRIPT="${SCRIPT_DIR}/skill_template_audit.py"
+
+  if [ ! -f "$SELFCHECK_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $SELFCHECK_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$VALIDATOR_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $VALIDATOR_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$SELFCHECK_GATE_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $SELFCHECK_GATE_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$LINT_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $LINT_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$AUDIT_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $AUDIT_SCRIPT" >&2
+    exit 2
+  fi
+
+  strict_schema_v1="${SCRIPT_DIR}/contract_schema_v1.json"
+  strict_schema_v2="${SCRIPT_DIR}/contract_schema_v2.json"
+  strict_schema="$strict_schema_v1"
+  if [ -f "$strict_schema_v2" ]; then
+    strict_schema="$strict_schema_v2"
+  fi
+
+  strict_tmp_json="/tmp/hz_selfupgrade_${$}_selfcheck.json"
+  strict_tmp_md="/tmp/hz_selfupgrade_${$}_selfcheck.md"
+  strict_tmp_gate_json="/tmp/hz_selfupgrade_${$}_selfcheck_gate.json"
+  cleanup_strict_temp() {
+    rm -f "$strict_tmp_json" "$strict_tmp_md" "$strict_tmp_gate_json" >/dev/null 2>&1 || true
+  }
+  strict_validator_args=(--stdin --schema "$strict_schema")
+  if [ "$strict_schema" = "$strict_schema_v2" ] && [ -f "$strict_schema_v1" ]; then
+    strict_validator_args+=(--baseline-schema "$strict_schema_v1")
+  fi
+  echo "[hongzhi][self-upgrade][strict] contract_schema=$(basename "$strict_schema")"
+
+  set +e
+  "$PYTHON_BIN" "$SELFCHECK_SCRIPT" --repo-root "$effective_repo_root" --out-json "$strict_tmp_json" --out-md "$strict_tmp_md" \
+    | "$PYTHON_BIN" "$VALIDATOR_SCRIPT" "${strict_validator_args[@]}"
+  strict_selfcheck_rc=$?
+  set -e
+  if [ "$strict_selfcheck_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: selfcheck contract validation failed (exit=$strict_selfcheck_rc)" >&2
+    exit "$strict_selfcheck_rc"
+  fi
+
+  strict_selfcheck_min_level="${HONGZHI_SELFCHECK_MIN_LEVEL:-high}"
+  strict_selfcheck_min_score="${HONGZHI_SELFCHECK_MIN_SCORE:-0.85}"
+  strict_selfcheck_max_low_dims="${HONGZHI_SELFCHECK_MAX_LOW_DIMS:-0}"
+  strict_selfcheck_required_dims="${HONGZHI_SELFCHECK_REQUIRED_DIMS:-}"
+  echo "[hongzhi][self-upgrade][strict] selfcheck_gate thresholds: level>=$strict_selfcheck_min_level score>=$strict_selfcheck_min_score low_dims<=$strict_selfcheck_max_low_dims"
+  if [ -n "$strict_selfcheck_required_dims" ]; then
+    echo "[hongzhi][self-upgrade][strict] selfcheck_gate required_dims=$strict_selfcheck_required_dims"
+  fi
+  strict_selfcheck_gate_args=(
+    --report-json "$strict_tmp_json"
+    --min-overall-score "$strict_selfcheck_min_score"
+    --min-overall-level "$strict_selfcheck_min_level"
+    --max-low-dimensions "$strict_selfcheck_max_low_dims"
+    --out-json "$strict_tmp_gate_json"
+  )
+  if [ -n "$strict_selfcheck_required_dims" ]; then
+    strict_selfcheck_gate_args+=(--required-dimensions "$strict_selfcheck_required_dims")
+  fi
+  set +e
+  "$PYTHON_BIN" "$SELFCHECK_GATE_SCRIPT" "${strict_selfcheck_gate_args[@]}"
+  strict_selfcheck_gate_rc=$?
+  set -e
+  if [ "$strict_selfcheck_gate_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: selfcheck quality gate failed (exit=$strict_selfcheck_gate_rc)" >&2
+    exit "$strict_selfcheck_gate_rc"
+  fi
+
+  set +e
+  "$PYTHON_BIN" "$LINT_SCRIPT" --repo-root "$effective_repo_root" --fail-on-empty
+  strict_lint_rc=$?
+  set -e
+  if [ "$strict_lint_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: pipeline_contract_lint failed (exit=$strict_lint_rc)" >&2
+    exit "$strict_lint_rc"
+  fi
+
+  set +e
+  "$PYTHON_BIN" "$AUDIT_SCRIPT" --repo-root "$effective_repo_root" --scope all --fail-on-empty
+  strict_audit_rc=$?
+  set -e
+  if [ "$strict_audit_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: skill_template_audit failed (exit=$strict_audit_rc)" >&2
+    exit "$strict_audit_rc"
+  fi
+
+  previous_validate_strict="${HONGZHI_VALIDATE_STRICT:-}"
+  export HONGZHI_VALIDATE_STRICT=1
+  set +e
+  run_runner_once "validate" --repo-root "$effective_repo_root"
+  strict_validate_rc=$?
+  set -e
+  if [ -n "$previous_validate_strict" ]; then
+    export HONGZHI_VALIDATE_STRICT="$previous_validate_strict"
+  else
+    unset HONGZHI_VALIDATE_STRICT || true
+  fi
+  if [ "$strict_validate_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: validate gate failed (exit=$strict_validate_rc)" >&2
+    exit "$strict_validate_rc"
+  fi
+
+  cleanup_strict_temp
+  echo "[hongzhi][self-upgrade][strict] preflight PASS"
+fi
+
 set +e
 run_runner_once "$subcommand" "${invoke_args[@]-}"
 runner_rc=$?
@@ -708,6 +908,10 @@ set -e
 if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
   health_report_disabled=0
   health_runbook_disabled=0
+  audit_rc=-1
+  lint_rc=-1
+  replay_rc=-1
+  template_guard_rc=-1
   for arg in "${invoke_args[@]-}"; do
     if [ "$arg" = "--no-health-report" ]; then
       health_report_disabled=1
@@ -754,6 +958,82 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
     if [ "$lint_rc" -ne 0 ]; then
       echo "[hongzhi][WARN] pipeline_contract_lint FAIL (exit=$lint_rc)" >&2
       runner_rc="$lint_rc"
+    fi
+  fi
+
+  # Contract sample replay (post-validate default gate)
+  CONTRACT_REPLAY_SCRIPT="${SCRIPT_DIR}/contract_samples/replay_contract_samples.sh"
+  if [ -f "$CONTRACT_REPLAY_SCRIPT" ]; then
+    set +e
+    bash "$CONTRACT_REPLAY_SCRIPT" --repo-root "$effective_repo_root"
+    replay_rc=$?
+    set -e
+    if [ "$replay_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] contract_sample_replay FAIL (exit=$replay_rc)" >&2
+      runner_rc="$replay_rc"
+    fi
+  else
+    echo "[hongzhi][WARN] contract_sample_replay missing: $CONTRACT_REPLAY_SCRIPT" >&2
+    replay_rc=2
+    runner_rc=2
+  fi
+
+  # Kit self-upgrade closure template integrity (post-validate default gate)
+  TEMPLATE_GUARD_SCRIPT="${SCRIPT_DIR}/kit_self_upgrade_template_guard.py"
+  if [ -f "$TEMPLATE_GUARD_SCRIPT" ]; then
+    set +e
+    "$PYTHON_BIN" "$TEMPLATE_GUARD_SCRIPT" --repo-root "$effective_repo_root"
+    template_guard_rc=$?
+    set -e
+    if [ "$template_guard_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] template_guard FAIL (exit=$template_guard_rc)" >&2
+      runner_rc="$template_guard_rc"
+    fi
+  else
+    echo "[hongzhi][WARN] template_guard missing: $TEMPLATE_GUARD_SCRIPT" >&2
+    template_guard_rc=2
+    runner_rc=2
+  fi
+
+  if [ "$health_report_disabled" -eq 0 ]; then
+    POST_VALIDATE_SYNC_SCRIPT="${SCRIPT_DIR}/health_post_validate_sync.py"
+    if [ -f "$POST_VALIDATE_SYNC_SCRIPT" ]; then
+      audit_status="SKIP"
+      lint_status="SKIP"
+      replay_status="SKIP"
+      template_status="SKIP"
+      [ "$audit_rc" -gt 0 ] && audit_status="FAIL"
+      [ "$lint_rc" -gt 0 ] && lint_status="FAIL"
+      [ "$replay_rc" -gt 0 ] && replay_status="FAIL"
+      [ "$template_guard_rc" -gt 0 ] && template_status="FAIL"
+      [ "$audit_rc" -eq 0 ] && audit_status="PASS"
+      [ "$lint_rc" -eq 0 ] && lint_status="PASS"
+      [ "$replay_rc" -eq 0 ] && replay_status="PASS"
+      [ "$template_guard_rc" -eq 0 ] && template_status="PASS"
+
+      output_token_abs="$(resolve_output_token_json_path "$effective_repo_root" "${invoke_args[@]-}")"
+      output_dir_abs="$(dirname "$output_token_abs")"
+      health_json_path="$(normalize_path_allow_missing "$output_dir_abs/health_report.json")"
+      health_md_path="$(normalize_path_allow_missing "$output_dir_abs/health_report.md")"
+
+      set +e
+      "$PYTHON_BIN" "$POST_VALIDATE_SYNC_SCRIPT" \
+        --repo-root "$effective_repo_root" \
+        --report-json "$health_json_path" \
+        --report-md "$health_md_path" \
+        --gate "skill_template_audit:${audit_status}:${audit_rc}" \
+        --gate "pipeline_contract_lint:${lint_status}:${lint_rc}" \
+        --gate "contract_sample_replay:${replay_status}:${replay_rc}" \
+        --gate "kit_template_guard:${template_status}:${template_guard_rc}"
+      sync_rc=$?
+      set -e
+      if [ "$sync_rc" -ne 0 ]; then
+        echo "[hongzhi][WARN] health_post_validate_sync FAIL (exit=$sync_rc)" >&2
+        runner_rc="$sync_rc"
+      fi
+    else
+      echo "[hongzhi][WARN] health_post_validate_sync missing: $POST_VALIDATE_SYNC_SCRIPT" >&2
+      runner_rc=2
     fi
   fi
 fi

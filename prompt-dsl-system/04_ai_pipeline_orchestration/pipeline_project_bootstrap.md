@@ -19,6 +19,7 @@
 - `project_scope`：项目/模块名称及功能边界描述。
 - `target_capabilities`：目标能力列表（每项对应一个潜在 skill）。
 - `project_key`（可选）：若提供，Step1 将尝试读取 `projects/<project_key>/profile.yaml`（见 `PROJECT_PROFILE_SPEC.md`）。
+- `project_stack_profile`（可选）：`project_stacks/<project_key>/stack_profile.yaml` 或 `stack_profile.discovered.yaml`（见 `PROJECT_TECH_STACK_SPEC.md`）。
 - `context_id` / `trace_id` / `input_artifact_refs`。
 
 ## 缺失边界时的硬规则
@@ -35,10 +36,11 @@ parameters:
   mode: "governance"
   module_path: "{{allowed_module_root}}"
   allowed_module_root: "{{allowed_module_root}}"
-  objective: "若提供 project_key，先读取 projects/{{project_key}}/profile.yaml（按 PROJECT_PROFILE_SPEC.md 格式）作为输入；若 profile 不存在，必须输出 required_additional_information checklist（禁止猜测项目结构）。解析项目 {{project_scope}} 的模块边界和目标能力 {{target_capabilities}}；扫描现有 skills.json 和 SKILL_SPEC.md，评估哪些能力需要新 skill、哪些可复用现有 skill；输出能力→skill 映射表和影响树。"
+  objective: "若提供 project_key，先读取 projects/{{project_key}}/profile.yaml（按 PROJECT_PROFILE_SPEC.md 格式）作为输入；若 stack profile 存在，同时读取 project_stacks/{{project_key}}/stack_profile*.yaml（按 PROJECT_TECH_STACK_SPEC.md）用于技术栈校准；若 profile 不存在，必须输出 required_additional_information checklist（禁止猜测项目结构）。解析项目 {{project_scope}} 的模块边界和目标能力 {{target_capabilities}}；扫描现有 skills.json 和 SKILL_SPEC.md，评估哪些能力需要新 skill、哪些可复用现有 skill；输出能力→skill 映射表和影响树。"
   constraints:
     - "scan-only"
     - "if project_key provided: read projects/<project_key>/profile.yaml"
+    - "if stack profile exists: read project_stacks/<project_key>/stack_profile*.yaml for stack alignment"
     - "if profile missing: output required_additional_information checklist (never guess project structure)"
     - "check skill name uniqueness against registry"
     - "check domain folder existence"

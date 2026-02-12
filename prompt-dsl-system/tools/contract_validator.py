@@ -10,7 +10,12 @@ from typing import Any, Dict, List, Tuple
 
 
 def _schema_default_path() -> Path:
-    return Path(__file__).resolve().parent / "contract_schema_v1.json"
+    tool_dir = Path(__file__).resolve().parent
+    for name in ("contract_schema_v2.json", "contract_schema_v1.json"):
+        candidate = tool_dir / name
+        if candidate.is_file():
+            return candidate
+    return tool_dir / "contract_schema_v2.json"
 
 
 def load_json_file(path: Path) -> Dict[str, Any]:
@@ -84,8 +89,10 @@ def _validate_machine_line(
     if missing_fields:
         return False, "missing_field", f"{line_type}:missing={','.join(missing_fields)}"
 
-    if "package_version" not in fields or "plugin_version" not in fields or "contract_version" not in fields:
-        return False, "missing_versions_triplet", f"{line_type}:missing_package_plugin_contract"
+    require_versions_triplet = bool(line_spec.get("require_versions_triplet", True))
+    if require_versions_triplet:
+        if "package_version" not in fields or "plugin_version" not in fields or "contract_version" not in fields:
+            return False, "missing_versions_triplet", f"{line_type}:missing_package_plugin_contract"
 
     json_spec = line_spec.get("json_payload", {})
     if not isinstance(json_spec, dict):
@@ -112,7 +119,7 @@ def _validate_machine_line(
                 return False, "json_missing_key", f"{line_type}:json_missing={','.join(missing_json_keys)}"
 
         versions_required_keys = json_spec.get("versions_required_keys", [])
-        if isinstance(versions_required_keys, list):
+        if isinstance(versions_required_keys, list) and versions_required_keys:
             ok, msg = _validate_versions_triplet_from_json(payload, versions_required_keys)
             if not ok:
                 return False, "json_versions_invalid", f"{line_type}:{msg}"
@@ -167,7 +174,10 @@ def main() -> int:
     parser.add_argument(
         "--schema",
         default=str(_schema_default_path()),
-        help="Path to contract schema JSON (default: prompt-dsl-system/tools/contract_schema_v1.json)",
+        help=(
+            "Path to contract schema JSON "
+            "(default: auto-detect highest available, prefers contract_schema_v2.json then v1)"
+        ),
     )
     parser.add_argument("--file", default=None, help="Path to log file to validate")
     parser.add_argument("--stdin", action="store_true", help="Read log text from stdin")

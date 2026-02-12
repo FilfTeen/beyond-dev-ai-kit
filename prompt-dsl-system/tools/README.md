@@ -29,6 +29,9 @@
 ```bash
 ./prompt-dsl-system/tools/run.sh list -r .
 ./prompt-dsl-system/tools/run.sh validate -r .
+./prompt-dsl-system/tools/run.sh selfcheck -r .
+./prompt-dsl-system/tools/run.sh self-upgrade -r .
+./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade
 ./prompt-dsl-system/tools/run.sh run -r . -m <MODULE_PATH> --pipeline prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md
 ./prompt-dsl-system/tools/run.sh resolve-move-conflicts -r . -m <MODULE_PATH> --strategy rename_suffix
 ./prompt-dsl-system/tools/run.sh scan-followup -r . --moves prompt-dsl-system/tools/move_report.json
@@ -43,6 +46,11 @@
 ./prompt-dsl-system/tools/run.sh trace-diff -r . --a trace-c4d7 --b trace-xxxx
 ./prompt-dsl-system/tools/run.sh trace-bisect -r . --bad trace-xxxx
 ```
+
+`validate` 默认后置闸门（core validate PASS 后自动执行）：
+- `contract_samples/replay_contract_samples.sh`
+- `kit_self_upgrade_template_guard.py`
+- 并将结果写入 `health_report` 独立 section：`post_validate_gates`（JSON + Markdown）
 
 公司标准（推荐）：
 
@@ -218,6 +226,118 @@
 - 默认仅生成计划，不执行移动。
 - 若 `module_path` 缺失，仍会生成 `move_plan.md`，但不会生成 `move_plan.sh`。
 - 需要执行迁移时，使用 `rollback_helper.py --move-mode apply --move-dry-run false --yes`。
+
+## Project Stack Scanner（项目技术栈建档）
+
+用于扫描目标项目仓库并生成技术栈发现档案：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/project_stack_scanner.py \
+  --repo-root /abs/path/to/target-project \
+  --project-key xywygl \
+  --kit-root .
+```
+
+默认输出：
+
+- `prompt-dsl-system/project_stacks/<project_key>/stack_profile.discovered.yaml`
+
+## Kit Selfcheck（套件质量自检）
+
+用于在升级前输出套件质量评分与缺口建议（JSON + Markdown）：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/kit_selfcheck.py --repo-root .
+# or via wrapper
+./prompt-dsl-system/tools/run.sh selfcheck -r .
+```
+
+默认输出：
+
+- `prompt-dsl-system/tools/kit_selfcheck_report.json`
+- `prompt-dsl-system/tools/kit_selfcheck_report.md`
+- stdout machine line: `KIT_CAPS <abs_json_path> path="..." json='...'`
+
+质量阈值门禁（可单独执行）：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/kit_selfcheck_gate.py \
+  --report-json prompt-dsl-system/tools/kit_selfcheck_report.json \
+  --min-overall-score 0.85 \
+  --min-overall-level high \
+  --max-low-dimensions 0
+```
+
+## Self Upgrade（统一入口）
+
+运行套件自升级 pipeline 的统一命令：
+
+```bash
+./prompt-dsl-system/tools/run.sh self-upgrade -r .
+```
+
+默认注入：
+
+- `--module-path .`（即当前仓库根路径）
+- `--pipeline prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md`
+
+严格预检模式（推荐用于重大升级）：
+
+```bash
+./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade
+```
+
+严格预检链路：
+1. `selfcheck` + machine contract validation
+2. `kit_selfcheck_gate.py` 质量+维度契约门禁（`overall_score/overall_level/low_dimensions/required_dimensions/dimension_count`）
+3. `pipeline_contract_lint.py --fail-on-empty`
+4. `skill_template_audit.py --scope all --fail-on-empty`
+5. `validate` with `HONGZHI_VALIDATE_STRICT=1`
+
+严格门禁阈值（可通过 env 覆盖）：
+- `HONGZHI_SELFCHECK_MIN_SCORE`（默认 `0.85`）
+- `HONGZHI_SELFCHECK_MIN_LEVEL`（默认 `high`）
+- `HONGZHI_SELFCHECK_MAX_LOW_DIMS`（默认 `0`）
+- `HONGZHI_SELFCHECK_REQUIRED_DIMS`（可选，逗号分隔；默认内置 7 个核心维度）
+
+## Machine Contract Validation（KIT_CAPS / HONGZHI_*）
+
+```bash
+./prompt-dsl-system/tools/run.sh selfcheck -r . --out-json /tmp/kit.json --out-md /tmp/kit.md \
+  | /usr/bin/python3 prompt-dsl-system/tools/contract_validator.py --stdin
+```
+
+指定 v2 + v1 additive guard：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/contract_validator.py \
+  --schema prompt-dsl-system/tools/contract_schema_v2.json \
+  --baseline-schema prompt-dsl-system/tools/contract_schema_v1.json \
+  --file /tmp/hongzhi_machine.log
+```
+
+说明：
+- 未显式传 `--schema` 时，validator 默认优先选择 `contract_schema_v2.json`，缺失时回退 v1。
+
+回放样例（用于 smoke 校验）：
+
+```bash
+bash prompt-dsl-system/tools/contract_samples/replay_contract_samples.sh --repo-root .
+```
+
+## Kit Self Upgrade Closure Templates（A3 交付模板）
+
+模板目录：
+
+- `prompt-dsl-system/tools/artifacts/templates/kit_self_upgrade/A3_change_ledger.template.md`
+- `prompt-dsl-system/tools/artifacts/templates/kit_self_upgrade/A3_rollback_plan.template.md`
+- `prompt-dsl-system/tools/artifacts/templates/kit_self_upgrade/A3_cleanup_report.template.md`
+
+模板闸门单独执行：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/kit_self_upgrade_template_guard.py --repo-root .
+```
 
 ## 预检即方案：debug-guard
 用于在不阻断的前提下查看当前 guard 生效规则和潜在越界风险，并默认自动生成迁移/回滚方案（仅生成，不执行）。

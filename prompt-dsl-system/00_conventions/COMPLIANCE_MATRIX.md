@@ -1,4 +1,4 @@
-# Compliance Matrix (Original 15 Requirements + R16~R31 -> Current Implementation)
+# Compliance Matrix (Original 15 Requirements + R16~R45 -> Current Implementation)
 
 ## Validation Snapshot
 
@@ -38,12 +38,27 @@
 | R29 | Round27 machine-line json roundtrip + deterministic ordering + mismatch enum/suggestion + read-command zero-touch probe hardening + CLI `--machine-json` (env override) | `hongzhi_plugin.py`; `hongzhi_ai_kit/paths.py`; `golden_path_regression.sh` Phase33; `PLUGIN_RUNNER.md` | regression Phase33 + validate(strict) | Met |
 | R30 | Round28 machine-line contract schema + zero-dependency validator + regression hard-gate (discover/gov-block/exit25/additive schema guard) | `contract_schema_v1.json`; `contract_validator.py`; `golden_path_regression.sh` Phase34; `PLUGIN_RUNNER.md` | regression Phase34 + validate(strict) | Met |
 | R31 | Round29 company-scope optional hard gate + machine-line scope signal + governance skill lifecycle convergence (deployed) | `hongzhi_plugin.py`; `skills.json`; `golden_path_regression.sh` Phase35; `PLUGIN_RUNNER.md` | regression Phase35 + validate(strict) | Met |
+| R32 | 项目技术栈知识库：按项目扫描建档（declared + discovered）并可审计复核 | constitution Rule 21; `PROJECT_TECH_STACK_SPEC.md`; `project_stacks/**`; `project_stack_scanner.py`; `pipeline_project_stack_bootstrap.md` | `run.sh validate` + scanner run evidence | Met |
+| R33 | 产品经理链路：需求澄清→流程切片→接口/数据/验收→低保真原型 | constitution Rule 22; `pipeline_requirement_to_prototype.md`; `skill_hongzhi_universal_ops.yaml` | `run.sh validate` + pipeline_contract_lint | Met |
+| R34 | 个人开发范式落地（C++ 对齐且团队优先） | constitution Rule 23; `PERSONAL_DEV_STANDARD.md`; `CPP_STYLE_NAMING.md` | docs review + `run.sh validate` | Met |
+| R35 | 套件主线约束：beyond-dev-ai-kit 优化任务默认 kit-only，禁止外部业务仓库写入 | constitution Rule 24; toolkit path boundary policy | `run.sh validate` + scope review | Met |
+| R36 | 套件自检门禁：重大升级前必须运行质量评分并据此给出升级路线 | constitution Rule 25; `KIT_QUALITY_MODEL.md`; `kit_selfcheck.py`; `pipeline_kit_self_upgrade.md`; `skill_governance_audit_kit_quality.yaml` | `run.sh validate` + `kit_selfcheck.py` | Met |
+| R37 | agent 主动感知：selfcheck 需输出机器可读 `KIT_CAPS` 指针行 | constitution Rule 26; `kit_selfcheck.py`; `run.sh selfcheck` | `./prompt-dsl-system/tools/run.sh selfcheck -r .` | Met |
+| R38 | 统一自升级入口：`run.sh self-upgrade` 注入默认 module_path(仓库根)/pipeline，避免参数漂移 | constitution Rule 27; `run.sh`; `pipeline_kit_self_upgrade.md` | `./prompt-dsl-system/tools/run.sh self-upgrade -r .` | Met |
+| R39 | 严格自升级门禁链：selfcheck(contract)→selfcheck_gate→lint→audit→validate(strict) fail-fast | constitution Rule 28; `run.sh --strict-self-upgrade`; `contract_validator.py`; `kit_selfcheck_gate.py`; `pipeline_contract_lint.py`; `skill_template_audit.py` | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
+| R40 | 合约演进可兼容：schema v2 对 v1 进行 additive guard 校验，默认优先最新 schema | constitution Rule 29; `contract_schema_v2.json`; `contract_schema_v1.json`; `CONTRACT_COMPATIBILITY_STRATEGY.md`; `contract_validator.py` | `contract_validator.py --schema v2 --baseline-schema v1` | Met |
+| R41 | 自升级收尾标准化：A3 模板化交付 + 合约样例回放基线 | constitution Rule 30; `tools/artifacts/templates/kit_self_upgrade/**`; `tools/contract_samples/**`; `golden_path_regression.sh` Phase36 | `bash prompt-dsl-system/tools/contract_samples/replay_contract_samples.sh --repo-root .` | Met |
+| R42 | validate 默认后置闸门：contract replay + template guard，失败即失败 | constitution Rule 31; `run.sh`; `kit_self_upgrade_template_guard.py`; `contract_samples/replay_contract_samples.sh`; `golden_path_regression.sh` Phase37 | `./prompt-dsl-system/tools/run.sh validate -r .` | Met |
+| R43 | 可观测性强化：post-gate 结果必须汇总进 health_report 独立 section | constitution Rule 32; `health_post_validate_sync.py`; `run.sh`; `golden_path_regression.sh` Phase38 | `./prompt-dsl-system/tools/run.sh validate -r .` + `health_report.json` | Met |
+| R44 | 严格自升级质量阈值门禁：selfcheck 分数/等级/low维度需达标，否则阻断 | constitution Rule 33; `run.sh --strict-self-upgrade`; `kit_selfcheck_gate.py`; `KIT_QUALITY_MODEL.md`; `golden_path_regression.sh` Phase40 | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
+| R45 | 严格自升级维度契约门禁：required dimensions + dimension_count 一致性不满足即阻断 | constitution Rule 34; `run.sh --strict-self-upgrade`; `kit_selfcheck_gate.py`; `KIT_QUALITY_MODEL.md`; `golden_path_regression.sh` Phase41 | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
 
 ## File Mapping (Core)
 
 - Constitution: `prompt-dsl-system/00_conventions/HONGZHI_COMPANY_CONSTITUTION.md`
 - Skill spec binding: `prompt-dsl-system/00_conventions/SKILL_SPEC.md`
 - Universal skill: `prompt-dsl-system/05_skill_registry/skills/universal/skill_hongzhi_universal_ops.yaml`
+- Governance selfcheck skill: `prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_audit_kit_quality.yaml`
 - Pipelines:
   - `prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md`
   - `prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_ownercommittee_audit_fix.md`
@@ -55,10 +70,17 @@
   - `prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_skill_promote.md`
   - `prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_module_migration.md`
   - `prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_plugin_discover.md`
+  - `prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_project_stack_bootstrap.md`
+  - `prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_requirement_to_prototype.md`
+  - `prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md`
 - Conventions:
   - `prompt-dsl-system/00_conventions/CPP_STYLE_NAMING.md`
+  - `prompt-dsl-system/00_conventions/PERSONAL_DEV_STANDARD.md`
+  - `prompt-dsl-system/00_conventions/KIT_QUALITY_MODEL.md`
+  - `prompt-dsl-system/00_conventions/CONTRACT_COMPATIBILITY_STRATEGY.md`
   - `prompt-dsl-system/00_conventions/SQL_COMPAT_STRATEGY.md`
   - `prompt-dsl-system/00_conventions/PROJECT_PROFILE_SPEC.md`
+  - `prompt-dsl-system/00_conventions/PROJECT_TECH_STACK_SPEC.md`
   - `prompt-dsl-system/00_conventions/MODULE_PROFILE_SPEC.md` (3-layer: declared + discovered + merge + multi-root + Layer2R + Layer2S)
 - Templates:
   - `prompt-dsl-system/05_skill_registry/templates/skill_template/` (skill.yaml.template + references/scripts/assets READMEs)
@@ -67,10 +89,19 @@
 - Tools:
   - `prompt-dsl-system/tools/ops_guard.py` (+VCS strict: HONGZHI_GUARD_REQUIRE_VCS + multi-path + robust ignore patterns)
   - `prompt-dsl-system/tools/pipeline_runner.py`
+  - `prompt-dsl-system/tools/project_stack_scanner.py` (project-level stack scanner: declared/discovered KB bootstrap with evidence output)
+  - `prompt-dsl-system/tools/kit_selfcheck.py` (kit quality dimension scorecard + recommendations)
+  - `prompt-dsl-system/tools/kit_selfcheck_gate.py` (strict self-upgrade gate for score/level/required-dimensions/dimension_count contract)
+  - `prompt-dsl-system/tools/contract_schema_v2.json` (machine-line contract v2, additive over v1)
+  - `prompt-dsl-system/tools/contract_validator.py` (default prefer latest schema + additive baseline guard)
+  - `prompt-dsl-system/tools/contract_samples/` (replayable machine-line samples + replay script)
+  - `prompt-dsl-system/tools/artifacts/templates/kit_self_upgrade/` (A3 closure templates for self-upgrade)
+  - `prompt-dsl-system/tools/kit_self_upgrade_template_guard.py` (A3 template integrity guard)
+  - `prompt-dsl-system/tools/health_post_validate_sync.py` (sync post-gate results into health_report section)
   - `prompt-dsl-system/tools/merged_guard.py`
   - `prompt-dsl-system/tools/skill_template_audit.py` (--scope, --fail-on-empty, registry↔fs consistency)
   - `prompt-dsl-system/tools/pipeline_contract_lint.py` (--fail-on-empty, module_root + NavIndex + profile template check + strict TODO reject + identity hints)
-- `prompt-dsl-system/tools/golden_path_regression.sh` (118 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner & governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 package/entry/contract + uninstalled install-hint checks + Phase24 release build/version triplet/gitignore/governance-no-write + Phase25 token ttl/scope/symlink/limits/capability-index-gating/pipeline decision chain + Phase26 calibration strict/non-strict/output/schema checks + Phase27 hint-loop/apply-hints/layout adapters/reuse validation/governance no-write/index-hint-metrics checks + Phase28 profile_delta hint bundle schema/apply/expiry/scope/index gating checks + Phase29 federated index write/query/explain/scope gating/zero-write checks + Phase30 hardening checks for zero-touch/full-snapshot/fail-closed/path-safe/concurrency/io-stats/endpoint/hint-effectiveness + Phase31 unified scan graph/cross-command reuse/strict mismatch checks + Phase32 additive contract/machine-json/reuse-no-rescan/full-snapshot-limits checks + Phase33 machine-json roundtrip/no-newline, deterministic artifacts/modules ordering, mismatch enum/suggestion, status/index zero-touch probe checks + Phase34 contract schema JSON + validator discover/gov-block/exit25 + additive guard checks + Phase35 company-scope gate and governance skill lifecycle checks)
+- `prompt-dsl-system/tools/golden_path_regression.sh` (132 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner & governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 package/entry/contract + uninstalled install-hint checks + Phase24 release build/version triplet/gitignore/governance-no-write + Phase25 token ttl/scope/symlink/limits/capability-index-gating/pipeline decision chain + Phase26 calibration strict/non-strict/output/schema checks + Phase27 hint-loop/apply-hints/layout adapters/reuse validation/governance no-write/index-hint-metrics checks + Phase28 profile_delta hint bundle schema/apply/expiry/scope/index gating checks + Phase29 federated index write/query/explain/scope gating/zero-write checks + Phase30 hardening checks for zero-touch/full-snapshot/fail-closed/path-safe/concurrency/io-stats/endpoint/hint-effectiveness + Phase31 unified scan graph/cross-command reuse/strict mismatch checks + Phase32 additive contract/machine-json/reuse-no-rescan/full-snapshot-limits checks + Phase33 machine-json roundtrip/no-newline, deterministic artifacts/modules ordering, mismatch enum/suggestion, status/index zero-touch probe checks + Phase34 contract schema v1/v2 + validator + additive guard checks + Phase35 company-scope gate and governance skill lifecycle checks + Phase36 strict self-upgrade preflight + contract sample replay + A3 template baseline checks + Phase37 validate default post-gates checks + Phase38 health_report post-gate section checks + Phase39 runbook post-gate fail-first checks + Phase40 selfcheck quality threshold gate checks + Phase41 selfcheck dimension contract checks)
   - `prompt-dsl-system/tools/module_profile_scanner.py` (Layer2 + fingerprint + multi-root + concurrent + incremental + --out-root/--read-only/--workspace-root)
   - `prompt-dsl-system/tools/module_roots_discover.py` (Layer2R + identity hints + structure fallback + optional --module-key + --out-root/--read-only)
   - `prompt-dsl-system/tools/structure_discover.py` v2 (Layer2S + endpoint v2 + per-file incremental cache + --out-root/--read-only/--workspace-root)

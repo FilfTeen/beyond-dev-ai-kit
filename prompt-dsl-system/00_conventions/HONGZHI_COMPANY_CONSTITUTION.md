@@ -202,3 +202,187 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
   - Regression Phase35 validates machine scope fields, mismatch blocking, and zero-write behavior.
 - Escalation: unexpected scope block or missing scope metadata => hold release and investigate parser/environment drift.
 - Rollback: disable hard gate (`HONGZHI_REQUIRE_COMPANY_SCOPE=0`) and revert scope-related additive changes if required.
+
+## Rule 21 - Project Tech Stack Knowledge Base
+
+- Rule: each project should maintain a stack profile pair (`declared` + `discovered`) under `project_stacks/<project_key>/`.
+- Rule: discovered stack facts must come from scanner evidence; no guessed framework/database/runtime entries.
+- Check:
+  - `PROJECT_TECH_STACK_SPEC.md` contract is followed.
+  - scanner output contains `discovery.evidence[]`.
+- Escalation: stack conflicts or missing evidence for key decisions => request user confirmation before route selection.
+- Rollback: remove incorrect discovered file and regenerate from scanner with correct repo root.
+
+## Rule 22 - Requirement To Prototype Chain
+
+- Rule: when requirement input is ambiguous, enforce sequence:
+  1) requirement baseline + unknown checklist
+  2) process/role/function slicing
+  3) API/data/acceptance/prototype draft
+  4) closure package
+- Rule: no direct coding route is allowed before Step 1 facts are complete or explicitly accepted as assumptions.
+- Check:
+  - artifacts include requirement baseline + required info checklist.
+  - prototype outputs remain low-fidelity and implementation-oriented.
+- Escalation: unresolved business decision points => pause and require user-side clarification.
+- Rollback: discard speculative design artifacts and rebuild from confirmed requirement baseline.
+
+## Rule 23 - Personal Standard Under Team Priority
+
+- Rule: personal C++-aligned naming/style is allowed only when compatible with team/system conventions.
+- Rule: naming must stay globally consistent for identical concepts across module boundaries.
+- Check:
+  - `PERSONAL_DEV_STANDARD.md` + `CPP_STYLE_NAMING.md` alignment review.
+  - no pinyin/invented abbreviations in new identifiers.
+- Escalation: style conflict with existing module conventions => prefer module dominant style.
+- Rollback: rename conflicting identifiers to module-aligned form with minimal invasive changes.
+
+## Rule 24 - Kit Mainline First (No External Repo Mutation)
+
+- Rule: `beyond-dev-ai-kit` optimization tasks must focus on toolkit assets (`prompt-dsl-system/**`, packaging/docs/tools) and must not mutate external business repositories.
+- Rule: external repositories may be used only as read-only evidence sources and only when the user explicitly requests that scan.
+- Rule: default behavior in this repository is kit-only work; do not auto-run cross-repo write actions.
+- Check:
+  - changed files remain within toolkit repository scope.
+  - no write path points to external repository roots.
+- Escalation: if a task requires external repo write to proceed, stop and request explicit user override.
+- Rollback: revert external repo writes immediately and rerun in kit-only mode.
+
+## Rule 25 - Kit Selfcheck Gate Before Major Upgrade
+
+- Rule: major toolkit upgrades must run a quality selfcheck scorecard before implementation.
+- Rule: selfcheck dimensions must include at least:
+  - `generality`, `completeness`, `robustness`, `efficiency`, `extensibility`, `security_governance`, `kit_mainline_focus`.
+- Check:
+  - `kit_selfcheck_report.json` and `kit_selfcheck_report.md` exist.
+  - upgrade backlog references low/medium dimensions from selfcheck output.
+- Escalation: if any dimension is low and no mitigation exists, block release proposal.
+- Rollback: discard upgrade plan that bypassed selfcheck and regenerate from scorecard baseline.
+
+## Rule 26 - Machine-Readable Kit Capability Signal
+
+- Rule: toolkit selfcheck runs must emit a machine-readable capability pointer line:
+  - `KIT_CAPS <abs_json_path> path=\"...\" json='...'`.
+- Rule: machine payload must include at least:
+  - `command=selfcheck`, `tool=kit_selfcheck`, `tool_version`, `overall_score`, `overall_level`.
+- Check:
+  - `KIT_CAPS` line exists in selfcheck stdout (non-read-only mode).
+  - referenced JSON file exists and is parseable.
+- Escalation: missing or malformed `KIT_CAPS` blocks agent-side automation chaining.
+- Rollback: revert incompatible output changes and restore previous machine-line contract.
+
+## Rule 27 - Unified Self-Upgrade Entry
+
+- Rule: toolkit self-upgrade should use a unified command entry:
+  - `./prompt-dsl-system/tools/run.sh self-upgrade -r .`
+- Rule: `self-upgrade` must default to:
+  - `--module-path .` (repo root of beyond-dev-ai-kit)
+  - `--pipeline prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md`
+- Check:
+  - command resolves to `run` path with injected defaults when absent.
+  - execution remains kit-only under Rule 24.
+- Escalation: if `self-upgrade` path is bypassed and causes inconsistent parameters, block release and require rerun.
+- Rollback: stop current run, regenerate plan via unified entry, then replay approved steps.
+
+## Rule 28 - Strict Self-Upgrade Preflight Chain
+
+- Rule: strict self-upgrade must pass this gate chain before plan/run:
+  1) `selfcheck` machine-line contract validation
+  2) `selfcheck` quality threshold gate
+  3) pipeline contract lint
+  4) skill template audit
+  5) validate strict mode
+- Rule: strict mode entry:
+  - `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade`
+  - or `HONGZHI_SELF_UPGRADE_STRICT=1`.
+- Check:
+  - strict preflight log prints `preflight PASS`.
+  - any gate failure must stop execution immediately (fail-fast).
+- Escalation: if strict chain is skipped for major upgrades, mark release as invalid and rerun with strict gate.
+- Rollback: discard outputs from non-strict run and rebuild from strict preflight baseline.
+
+## Rule 29 - Contract Evolution Additive Guard
+
+- Rule: machine contract schema upgrades must be additive to previous stable schema.
+- Rule: v2+ schema validation should enforce baseline compatibility using:
+  - `contract_validator.py --baseline-schema prompt-dsl-system/tools/contract_schema_v1.json`
+- Rule: default validator schema selection should prefer highest available stable schema, while keeping explicit `--schema` override.
+- Check:
+  - `contract_schema_v2.json` exists and passes additive guard against `contract_schema_v1.json`.
+  - compatibility strategy doc exists: `CONTRACT_COMPATIBILITY_STRATEGY.md`.
+- Escalation: any non-additive change blocks release until compatibility is restored or migration policy is explicitly approved.
+- Rollback: revert incompatible schema edits and re-validate against v1 baseline.
+
+## Rule 30 - Self-Upgrade Closure Template & Replay Baseline
+
+- Rule: kit self-upgrade closure artifacts should follow standard templates:
+  - `A3_change_ledger`
+  - `A3_rollback_plan`
+  - `A3_cleanup_report`
+- Rule: machine contract replay samples must be maintained and replayable for validator smoke checks.
+- Check:
+  - templates exist at `tools/artifacts/templates/kit_self_upgrade/`.
+  - replay script passes: `tools/contract_samples/replay_contract_samples.sh`.
+- Escalation: if templates are missing or replay fails, hold release and regenerate closure artifacts before proposal.
+- Rollback: restore previous template/replay baseline and re-run strict self-upgrade preflight.
+
+## Rule 31 - Validate Default Post-Gates
+
+- Rule: `run.sh validate` must execute post-gates after core validate pass:
+  1) contract sample replay
+  2) kit self-upgrade template integrity guard
+- Rule: these post-gates are default-on and should fail the validate pipeline on errors.
+- Check:
+  - validate stdout contains `[contract_replay] PASS`.
+  - validate stdout contains `[template_guard] PASS`.
+- Escalation: if post-gates are bypassed or missing, treat validate as invalid for release proposals.
+- Rollback: restore prior validate gate chain and rerun with post-gates enabled.
+
+## Rule 32 - Health Report Post-Gate Observability
+
+- Rule: validate post-gate results must be synchronized into `health_report` as an explicit section.
+- Rule: section name is `post_validate_gates` and must include at least:
+  - `contract_sample_replay`
+  - `kit_template_guard`
+- Check:
+  - `health_report.json` has `post_validate_gates.gates[]`.
+  - `health_report.md` contains `## Post-Validate Gates`.
+- Escalation: if section is missing after validate, treat health report as incomplete and block release discussion.
+- Rollback: restore sync script/wrapper chain and regenerate health report via validate.
+
+## Rule 33 - Strict Selfcheck Quality Threshold Gate
+
+- Rule: strict self-upgrade preflight must enforce selfcheck quality thresholds before lint/audit/validate.
+- Rule: default threshold policy:
+  - `overall_score >= 0.85`
+  - `overall_level >= high`
+  - `low dimension count <= 0`
+- Rule: threshold values can be tuned by env:
+  - `HONGZHI_SELFCHECK_MIN_SCORE`
+  - `HONGZHI_SELFCHECK_MIN_LEVEL`
+  - `HONGZHI_SELFCHECK_MAX_LOW_DIMS`
+- Check:
+  - strict preflight output contains `[selfcheck_gate] PASS`.
+  - on threshold miss, preflight fail-fast and blocks self-upgrade promotion path.
+- Escalation: if threshold gate is bypassed in major upgrade, invalidate the run and restart from strict entry.
+- Rollback: discard outputs from threshold-bypassed run and rerun strict chain with explicit thresholds.
+
+## Rule 34 - Selfcheck Dimension Contract Gate
+
+- Rule: strict self-upgrade must validate selfcheck dimension contract in addition to score thresholds.
+- Rule: default required dimensions:
+  - `generality`
+  - `completeness`
+  - `robustness`
+  - `efficiency`
+  - `extensibility`
+  - `security_governance`
+  - `kit_mainline_focus`
+- Rule: `summary.dimension_count` must match actual `dimensions` object size.
+- Rule: required dimensions can be overridden by env:
+  - `HONGZHI_SELFCHECK_REQUIRED_DIMS` (comma-separated)
+- Check:
+  - missing required dimension should fail strict preflight.
+  - dimension count mismatch should fail strict preflight.
+- Escalation: if dimension contract is bypassed, treat selfcheck as invalid and stop upgrade promotion.
+- Rollback: revert threshold/contract bypass changes and rerun strict preflight with explicit dimension set.

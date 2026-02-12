@@ -2737,21 +2737,41 @@ fi
 
 # ─── Phase 34: machine-line contract schema + validator hard gate ───
 echo "[phase 34] machine_line_contract_schema_validator_round28"
-CONTRACT_SCHEMA="$SCRIPT_DIR/contract_schema_v1.json"
+CONTRACT_SCHEMA_V1="$SCRIPT_DIR/contract_schema_v1.json"
+CONTRACT_SCHEMA_V2="$SCRIPT_DIR/contract_schema_v2.json"
 CONTRACT_VALIDATOR="$SCRIPT_DIR/contract_validator.py"
-if [ -f "$CONTRACT_SCHEMA" ]; then
+CONTRACT_SCHEMA_RUNTIME="$CONTRACT_SCHEMA_V1"
+if [ -f "$CONTRACT_SCHEMA_V2" ]; then
+  CONTRACT_SCHEMA_RUNTIME="$CONTRACT_SCHEMA_V2"
+fi
+if [ -f "$CONTRACT_SCHEMA_V1" ]; then
   set +e
   "$PYTHON_BIN" - <<PY
 import json
 import pathlib
-path = pathlib.Path("$CONTRACT_SCHEMA")
+path = pathlib.Path("$CONTRACT_SCHEMA_V1")
 json.loads(path.read_text(encoding="utf-8"))
 PY
   P34_SCHEMA_RC=$?
   set -e
-  [ "$P34_SCHEMA_RC" -eq 0 ] && check "Phase34:contract_schema_exists_and_valid_json" "PASS" || check "Phase34:contract_schema_exists_and_valid_json" "FAIL"
+  [ "$P34_SCHEMA_RC" -eq 0 ] && check "Phase34:contract_schema_v1_valid_json" "PASS" || check "Phase34:contract_schema_v1_valid_json" "FAIL"
 else
-  check "Phase34:contract_schema_exists_and_valid_json" "FAIL"
+  check "Phase34:contract_schema_v1_valid_json" "FAIL"
+fi
+
+if [ -f "$CONTRACT_SCHEMA_V2" ]; then
+  set +e
+  "$PYTHON_BIN" - <<PY
+import json
+import pathlib
+path = pathlib.Path("$CONTRACT_SCHEMA_V2")
+json.loads(path.read_text(encoding="utf-8"))
+PY
+  P34_SCHEMA_V2_RC=$?
+  set -e
+  [ "$P34_SCHEMA_V2_RC" -eq 0 ] && check "Phase34:contract_schema_v2_valid_json" "PASS" || check "Phase34:contract_schema_v2_valid_json" "FAIL"
+else
+  check "Phase34:contract_schema_v2_valid_json" "FAIL"
 fi
 
 if [ -f "$CONTRACT_VALIDATOR" ]; then
@@ -2764,7 +2784,12 @@ else
   check "Phase34:contract_validator_smoke" "FAIL"
 fi
 
-if [ -f "$PLUGIN" ] && [ -f "$CONTRACT_SCHEMA" ] && [ -f "$CONTRACT_VALIDATOR" ] && [ -d "$CASE1" ] && [ -d "$CASE9" ]; then
+if [ -f "$PLUGIN" ] && [ -f "$CONTRACT_SCHEMA_RUNTIME" ] && [ -f "$CONTRACT_VALIDATOR" ] && [ -d "$CASE1" ] && [ -d "$CASE9" ]; then
+  P34_SCHEMA_ARGS=(--schema "$CONTRACT_SCHEMA_RUNTIME")
+  if [ "$CONTRACT_SCHEMA_RUNTIME" = "$CONTRACT_SCHEMA_V2" ] && [ -f "$CONTRACT_SCHEMA_V1" ]; then
+    P34_SCHEMA_ARGS+=(--baseline-schema "$CONTRACT_SCHEMA_V1")
+  fi
+
   # 3) validator on discover stdout
   P34_WS_DISC="$REGRESSION_TMP/phase34_ws_discover"
   P34_STATE_DISC="$REGRESSION_TMP/phase34_state_discover"
@@ -2779,7 +2804,7 @@ if [ -f "$PLUGIN" ] && [ -f "$CONTRACT_SCHEMA" ] && [ -f "$CONTRACT_VALIDATOR" ]
   printf '%s\n' "$P34_OUT_DISC" > "$REGRESSION_TMP/phase34_discover_stdout.log"
   set +e
   printf '%s\n' "$P34_OUT_DISC" | "$PYTHON_BIN" "$CONTRACT_VALIDATOR" \
-    --schema "$CONTRACT_SCHEMA" --stdin > "$REGRESSION_TMP/phase34_validator_discover.log" 2>&1
+    "${P34_SCHEMA_ARGS[@]}" --stdin > "$REGRESSION_TMP/phase34_validator_discover.log" 2>&1
   P34_VAL_DISC_RC=$?
   set -e
   if [ "$P34_RC_DISC" -eq 0 ] && [ "$P34_VAL_DISC_RC" -eq 0 ] && grep -q '^CONTRACT_OK=1' "$REGRESSION_TMP/phase34_validator_discover.log"; then
@@ -2803,7 +2828,7 @@ if [ -f "$PLUGIN" ] && [ -f "$CONTRACT_SCHEMA" ] && [ -f "$CONTRACT_VALIDATOR" ]
   printf '%s\n' "$P34_OUT_GOV" > "$REGRESSION_TMP/phase34_gov_stdout.log"
   set +e
   printf '%s\n' "$P34_OUT_GOV" | "$PYTHON_BIN" "$CONTRACT_VALIDATOR" \
-    --schema "$CONTRACT_SCHEMA" --stdin > "$REGRESSION_TMP/phase34_validator_gov.log" 2>&1
+    "${P34_SCHEMA_ARGS[@]}" --stdin > "$REGRESSION_TMP/phase34_validator_gov.log" 2>&1
   P34_VAL_GOV_RC=$?
   set -e
   if [ "$P34_RC_GOV" -eq 10 ] && echo "$P34_OUT_GOV" | grep -q '^HONGZHI_GOV_BLOCK ' && \
@@ -2827,7 +2852,7 @@ if [ -f "$PLUGIN" ] && [ -f "$CONTRACT_SCHEMA" ] && [ -f "$CONTRACT_VALIDATOR" ]
   printf '%s\n' "$P34_OUT_M" > "$REGRESSION_TMP/phase34_mismatch_stdout.log"
   set +e
   printf '%s\n' "$P34_OUT_M" | "$PYTHON_BIN" "$CONTRACT_VALIDATOR" \
-    --schema "$CONTRACT_SCHEMA" --stdin > "$REGRESSION_TMP/phase34_validator_mismatch.log" 2>&1
+    "${P34_SCHEMA_ARGS[@]}" --stdin > "$REGRESSION_TMP/phase34_validator_mismatch.log" 2>&1
   P34_VAL_M_RC=$?
   set -e
   if [ "$P34_RC_M" -eq 25 ] && echo "$P34_OUT_M" | grep -q 'mismatch_reason=' && \
@@ -2837,26 +2862,28 @@ if [ -f "$PLUGIN" ] && [ -f "$CONTRACT_SCHEMA" ] && [ -f "$CONTRACT_VALIDATOR" ]
     check "Phase34:contract_validator_on_exit25_mismatch_stdout" "FAIL"
   fi
 
-  # 6) schema additive guard (required_fields can only grow)
-  P34_BASELINE_SCHEMA="$REGRESSION_TMP/phase34_schema_baseline.json"
-  cp "$CONTRACT_SCHEMA" "$P34_BASELINE_SCHEMA"
-  set +e
-  "$PYTHON_BIN" "$CONTRACT_VALIDATOR" \
-    --schema "$CONTRACT_SCHEMA" \
-    --baseline-schema "$P34_BASELINE_SCHEMA" \
-    --file "$REGRESSION_TMP/phase34_discover_stdout.log" > "$REGRESSION_TMP/phase34_validator_additive.log" 2>&1
-  P34_VAL_ADD_RC=$?
-  set -e
-  if [ "$P34_VAL_ADD_RC" -eq 0 ] && grep -q '^CONTRACT_OK=1' "$REGRESSION_TMP/phase34_validator_additive.log"; then
-    check "Phase34:contract_schema_additive_guard" "PASS"
+  # 6) schema additive guard (v2 should remain additive to v1)
+  if [ -f "$CONTRACT_SCHEMA_V2" ] && [ -f "$CONTRACT_SCHEMA_V1" ]; then
+    set +e
+    "$PYTHON_BIN" "$CONTRACT_VALIDATOR" \
+      --schema "$CONTRACT_SCHEMA_V2" \
+      --baseline-schema "$CONTRACT_SCHEMA_V1" \
+      --file "$REGRESSION_TMP/phase34_discover_stdout.log" > "$REGRESSION_TMP/phase34_validator_additive.log" 2>&1
+    P34_VAL_ADD_RC=$?
+    set -e
+    if [ "$P34_VAL_ADD_RC" -eq 0 ] && grep -q '^CONTRACT_OK=1' "$REGRESSION_TMP/phase34_validator_additive.log"; then
+      check "Phase34:contract_schema_v2_additive_guard_vs_v1" "PASS"
+    else
+      check "Phase34:contract_schema_v2_additive_guard_vs_v1" "FAIL"
+    fi
   else
-    check "Phase34:contract_schema_additive_guard" "FAIL"
+    check "Phase34:contract_schema_v2_additive_guard_vs_v1" "FAIL"
   fi
 else
   check "Phase34:contract_validator_on_discover_stdout" "FAIL"
   check "Phase34:contract_validator_on_gov_block_stdout" "FAIL"
   check "Phase34:contract_validator_on_exit25_mismatch_stdout" "FAIL"
-  check "Phase34:contract_schema_additive_guard" "FAIL"
+  check "Phase34:contract_schema_v2_additive_guard_vs_v1" "FAIL"
 fi
 
 # ─── Phase 35: company-scope gate + governance skills lifecycle ───
@@ -2971,6 +2998,378 @@ else
   check "Phase35:company_scope_mismatch_block_exit26" "FAIL"
   check "Phase35:company_scope_mismatch_zero_write" "FAIL"
   check "Phase35:company_scope_match_required_allows" "FAIL"
+fi
+
+# ─── Phase 36: strict self-upgrade chain + contract sample replay + A3 templates ───
+echo "[phase 36] strict_self_upgrade_and_contract_replay_round30"
+RUN_WRAPPER="$SCRIPT_DIR/run.sh"
+CONTRACT_REPLAY="$SCRIPT_DIR/contract_samples/replay_contract_samples.sh"
+A3_TEMPLATE_DIR="$REPO_ROOT/prompt-dsl-system/tools/artifacts/templates/kit_self_upgrade"
+if [ -f "$RUN_WRAPPER" ] && [ -d "$REPO_ROOT/prompt-dsl-system" ]; then
+  P36_REPO="$REGRESSION_TMP/phase36_repo"
+  rm -rf "$P36_REPO"
+  mkdir -p "$P36_REPO"
+  cp -R "$REPO_ROOT/prompt-dsl-system" "$P36_REPO/"
+  if [ -f "$REPO_ROOT/README.md" ]; then
+    cp "$REPO_ROOT/README.md" "$P36_REPO/README.md"
+  fi
+  (
+    cd "$P36_REPO"
+    git init -q >/dev/null 2>&1 || true
+    git config user.email "regression@example.com" >/dev/null 2>&1 || true
+    git config user.name "Regression Bot" >/dev/null 2>&1 || true
+  )
+
+  set +e
+  P36_OUT=$(bash "$RUN_WRAPPER" self-upgrade -r "$P36_REPO" --strict-self-upgrade 2>/dev/null)
+  P36_RC=$?
+  set -e
+  printf '%s\n' "$P36_OUT" > "$REGRESSION_TMP/phase36_self_upgrade.log"
+  if [ "$P36_RC" -eq 0 ] && \
+     echo "$P36_OUT" | grep -q 'cmd_alias=self-upgrade->run' && \
+     echo "$P36_OUT" | grep -q '\[hongzhi\]\[self-upgrade\]\[strict\] preflight PASS' && \
+     echo "$P36_OUT" | grep -q '\[selfcheck_gate\] PASS' && \
+     echo "$P36_OUT" | grep -q '^CONTRACT_OK=1 '; then
+    check "Phase36:self_upgrade_strict_preflight_on_temp_repo" "PASS"
+  else
+    check "Phase36:self_upgrade_strict_preflight_on_temp_repo" "FAIL"
+  fi
+else
+  check "Phase36:self_upgrade_strict_preflight_on_temp_repo" "FAIL"
+fi
+
+if [ -f "$CONTRACT_REPLAY" ]; then
+  set +e
+  bash "$CONTRACT_REPLAY" --repo-root "$REPO_ROOT" > "$REGRESSION_TMP/phase36_contract_replay.log" 2>&1
+  P36_REPLAY_RC=$?
+  set -e
+  if [ "$P36_REPLAY_RC" -eq 0 ]; then
+    check "Phase36:contract_sample_replay_v2" "PASS"
+  else
+    check "Phase36:contract_sample_replay_v2" "FAIL"
+  fi
+else
+  check "Phase36:contract_sample_replay_v2" "FAIL"
+fi
+
+if [ -f "$A3_TEMPLATE_DIR/A3_change_ledger.template.md" ] && \
+   [ -f "$A3_TEMPLATE_DIR/A3_rollback_plan.template.md" ] && \
+   [ -f "$A3_TEMPLATE_DIR/A3_cleanup_report.template.md" ]; then
+  check "Phase36:a3_kit_self_upgrade_templates_exist" "PASS"
+else
+  check "Phase36:a3_kit_self_upgrade_templates_exist" "FAIL"
+fi
+
+# ─── Phase 37: validate default post-gates (contract replay + template guard) ───
+echo "[phase 37] validate_default_post_gates_round31"
+if [ -f "$RUN_WRAPPER" ] && [ -d "$REPO_ROOT/prompt-dsl-system" ]; then
+  P37_REPO="$REGRESSION_TMP/phase37_repo"
+  rm -rf "$P37_REPO"
+  mkdir -p "$P37_REPO"
+  cp -R "$REPO_ROOT/prompt-dsl-system" "$P37_REPO/"
+  if [ -f "$REPO_ROOT/README.md" ]; then
+    cp "$REPO_ROOT/README.md" "$P37_REPO/README.md"
+  fi
+  (
+    cd "$P37_REPO"
+    git init -q >/dev/null 2>&1 || true
+    git config user.email "regression@example.com" >/dev/null 2>&1 || true
+    git config user.name "Regression Bot" >/dev/null 2>&1 || true
+  )
+
+  set +e
+  P37_OUT=$(bash "$RUN_WRAPPER" validate -r "$P37_REPO" 2>/dev/null)
+  P37_RC=$?
+  set -e
+  printf '%s\n' "$P37_OUT" > "$REGRESSION_TMP/phase37_validate.log"
+
+  if [ "$P37_RC" -eq 0 ] && echo "$P37_OUT" | grep -q '\[contract_replay\] PASS'; then
+    check "Phase37:validate_runs_contract_sample_replay" "PASS"
+  else
+    check "Phase37:validate_runs_contract_sample_replay" "FAIL"
+  fi
+
+  if [ "$P37_RC" -eq 0 ] && echo "$P37_OUT" | grep -q '\[template_guard\] PASS'; then
+    check "Phase37:validate_runs_template_guard" "PASS"
+  else
+    check "Phase37:validate_runs_template_guard" "FAIL"
+  fi
+else
+  check "Phase37:validate_runs_contract_sample_replay" "FAIL"
+  check "Phase37:validate_runs_template_guard" "FAIL"
+fi
+
+# ─── Phase 38: health report post-validate gates section ───
+echo "[phase 38] health_report_post_validate_section_round32"
+if [ -n "${P37_REPO:-}" ] && [ -f "$P37_REPO/prompt-dsl-system/tools/health_report.json" ] && [ -f "$P37_REPO/prompt-dsl-system/tools/health_report.md" ]; then
+  P38_JSON_OK=$("$PYTHON_BIN" - <<PY
+import json
+from pathlib import Path
+p = Path("$P37_REPO/prompt-dsl-system/tools/health_report.json")
+ok = False
+try:
+    d = json.loads(p.read_text(encoding="utf-8"))
+    section = d.get("post_validate_gates")
+    if isinstance(section, dict):
+        gates = section.get("gates")
+        gate_map = {str(x.get("name")): str(x.get("status")) for x in gates if isinstance(x, dict)} if isinstance(gates, list) else {}
+        ok = gate_map.get("contract_sample_replay") == "PASS" and gate_map.get("kit_template_guard") == "PASS"
+except Exception:
+    ok = False
+print("1" if ok else "0")
+PY
+)
+  if [ "$P38_JSON_OK" = "1" ]; then
+    check "Phase38:health_report_json_has_post_validate_gates" "PASS"
+  else
+    check "Phase38:health_report_json_has_post_validate_gates" "FAIL"
+  fi
+
+  if grep -q "## Post-Validate Gates" "$P37_REPO/prompt-dsl-system/tools/health_report.md" && \
+     grep -q "<!-- POST_VALIDATE_GATES_START -->" "$P37_REPO/prompt-dsl-system/tools/health_report.md" && \
+     grep -q "<!-- POST_VALIDATE_GATES_END -->" "$P37_REPO/prompt-dsl-system/tools/health_report.md"; then
+    check "Phase38:health_report_md_has_post_validate_section" "PASS"
+  else
+    check "Phase38:health_report_md_has_post_validate_section" "FAIL"
+  fi
+else
+  check "Phase38:health_report_json_has_post_validate_gates" "FAIL"
+  check "Phase38:health_report_md_has_post_validate_section" "FAIL"
+fi
+
+# ─── Phase 39: health_runbook fail-first on post-validate gates ───
+echo "[phase 39] health_runbook_post_gate_fail_first_round33"
+HEALTH_RUNBOOK_GEN="$SCRIPT_DIR/health_runbook_generator.py"
+if [ -f "$HEALTH_RUNBOOK_GEN" ] && [ -n "${P37_REPO:-}" ]; then
+  P39_REPORT_IN="$P37_REPO/prompt-dsl-system/tools/health_report.json"
+  P39_REPORT_FAIL="$REGRESSION_TMP/phase39_health_report_fail.json"
+  P39_OUT_DIR="$REGRESSION_TMP/phase39_runbook"
+  rm -rf "$P39_OUT_DIR"
+  mkdir -p "$P39_OUT_DIR"
+
+  if [ -f "$P39_REPORT_IN" ]; then
+    "$PYTHON_BIN" - <<PY
+import json
+from pathlib import Path
+src = Path("$P39_REPORT_IN")
+dst = Path("$P39_REPORT_FAIL")
+data = json.loads(src.read_text(encoding="utf-8"))
+section = data.get("post_validate_gates")
+if not isinstance(section, dict):
+    section = {}
+section["overall_status"] = "FAIL"
+gates = section.get("gates")
+if not isinstance(gates, list):
+    gates = []
+gate_map = {str(x.get("name")): x for x in gates if isinstance(x, dict)}
+for name in ("contract_sample_replay", "kit_template_guard"):
+    if name not in gate_map:
+        gates.append({"name": name, "status": "FAIL", "exit_code": 2})
+    else:
+        gate_map[name]["status"] = "FAIL"
+        gate_map[name]["exit_code"] = 2
+section["gates"] = gates
+data["post_validate_gates"] = section
+dst.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+PY
+
+    set +e
+    "$PYTHON_BIN" "$HEALTH_RUNBOOK_GEN" \
+      --repo-root "$P37_REPO" \
+      --health-report "$P39_REPORT_FAIL" \
+      --output-dir "$P39_OUT_DIR" > "$REGRESSION_TMP/phase39_runbook.log" 2>&1
+    P39_RC=$?
+    set -e
+    if [ "$P39_RC" -eq 0 ] && [ -f "$P39_OUT_DIR/health_runbook.json" ]; then
+      check "Phase39:runbook_generated_on_post_gate_fail" "PASS"
+    else
+      check "Phase39:runbook_generated_on_post_gate_fail" "FAIL"
+    fi
+
+    P39_FIRST_STEP_OK=$("$PYTHON_BIN" - <<PY
+import json
+from pathlib import Path
+p = Path("$P39_OUT_DIR/health_runbook.json")
+ok = False
+try:
+    data = json.loads(p.read_text(encoding="utf-8"))
+    steps = data.get("steps")
+    ctx = data.get("decision_context", {})
+    if isinstance(steps, list) and steps:
+        first = steps[0]
+        title = str(first.get("title", ""))
+        cmd = str(first.get("command", ""))
+        ok = title.startswith("Post-Gate Block: Re-run Validate") and "./prompt-dsl-system/tools/run.sh validate" in cmd and str(ctx.get("post_validate_overall_status", "")).upper() == "FAIL"
+except Exception:
+    ok = False
+print("1" if ok else "0")
+PY
+)
+    if [ "$P39_FIRST_STEP_OK" = "1" ]; then
+      check "Phase39:runbook_post_gate_fail_first_block" "PASS"
+    else
+      check "Phase39:runbook_post_gate_fail_first_block" "FAIL"
+    fi
+  else
+    check "Phase39:runbook_generated_on_post_gate_fail" "FAIL"
+    check "Phase39:runbook_post_gate_fail_first_block" "FAIL"
+  fi
+else
+  check "Phase39:runbook_generated_on_post_gate_fail" "FAIL"
+  check "Phase39:runbook_post_gate_fail_first_block" "FAIL"
+fi
+
+# ─── Phase 40: selfcheck quality gate strict threshold ───
+echo "[phase 40] selfcheck_quality_gate_round34"
+SELFCHECK_GATE="$SCRIPT_DIR/kit_selfcheck_gate.py"
+if [ -f "$SELFCHECK_GATE" ]; then
+  P40_LOW="$REGRESSION_TMP/phase40_selfcheck_low.json"
+  cat > "$P40_LOW" <<'JSON'
+{
+  "summary": {
+    "overall_score": 0.72,
+    "overall_level": "medium",
+    "dimension_count": 2
+  },
+  "dimensions": {
+    "generality": {"score": 1.0, "level": "high"},
+    "robustness": {"score": 0.5, "level": "low"}
+  },
+  "recommendations": [
+    "robustness: add missing guard artifacts."
+  ]
+}
+JSON
+
+  set +e
+  P40_OUT_LOW=$("$PYTHON_BIN" "$SELFCHECK_GATE" \
+    --report-json "$P40_LOW" \
+    --min-overall-score 0.85 \
+    --min-overall-level high \
+    --max-low-dimensions 0 2>/dev/null)
+  P40_LOW_RC=$?
+  set -e
+  printf '%s\n' "$P40_OUT_LOW" > "$REGRESSION_TMP/phase40_gate_low.log"
+  if [ "$P40_LOW_RC" -ne 0 ] && echo "$P40_OUT_LOW" | grep -q '\[selfcheck_gate\] FAIL'; then
+    check "Phase40:selfcheck_gate_blocks_low_quality_report" "PASS"
+  else
+    check "Phase40:selfcheck_gate_blocks_low_quality_report" "FAIL"
+  fi
+
+  P40_HIGH="$REGRESSION_TMP/phase40_selfcheck_high.json"
+  cat > "$P40_HIGH" <<'JSON'
+{
+  "summary": {
+    "overall_score": 0.95,
+    "overall_level": "high",
+    "dimension_count": 7
+  },
+  "dimensions": {
+    "generality": {"score": 1.0, "level": "high"},
+    "completeness": {"score": 0.9, "level": "high"},
+    "robustness": {"score": 0.9, "level": "high"},
+    "efficiency": {"score": 0.9, "level": "high"},
+    "extensibility": {"score": 0.9, "level": "high"},
+    "security_governance": {"score": 0.9, "level": "high"},
+    "kit_mainline_focus": {"score": 0.9, "level": "high"}
+  }
+}
+JSON
+
+  set +e
+  P40_OUT_HIGH=$("$PYTHON_BIN" "$SELFCHECK_GATE" \
+    --report-json "$P40_HIGH" \
+    --min-overall-score 0.85 \
+    --min-overall-level high \
+    --max-low-dimensions 0 2>/dev/null)
+  P40_HIGH_RC=$?
+  set -e
+  printf '%s\n' "$P40_OUT_HIGH" > "$REGRESSION_TMP/phase40_gate_high.log"
+  if [ "$P40_HIGH_RC" -eq 0 ] && echo "$P40_OUT_HIGH" | grep -q '\[selfcheck_gate\] PASS'; then
+    check "Phase40:selfcheck_gate_accepts_high_quality_report" "PASS"
+  else
+    check "Phase40:selfcheck_gate_accepts_high_quality_report" "FAIL"
+  fi
+else
+  check "Phase40:selfcheck_gate_blocks_low_quality_report" "FAIL"
+  check "Phase40:selfcheck_gate_accepts_high_quality_report" "FAIL"
+fi
+
+# ─── Phase 41: selfcheck required dimensions + summary count contract ───
+echo "[phase 41] selfcheck_dimension_contract_round35"
+SELFCHECK_GATE="$SCRIPT_DIR/kit_selfcheck_gate.py"
+if [ -f "$SELFCHECK_GATE" ]; then
+  P41_MISSING="$REGRESSION_TMP/phase41_selfcheck_missing_required.json"
+  cat > "$P41_MISSING" <<'JSON'
+{
+  "summary": {
+    "overall_score": 0.95,
+    "overall_level": "high",
+    "dimension_count": 6
+  },
+  "dimensions": {
+    "generality": {"score": 1.0, "level": "high"},
+    "completeness": {"score": 0.9, "level": "high"},
+    "robustness": {"score": 0.9, "level": "high"},
+    "efficiency": {"score": 0.9, "level": "high"},
+    "extensibility": {"score": 0.9, "level": "high"},
+    "security_governance": {"score": 0.9, "level": "high"}
+  }
+}
+JSON
+
+  set +e
+  P41_OUT_MISSING=$("$PYTHON_BIN" "$SELFCHECK_GATE" \
+    --report-json "$P41_MISSING" \
+    --min-overall-score 0.85 \
+    --min-overall-level high \
+    --max-low-dimensions 0 2>/dev/null)
+  P41_MISSING_RC=$?
+  set -e
+  printf '%s\n' "$P41_OUT_MISSING" > "$REGRESSION_TMP/phase41_gate_missing.log"
+  if [ "$P41_MISSING_RC" -ne 0 ] && echo "$P41_OUT_MISSING" | grep -q 'required dimensions missing'; then
+    check "Phase41:selfcheck_gate_blocks_missing_required_dimensions" "PASS"
+  else
+    check "Phase41:selfcheck_gate_blocks_missing_required_dimensions" "FAIL"
+  fi
+
+  P41_COUNT_MISMATCH="$REGRESSION_TMP/phase41_selfcheck_count_mismatch.json"
+  cat > "$P41_COUNT_MISMATCH" <<'JSON'
+{
+  "summary": {
+    "overall_score": 0.95,
+    "overall_level": "high",
+    "dimension_count": 6
+  },
+  "dimensions": {
+    "generality": {"score": 1.0, "level": "high"},
+    "completeness": {"score": 0.9, "level": "high"},
+    "robustness": {"score": 0.9, "level": "high"},
+    "efficiency": {"score": 0.9, "level": "high"},
+    "extensibility": {"score": 0.9, "level": "high"},
+    "security_governance": {"score": 0.9, "level": "high"},
+    "kit_mainline_focus": {"score": 0.9, "level": "high"}
+  }
+}
+JSON
+
+  set +e
+  P41_OUT_COUNT=$("$PYTHON_BIN" "$SELFCHECK_GATE" \
+    --report-json "$P41_COUNT_MISMATCH" \
+    --min-overall-score 0.85 \
+    --min-overall-level high \
+    --max-low-dimensions 0 2>/dev/null)
+  P41_COUNT_RC=$?
+  set -e
+  printf '%s\n' "$P41_OUT_COUNT" > "$REGRESSION_TMP/phase41_gate_count.log"
+  if [ "$P41_COUNT_RC" -ne 0 ] && echo "$P41_OUT_COUNT" | grep -q 'summary.dimension_count mismatch'; then
+    check "Phase41:selfcheck_gate_blocks_dimension_count_mismatch" "PASS"
+  else
+    check "Phase41:selfcheck_gate_blocks_dimension_count_mismatch" "FAIL"
+  fi
+else
+  check "Phase41:selfcheck_gate_blocks_missing_required_dimensions" "FAIL"
+  check "Phase41:selfcheck_gate_blocks_dimension_count_mismatch" "FAIL"
 fi
 
 

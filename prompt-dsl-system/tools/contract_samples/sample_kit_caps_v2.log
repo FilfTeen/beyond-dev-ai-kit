@@ -1,0 +1,1 @@
+KIT_CAPS /tmp/kit_selfcheck_report.json path="/tmp/kit_selfcheck_report.json" json='{"command":"selfcheck","dimension_count":7,"generated_at":"2026-02-12T00:00:00Z","overall_level":"high","overall_score":0.93,"path":"/tmp/kit_selfcheck_report.json","tool":"kit_selfcheck","tool_version":"1.0.0"}' tool_version=1.0.0

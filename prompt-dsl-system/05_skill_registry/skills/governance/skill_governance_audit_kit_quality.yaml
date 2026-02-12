@@ -1,0 +1,88 @@
+name: "skill_governance_audit_kit_quality"
+description: "Run toolkit selfcheck scorecard on beyond-dev-ai-kit and produce dimension-based upgrade recommendations without touching external business repositories."
+version: "1.0.0"
+domain: "governance"
+tags:
+  - "governance"
+  - "kit"
+  - "selfcheck"
+  - "quality"
+  - "meta"
+  - "docs"
+parameters:
+  - name: "repo_root"
+    type: "string"
+    required: true
+    description: "Toolkit repository root (beyond-dev-ai-kit)."
+  - name: "out_json"
+    type: "string"
+    required: false
+    description: "JSON report output path."
+  - name: "out_md"
+    type: "string"
+    required: false
+    description: "Markdown report output path."
+  - name: "read_only"
+    type: "boolean"
+    required: false
+    description: "If true, print result and avoid file writes."
+
+mode: "governance"
+boundary_policy:
+  allowed_module_root: "prompt-dsl-system"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "minimal"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+prompt_template: |
+  Run toolkit quality selfcheck using kit_selfcheck.py.
+  Evaluate dimensions: generality, completeness, robustness, efficiency, extensibility,
+  security_governance, kit_mainline_focus.
+
+  Constraints:
+  - operate on beyond-dev-ai-kit only
+  - no external business repository mutation
+  - emit scorecard + actionable upgrade recommendations
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      repo_root: "."
+      out_json: "prompt-dsl-system/tools/kit_selfcheck_report.json"
+      out_md: "prompt-dsl-system/tools/kit_selfcheck_report.md"
+    output:
+      summary: "Kit quality scorecard generated."
+      artifacts:
+        - "prompt-dsl-system/tools/kit_selfcheck_report.json"
+        - "prompt-dsl-system/tools/kit_selfcheck_report.md"
+      risks: []
+      next_actions:
+        - "Prioritize dimensions with low score."
+
+implementation:
+  type: "function_call"
+  tool_name: "run_command"
+  template: |
+    /usr/bin/python3 prompt-dsl-system/tools/kit_selfcheck.py \
+      --repo-root "{{repo_root}}" \
+      {{#out_json}}--out-json "{{out_json}}"{{/out_json}} \
+      {{#out_md}}--out-md "{{out_md}}"{{/out_md}} \
+      {{#read_only}}--read-only{{/read_only}}
+
+outputs:
+  - name: "kit_selfcheck_json"
+    description: "Toolkit quality scorecard JSON report path."
+  - name: "kit_selfcheck_md"
+    description: "Toolkit quality scorecard Markdown report path."

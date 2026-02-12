@@ -1,6 +1,15 @@
 {
-  "schema_version": "1.0.0",
-  "contract_version": "v1",
+  "schema_version": "2.0.0",
+  "contract_version": "v2",
+  "compatibility": {
+    "baseline_schema_version": "1.0.0",
+    "baseline_contract_version": "v1",
+    "policy": "additive_only",
+    "notes": [
+      "v2 must not remove v1 machine lines or v1 required_fields",
+      "validator may enforce additive guard with --baseline-schema contract_schema_v1.json"
+    ]
+  },
   "machine_lines": {
     "KIT_CAPS": {
       "description": "Kit selfcheck capability pointer line.",

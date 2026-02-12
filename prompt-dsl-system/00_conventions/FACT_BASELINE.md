@@ -1,13 +1,13 @@
 # FACT BASELINE (prompt-dsl-system)
 
-Generated at: 2026-02-11 (local)
+Generated at: 2026-02-12 (local)
 Scope: `prompt-dsl-system/**`
 
 ## 1) Current Skills Baseline
 
 - Active registry file: `prompt-dsl-system/05_skill_registry/skills.json`
-- Active skills count: `5`
-- Domain distribution: `universal=1, governance=4`
+- Active skills count: `6`
+- Domain distribution: `universal=1, governance=5`
 - Universal/super skill status: `present`
   - `skill_hongzhi_universal_ops` (modes: sql/code/process/frontend/release/governance/docs/meta)
   - meta mode: supports template-based skill creation + progressive disclosure
@@ -16,6 +16,7 @@ Scope: `prompt-dsl-system/**`
   - `skill_governance_plugin_runner` (deployed, contract v4-aware)
   - `skill_governance_plugin_status` (deployed, governance preflight only)
   - `skill_governance_plugin_discover_with_hints` (deployed, hint-loop aware discover orchestration)
+  - `skill_governance_audit_kit_quality` (deployed, kit quality scorecard and upgrade recommendation bridge)
 - Skill templates: `prompt-dsl-system/05_skill_registry/templates/skill_template/`
   - Files: `skill.yaml.template`, `references/README.template`, `scripts/README.template`, `assets/README.template`
 - Deprecated skills status:
@@ -24,7 +25,7 @@ Scope: `prompt-dsl-system/**`
 
 ## 2) Current Pipelines Baseline
 
-- Pipeline files (`pipeline_*.md`) count: `10`
+- Pipeline files (`pipeline_*.md`) count: `13`
 - `pipeline_sql_oracle_to_dm8.md`: `4` steps, all reference `skill_hongzhi_universal_ops`
 - `pipeline_ownercommittee_audit_fix.md`: `5` steps, all reference `skill_hongzhi_universal_ops`
 - `pipeline_bpmn_state_audit_testgen.md`: `5` steps, all reference `skill_hongzhi_universal_ops`
@@ -35,10 +36,13 @@ Scope: `prompt-dsl-system/**`
 - `pipeline_skill_promote.md`: `3` steps, all reference `skill_hongzhi_universal_ops` — staging→deployed promotion + mandatory ledger
 - `pipeline_module_migration.md`: `7` steps (Step0–Step5 + acceptance), all reference `skill_hongzhi_universal_ops` — single-module migration assembly line + materialize_skills switch + Step0 auto-discovery
 - `pipeline_plugin_discover.md`: `3` steps (status → decide → discover hard gate), references `skill_governance_plugin_status` + `skill_governance_plugin_runner`
+- `pipeline_project_stack_bootstrap.md`: `4` steps, all reference `skill_hongzhi_universal_ops` — project stack KB bootstrap (declared/discovered + evidence + closure)
+- `pipeline_requirement_to_prototype.md`: `4` steps, all reference `skill_hongzhi_universal_ops` — PM链路（需求澄清→流程切片→原型）
+- `pipeline_kit_self_upgrade.md`: `4` steps, references `skill_governance_audit_kit_quality` + `skill_hongzhi_universal_ops` — kit 主线升级前质量评分与改造闭环
 
 ## 3) Current Tools Boundary
 
-- `run.sh`: stable wrapper (`/usr/bin/python3`) for `pipeline_runner.py`; supports `HONGZHI_VALIDATE_STRICT=1` env var for anti-false-green
+- `run.sh`: stable wrapper (`/usr/bin/python3`) for `pipeline_runner.py`; supports `HONGZHI_VALIDATE_STRICT=1` env var for anti-false-green; includes `selfcheck` and `self-upgrade` unified entries; supports strict self-upgrade preflight (`--strict-self-upgrade` or `HONGZHI_SELF_UPGRADE_STRICT=1`) with quality + dimension contract gate (`HONGZHI_SELFCHECK_MIN_SCORE` / `HONGZHI_SELFCHECK_MIN_LEVEL` / `HONGZHI_SELFCHECK_MAX_LOW_DIMS` / `HONGZHI_SELFCHECK_REQUIRED_DIMS`)
 - `pipeline_runner.py`:
   - `list/validate/run`
   - validates registry + pipelines
@@ -50,12 +54,22 @@ Scope: `prompt-dsl-system/**`
 - `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS) + multi-path + ignore patterns
 - `skill_template_audit.py`: post-validate audit (placeholder + schema + registry↔fs consistency + --scope + --fail-on-empty)
 - `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject + identity hints)
-- `golden_path_regression.sh`: end-to-end regression (118 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics + Phase28 profile_delta hint assetization/verification/scope gating/index gating + Phase29 federated index write/query/explain/scope gating/zero-write governance + Phase30 zero-touch/status-index, full snapshot guard, policy parse fail-closed, machine-path safety, jsonl concurrency, IO stats stability, composed endpoint extraction, hint effectiveness + Phase31 unified scan graph/cross-command reuse/mismatch gate + Phase32 schema/versioned scan-graph + mismatch reason + machine-line json + default hot-reuse/no-rescan + governance zero-write + full snapshot/limits decoupling guard + Phase33 machine-json roundtrip/no-newline + deterministic artifacts/candidates ordering + mismatch enum/suggestion + read-command zero-touch probe guard + Phase34 machine-line contract schema/validator hard gate + Phase35 company scope gate + governance skill lifecycle convergence)
+- `golden_path_regression.sh`: end-to-end regression (132 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics + Phase28 profile_delta hint assetization/verification/scope gating/index gating + Phase29 federated index write/query/explain/scope gating/zero-write governance + Phase30 zero-touch/status-index, full snapshot guard, policy parse fail-closed, machine-path safety, jsonl concurrency, IO stats stability, composed endpoint extraction, hint effectiveness + Phase31 unified scan graph/cross-command reuse/mismatch gate + Phase32 schema/versioned scan-graph + mismatch reason + machine-line json + default hot-reuse/no-rescan + governance zero-write + full snapshot/limits decoupling guard + Phase33 machine-json roundtrip/no-newline + deterministic artifacts/candidates ordering + mismatch enum/suggestion + read-command zero-touch probe guard + Phase34 contract schema v1/v2 + validator + additive guard + Phase35 company scope gate + governance skill lifecycle convergence + Phase36 strict self-upgrade preflight + contract sample replay + A3 template baseline + Phase37 validate default post-gates + Phase38 health_report post-gate section + Phase39 runbook post-gate fail-first + Phase40 selfcheck quality threshold gate + Phase41 selfcheck dimension contract gate)
 - `module_profile_scanner.py`: generates discovered profile (Layer2) — scanning + grep + fingerprint + multi-root + concurrent + incremental + `--out-root`/`--read-only`/`--workspace-root`
 - `module_roots_discover.py`: auto-discovers module roots from identity hints + structure fallback + optional `--module-key` (auto-discover) + `--out-root`/`--read-only` (Layer2R)
 - `structure_discover.py` v2: auto-identifies module structure — endpoint v2, per-file incremental cache, `--out-root`/`--read-only`/`--workspace-root` (Layer2S)
 - `cross_project_structure_diff.py` v2: compares endpoint signatures, reports added/removed/changed, `--read-only`
 - `auto_module_discover.py`: discovers module candidates without `--module-key` — package prefix clustering, scoring, top-k, `--read-only`
+- `project_stack_scanner.py`: scans target repository and outputs `project_stacks/<project_key>/stack_profile.discovered.yaml` with machine-verifiable evidence list
+- `kit_selfcheck.py`: outputs toolkit quality scorecards (`kit_selfcheck_report.json` + `.md`) across 7 dimensions with missing-path recommendations
+  - machine signal: `KIT_CAPS <abs_json_path> path="..." json='...'`
+- `kit_selfcheck_gate.py`: enforces strict self-upgrade quality + dimension contract from selfcheck report (`overall_score`, `overall_level`, `low_dimensions`, `required_dimensions`, `summary.dimension_count`)
+- `contract_schema_v1.json` / `contract_schema_v2.json`: machine-line contracts; v2 is additive over v1
+- `contract_validator.py`: validates machine lines; default schema auto-select prefers v2, with optional `--baseline-schema` additive guard
+- `contract_samples/`: replayable validator sample logs and replay script (`replay_contract_samples.sh`)
+- `tools/artifacts/templates/kit_self_upgrade/`: A3 closure templates (`change_ledger`, `rollback_plan`, `cleanup_report`)
+- `kit_self_upgrade_template_guard.py`: validates A3 template existence + required sections/placeholders
+- `health_post_validate_sync.py`: syncs validate post-gate summary into `health_report` JSON/Markdown section
 - `hongzhi_plugin.py`: v4 contract-capable runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental, capability registry, `HONGZHI_CAPS` line, capabilities.jsonl journal
 - `calibration_engine.py`: lightweight calibration layer for discover confidence, reasons enum, and workspace-only hint/report artifacts
 - `layout_adapters.py`: layout adapters v1 for multi-module/non-standard Java root detection and roots mapping
@@ -68,14 +82,18 @@ Scope: `prompt-dsl-system/**`
 
 ## 4) Conventions Documents
 
-- `HONGZHI_COMPANY_CONSTITUTION.md`: 19 rules, company-domain governance
+- `HONGZHI_COMPANY_CONSTITUTION.md`: 34 rules, company-domain governance
 - `SKILL_SPEC.md`: YAML schema, registry contract, trace parameters, template generation, bundled resources, progressive disclosure + NavIndex, skill status lifecycle (staging/deployed/deprecated)
 - `COMPLIANCE_MATRIX.md`: 15 requirements mapped to implementation
 - `ROLLBACK_INSTRUCTIONS.md`: rollback procedure
 - `FACT_BASELINE.md`: this document
 - `CPP_STYLE_NAMING.md`: C++ style naming conventions for Java8+SpringBoot
+- `PERSONAL_DEV_STANDARD.md`: personal C++-aligned dev standard (team constraints first, naming hard rules, self-monitor loop handling)
+- `KIT_QUALITY_MODEL.md`: kit quality dimensions and scoring bands for self-upgrade gating
+- `CONTRACT_COMPATIBILITY_STRATEGY.md`: machine contract versioning and additive compatibility rules
 - `SQL_COMPAT_STRATEGY.md`: SQL dual-stack delivery specification
 - `PROJECT_PROFILE_SPEC.md`: project profile input contract for pipeline_project_bootstrap
+- `PROJECT_TECH_STACK_SPEC.md`: per-project stack KB spec (declared/discovered + evidence + merge policy)
 - `MODULE_PROFILE_SPEC.md`: three-layer module profile model (declared + discovered + merge rules + multi-root + Layer2R)
 - `SKILL_SPEC.md` extended sections:
   - Skill Template Generation Contract
@@ -353,3 +371,88 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - mismatch blocks with `HONGZHI_GOV_BLOCK reason=company_scope_mismatch` and exit `26`
 - Regression hardening:
   - Phase35 validates lifecycle convergence, company scope machine fields, mismatch block semantics, and mismatch-path zero-write.
+
+## 21) Kit Strict Self-Upgrade + Contract v2 Compatibility (R39/R40)
+
+- `run.sh` strict self-upgrade preflight chain is available:
+  - `selfcheck -> contract_validator -> selfcheck_gate -> pipeline_contract_lint -> skill_template_audit -> validate(strict)`
+  - trigger: `--strict-self-upgrade` or `HONGZHI_SELF_UPGRADE_STRICT=1`
+  - any preflight gate failure is fail-fast.
+- Contract schema evolution baseline:
+  - `contract_schema_v2.json` is added as current schema.
+  - `contract_schema_v1.json` remains baseline compatibility anchor.
+- Validator behavior:
+  - default schema auto-detection prefers v2, falls back to v1.
+  - strict preflight runs validator with additive baseline guard (`--baseline-schema v1`) when v2 is available.
+- Compatibility governance:
+  - strategy document: `CONTRACT_COMPATIBILITY_STRATEGY.md`.
+  - policy: schema upgrades are additive-only unless explicit migration approval exists.
+
+## 22) Self-Upgrade Templates & Contract Replay Baseline (R41)
+
+- Closure templates are standardized for kit self-upgrade:
+  - `tools/artifacts/templates/kit_self_upgrade/A3_change_ledger.template.md`
+  - `tools/artifacts/templates/kit_self_upgrade/A3_rollback_plan.template.md`
+  - `tools/artifacts/templates/kit_self_upgrade/A3_cleanup_report.template.md`
+- Machine contract replay baseline is available:
+  - `tools/contract_samples/sample_*.log`
+  - `tools/contract_samples/replay_contract_samples.sh`
+- Regression hardening:
+  - Phase36 validates strict self-upgrade preflight in isolated temp repo.
+  - Phase36 validates contract sample replay.
+  - Phase36 validates A3 template baseline presence.
+
+## 23) Validate Default Post-Gates (R42)
+
+- `run.sh validate` now runs post-gates after core validate/audit/lint:
+  1. `contract_samples/replay_contract_samples.sh`
+  2. `kit_self_upgrade_template_guard.py`
+- Default behavior:
+  - both post-gates are default-on.
+  - any failure marks validate as failed.
+- Regression hardening:
+  - Phase37 validates post-gate execution signals in validate stdout:
+    - `[contract_replay] PASS`
+    - `[template_guard] PASS`
+
+## 24) Health Report Post-Gate Section (R43)
+
+- Validate chain now writes a dedicated `post_validate_gates` section into:
+  - `health_report.json`
+  - `health_report.md`
+- Section fields include:
+  - `overall_status`
+  - `gates[]` (`name`, `status`, `exit_code`)
+- Required gate visibility:
+  - `contract_sample_replay`
+  - `kit_template_guard`
+- Regression hardening:
+  - Phase38 validates health report JSON section and markdown section markers.
+
+## 25) Strict Selfcheck Quality Threshold Gate (R44)
+
+- Strict preflight now enforces quality thresholds from selfcheck report before lint/audit/validate.
+- Default thresholds:
+  - `overall_score >= 0.85`
+  - `overall_level >= high`
+  - `low_dimensions <= 0`
+- Threshold knobs (env):
+  - `HONGZHI_SELFCHECK_MIN_SCORE`
+  - `HONGZHI_SELFCHECK_MIN_LEVEL`
+  - `HONGZHI_SELFCHECK_MAX_LOW_DIMS`
+- Regression hardening:
+  - Phase40 validates low-quality report is blocked.
+  - Phase40 validates high-quality report is accepted.
+
+## 26) Strict Selfcheck Dimension Contract Gate (R45)
+
+- Strict preflight now validates selfcheck dimension contract:
+  - required dimensions set must be complete
+  - `summary.dimension_count` must equal actual dimensions size
+- Default required dimensions:
+  - `generality`, `completeness`, `robustness`, `efficiency`, `extensibility`, `security_governance`, `kit_mainline_focus`
+- Dimension contract knob (env):
+  - `HONGZHI_SELFCHECK_REQUIRED_DIMS` (comma-separated override)
+- Regression hardening:
+  - Phase41 validates missing required dimensions are blocked.
+  - Phase41 validates summary dimension count mismatch is blocked.
