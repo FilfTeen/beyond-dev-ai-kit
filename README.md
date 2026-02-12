@@ -85,4 +85,4 @@ bash prompt-dsl-system/tools/golden_path_regression.sh --repo-root . --shard-gro
 
 Detailed plugin contract and governance rules: `prompt-dsl-system/tools/PLUGIN_RUNNER.md`.
 
-CI mandatory gates are defined in `.github/workflows/kit_guardrails.yml` and enforce baseline-diff dual approval proof + hmac smoke + fuzz gate + governance consistency + tool syntax + pipeline trust coverage + baseline provenance + mutation resilience + performance budget + `validate` + `golden_path_regression` shard matrix (`early|mid|late`).
+CI mandatory gates are defined in `.github/workflows/kit_guardrails.yml` and enforce baseline-diff dual approval proof + hmac smoke + fuzz gate + governance consistency + tool syntax + pipeline trust coverage + baseline provenance + mutation resilience + performance budget + `validate` + `golden_path_regression` shard matrix (`early|mid|late`). CI uploads per-shard reports, merges shard summary, and hard-fails when shard summary contract is broken (missing report / non-pass shard / count mismatch).

@@ -489,6 +489,7 @@ CI 基线工作流：
   - baseline provenance guard
   - mutation resilience guard
   - performance budget guard
+  - golden shard summary contract guard (requires `early|mid|late` reports all pass)
   - validate + golden regression
 
 本地等价门禁命令：
@@ -508,6 +509,7 @@ bash prompt-dsl-system/tools/golden_path_regression.sh \
 bash prompt-dsl-system/tools/golden_path_regression.sh \
   --repo-root . \
   --shard-group mid \
+  --report-out /tmp/golden_mid.md \
   --tmp-dir _regression_tmp_mid \
   --clean-tmp
 ```
@@ -575,6 +577,18 @@ HONGZHI_BASELINE_SIGN_KEY='your-secret-key' \
   --repo-root . \
   --provenance prompt-dsl-system/tools/baseline_provenance.json \
   --strict-source-set true
+```
+
+## Golden Shard Summary Guard（分片汇总契约门禁）
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/golden_shard_summary_guard.py \
+  --repo-root . \
+  --reports-dir golden-shard-reports \
+  --summary golden-shard-reports/golden_shard_summary.md \
+  --expected-shards early,mid,late \
+  --require-overall-pass true \
+  --require-full-check-pass true
 ```
 
 ## Mutation Resilience Guard（门禁抗变异门禁）

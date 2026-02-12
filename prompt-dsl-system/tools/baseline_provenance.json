@@ -1,10 +1,10 @@
 {
   "tool": "baseline_provenance_guard",
   "provenance_version": "1.0.0",
-  "generated_at": "2026-02-12T08:54:31+00:00",
+  "generated_at": "2026-02-12T09:19:32+00:00",
   "repo_root": ".",
   "repo_snapshot": {
-    "git_head": "ab6c4d8438e8ea6bafee55cba141aca2bf9a7fe1",
+    "git_head": "4a77eec6b8e51cb896aca8e804326c2d8e5289e2",
     "git_head_available": true
   },
   "tracked": {
@@ -19,18 +19,18 @@
   "entries": [
     {
       "path": ".github/workflows/kit_guardrails.yml",
-      "sha256": "5542f4e84c8414d0e7ce76830b05a6b0e7e5e2082579c7660552ada1821776d4",
-      "size": 3898
+      "sha256": "9db429fe1b7914e65e9bf170f7440e76bfa4b07704948769b654dbcc764332e4",
+      "size": 6505
     },
     {
       "path": "prompt-dsl-system/00_conventions/COMPLIANCE_MATRIX.md",
-      "sha256": "d8002ba8fd89302f634fce768b846281a0b624e75faf90ad0a57c23db535ff0e",
-      "size": 25654
+      "sha256": "a9e8bdc6ed055c4b851c0c7ebd93da761d885519a6c1d43b54f371f8dfca1863",
+      "size": 25809
     },
     {
       "path": "prompt-dsl-system/00_conventions/FACT_BASELINE.md",
-      "sha256": "579fb7b43150f2432b14431f41f3dadbfe55bc7a6ba4585e350cb5726a3a1662",
-      "size": 43538
+      "sha256": "575bb5b2302c277e4b92d9f1d42e80c3b4d44169bf8747eaad316f59565ce4b0",
+      "size": 43734
     },
     {
       "path": "prompt-dsl-system/00_conventions/HONGZHI_COMPANY_CONSTITUTION.md",
@@ -48,7 +48,7 @@
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "defb39635746fa9ff6e5c0351f468d427da2ebc67a5b0aba7a32876aef68a9bb",
-    "signed_at": "2026-02-12T08:54:31+00:00"
+    "content_sha256": "10dc29f01c75d29915385ecf22f9719c03c2980e2718189569cae424ec5ba9a5",
+    "signed_at": "2026-02-12T09:19:32+00:00"
   }
 }

@@ -106,4 +106,78 @@ jobs:
           python-version: '3.11'
 
       - name: Golden Regression (${{ matrix.shard_group }})
-        run: bash prompt-dsl-system/tools/golden_path_regression.sh --repo-root . --shard-group "${{ matrix.shard_group }}" --tmp-dir "_regression_tmp_ci_${{ matrix.shard_group }}" --clean-tmp
+        run: bash prompt-dsl-system/tools/golden_path_regression.sh --repo-root . --shard-group "${{ matrix.shard_group }}" --tmp-dir "_regression_tmp_ci_${{ matrix.shard_group }}" --report-out "/tmp/golden_${{ matrix.shard_group }}.md" --clean-tmp
+
+      - name: Upload Golden Shard Report (${{ matrix.shard_group }})
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-report-${{ matrix.shard_group }}
+          path: /tmp/golden_${{ matrix.shard_group }}.md
+          if-no-files-found: warn
+
+  golden-regression-summary:
+    if: always()
+    needs:
+      - golden-regression-shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download Golden Shard Reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: golden-report-*
+          path: golden-shard-reports
+          merge-multiple: true
+
+      - name: Build Golden Shard Summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="golden-shard-reports/golden_shard_summary.md"
+          {
+            echo "# Golden Regression Shard Summary"
+            echo
+            echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            for shard in early mid late; do
+              file="golden-shard-reports/golden_${shard}.md"
+              if [ -f "$file" ]; then
+                summary_line="$(grep -E '^\*\*OVERALL:' "$file" | head -1 || true)"
+                checks_line="$(grep -E '^\*\*[0-9]+ / [0-9]+\*\* checks passed\.' "$file" | head -1 || true)"
+                echo "- ${shard}: ${summary_line:-MISSING_SUMMARY} ${checks_line:-}"
+              else
+                echo "- ${shard}: MISSING_REPORT"
+              fi
+            done
+          } > "$OUT"
+
+      - name: Enforce Golden Shard Summary Contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/python3 prompt-dsl-system/tools/golden_shard_summary_guard.py \
+            --reports-dir golden-shard-reports \
+            --summary golden-shard-reports/golden_shard_summary.md \
+            --expected-shards early,mid,late \
+            --require-overall-pass true \
+            --require-full-check-pass true \
+            --out-json golden-shard-reports/golden_shard_summary_guard.json
+
+      - name: Upload Golden Shard Summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-report-summary
+          path: |
+            golden-shard-reports/golden_shard_summary.md
+            golden-shard-reports/golden_shard_summary_guard.json
+          if-no-files-found: warn

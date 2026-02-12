@@ -3924,7 +3924,10 @@ if [ -f "$CI_WORKFLOW" ]; then
 else
   check "Phase47:ci_workflow_exists" "FAIL"
 fi
-if [ -f "$CI_WORKFLOW" ] && grep -q 'run.sh validate -r .' "$CI_WORKFLOW" && grep -q 'golden_path_regression.sh --repo-root .' "$CI_WORKFLOW"; then
+if [ -f "$CI_WORKFLOW" ] && grep -q 'run.sh validate -r .' "$CI_WORKFLOW" && \
+   grep -q 'golden_path_regression.sh --repo-root .' "$CI_WORKFLOW" && \
+   grep -Fq 'shard_group: [early, mid, late]' "$CI_WORKFLOW" && \
+   grep -Fq -- '--shard-group "${{ matrix.shard_group }}"' "$CI_WORKFLOW"; then
   check "Phase47:ci_workflow_enforces_validate_and_golden" "PASS"
 else
   check "Phase47:ci_workflow_enforces_validate_and_golden" "FAIL"
@@ -3996,6 +3999,23 @@ if [ -f "$CI_WORKFLOW" ] && grep -q 'baseline_provenance_guard.py' "$CI_WORKFLOW
   check "Phase49:ci_workflow_enforces_provenance_mutation_performance_gates" "PASS"
 else
   check "Phase49:ci_workflow_enforces_provenance_mutation_performance_gates" "FAIL"
+fi
+if [ -f "$CI_WORKFLOW" ] && \
+   grep -Fq 'Upload Golden Shard Report (${{ matrix.shard_group }})' "$CI_WORKFLOW" && \
+   grep -Fq 'name: golden-report-${{ matrix.shard_group }}' "$CI_WORKFLOW" && \
+   grep -Fq 'golden-regression-summary:' "$CI_WORKFLOW" && \
+   grep -Fq 'actions/download-artifact@v4' "$CI_WORKFLOW" && \
+   grep -Fq 'pattern: golden-report-*' "$CI_WORKFLOW" && \
+   grep -Fq 'merge-multiple: true' "$CI_WORKFLOW" && \
+   grep -Fq 'Enforce Golden Shard Summary Contract' "$CI_WORKFLOW" && \
+   grep -Fq 'golden_shard_summary_guard.py' "$CI_WORKFLOW" && \
+   grep -Fq -- '--expected-shards early,mid,late' "$CI_WORKFLOW" && \
+   grep -Fq -- '--require-overall-pass true' "$CI_WORKFLOW" && \
+   grep -Fq -- '--require-full-check-pass true' "$CI_WORKFLOW" && \
+   grep -Fq 'name: golden-report-summary' "$CI_WORKFLOW"; then
+  check "Phase49:ci_workflow_enforces_shard_report_artifacts" "PASS"
+else
+  check "Phase49:ci_workflow_enforces_shard_report_artifacts" "FAIL"
 fi
 
 # ─── Phase 50: parser/contract fuzz robustness gate ───
