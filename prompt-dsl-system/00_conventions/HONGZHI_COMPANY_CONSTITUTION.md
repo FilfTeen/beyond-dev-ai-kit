@@ -289,9 +289,13 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rule: strict self-upgrade must pass this gate chain before plan/run:
   1) `selfcheck` machine-line contract validation
   2) `selfcheck` quality threshold gate
-  3) pipeline contract lint
-  4) skill template audit
-  5) validate strict mode
+  3) `selfcheck` freshness + repo/head consistency gate
+  4) kit integrity manifest gate
+  5) pipeline trust whitelist gate
+  6) dual-approval gate for baseline changes (when enabled)
+  7) pipeline contract lint
+  8) skill template audit
+  9) validate strict mode
 - Rule: strict mode entry:
   - `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade`
   - or `HONGZHI_SELF_UPGRADE_STRICT=1`.
@@ -386,3 +390,247 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
   - dimension count mismatch should fail strict preflight.
 - Escalation: if dimension contract is bypassed, treat selfcheck as invalid and stop upgrade promotion.
 - Rollback: revert threshold/contract bypass changes and rerun strict preflight with explicit dimension set.
+
+## Rule 35 - Selfcheck Freshness & Head Consistency Gate
+
+- Rule: strict self-upgrade must verify selfcheck report freshness and repository snapshot consistency before downstream lint/audit/validate gates.
+- Rule: freshness gate should validate at least:
+  - report `generated_at` age within configured window
+  - report `repo_root` equals current execution repo root
+  - when current repo has git HEAD, report snapshot HEAD must match
+- Rule: freshness policy can be tuned by env:
+  - `HONGZHI_SELFCHECK_MAX_AGE_SECONDS`
+  - `HONGZHI_SELFCHECK_REQUIRE_GIT_HEAD`
+- Check:
+  - strict preflight output contains `[selfcheck_freshness] PASS`.
+  - stale report should fail strict preflight.
+- Escalation: stale/mismatched report means selfcheck evidence is invalid; block promotion and regenerate report.
+- Rollback: discard stale report artifacts and rerun strict self-upgrade from selfcheck step.
+
+## Rule 36 - Kit Supply-Chain Integrity Manifest Gate
+
+- Rule: strict self-upgrade must verify integrity manifest for critical kit assets (schemas/templates/pipeline definitions/core gate scripts).
+- Rule: integrity gate must detect:
+  - file hash mismatch
+  - tracked source-set drift (missing/unexpected files in tracked scope)
+- Rule: integrity policy can be tuned by env:
+  - `HONGZHI_KIT_INTEGRITY_MANIFEST`
+  - `HONGZHI_KIT_INTEGRITY_STRICT_SET`
+- Check:
+  - strict preflight output contains `[kit_integrity] PASS`.
+  - modified critical file without manifest refresh should fail preflight.
+- Escalation: integrity mismatch implies uncontrolled supply-chain drift; block release discussion immediately.
+- Rollback: restore baseline files or regenerate manifest through approved build flow, then rerun strict preflight.
+
+## Rule 37 - Pipeline Trust Whitelist Gate
+
+- Rule: pipeline execution must be gated by trusted whitelist (`path + sha256 + status`) to prevent unreviewed pipeline payloads from running.
+- Rule: gate must exist in both:
+  - strict self-upgrade preflight (`run.sh`)
+  - direct runner entry (`pipeline_runner.py run`) to prevent bypass
+- Rule: trust policy can be tuned by env:
+  - `HONGZHI_PIPELINE_TRUST_WHITELIST`
+  - `HONGZHI_PIPELINE_TRUST_STRICT_SET`
+  - `HONGZHI_PIPELINE_TRUST_REQUIRE_ACTIVE`
+  - `HONGZHI_PIPELINE_TRUST_ENFORCE`
+- Check:
+  - strict preflight output contains `[pipeline_trust] PASS`.
+  - runner should block untrusted or hash-mismatched pipeline.
+- Escalation: untrusted pipeline execution attempt is a governance hard signal; stop run and require whitelist reconciliation.
+- Rollback: revert whitelist/pipeline drift and rerun with trusted whitelist baseline.
+
+## Rule 38 - Baseline Signature Tamper-Evident Guard
+
+- Rule: integrity manifest and pipeline trust whitelist must carry an embedded signature section (`signature.content_sha256`) and verification must fail on signature drift.
+- Rule: optional HMAC signing mode is supported for stronger tamper resistance:
+  - `HONGZHI_BASELINE_SIGN_KEY`
+  - `HONGZHI_BASELINE_REQUIRE_HMAC`
+- Check:
+  - signature mismatch must fail verify in both `kit_integrity_guard.py` and `pipeline_trust_guard.py`.
+  - strict preflight should block when signature verification fails.
+- Escalation: signature mismatch indicates potential tampering; freeze promotion path and require baseline rebuild under review.
+- Rollback: restore signed baseline files from trusted commit, then re-run strict preflight.
+
+## Rule 39 - CI Mandatory Validate + Golden Gates
+
+- Rule: repository CI workflow must enforce:
+  1) `run.sh validate -r .`
+  2) `golden_path_regression.sh --repo-root .`
+- Rule: workflow file must remain in repository and be part of integrity tracked assets.
+- Check:
+  - `.github/workflows/kit_guardrails.yml` exists.
+  - workflow contains both validate and golden gate commands.
+- Escalation: if CI gate workflow is removed or weakened, treat release branch as non-compliant.
+- Rollback: restore workflow baseline and re-run CI gate suite.
+
+## Rule 40 - Dual-Approval Mode for Baseline Changes
+
+- Rule: when dual-approval mode is enabled, baseline changes (`kit_integrity_manifest.json`, `pipeline_trust_whitelist.json`) require approval evidence from at least two distinct approvers.
+- Rule: dual-approval gate should be enforceable in both strict wrapper and direct runner entry.
+- Rule: dual-approval policy can be tuned by env:
+  - `HONGZHI_BASELINE_DUAL_APPROVAL`
+  - `HONGZHI_BASELINE_APPROVAL_FILE`
+  - `HONGZHI_BASELINE_APPROVAL_REQUIRED_COUNT`
+  - `HONGZHI_BASELINE_APPROVAL_WATCH_FILES`
+  - `HONGZHI_BASELINE_APPROVAL_ENFORCE_ALWAYS`
+  - `HONGZHI_BASELINE_APPROVAL_REQUIRE_GIT`
+- Check:
+  - changed baseline without approval file must fail.
+  - matching fingerprint + two approvers must pass.
+- Escalation: baseline update without dual approval evidence is invalid for promotion.
+- Rollback: revert baseline changes or submit valid approval evidence, then rerun strict preflight.
+
+## Rule 41 - Strict HMAC Baseline Smoke Gate
+
+- Rule: toolkit must provide a repeatable strict-HMAC smoke gate to verify that integrity/trust baselines can run in `require_hmac=true` mode.
+- Rule: strict preflight should support:
+  - sign-key env indirection (`HONGZHI_BASELINE_SIGN_KEY_ENV`)
+  - `HONGZHI_BASELINE_REQUIRE_HMAC=auto|0|1` policy.
+- Check:
+  - `hmac_strict_smoke.py` must pass in CI and regression.
+  - wrong/missing key must be blocked in smoke suite.
+- Escalation: if strict HMAC smoke fails, baseline signing pipeline is considered unhealthy.
+- Rollback: revert recent baseline-signing changes and rerun smoke + regression.
+
+## Rule 42 - CI Baseline Diff Dual-Approval Proof
+
+- Rule: CI must enforce dual-approval proof when baseline files are changed in the compared revision range.
+- Rule: CI check should compare baseline files against event base SHA and require approval evidence only when diff is non-empty.
+- Check:
+  - workflow contains baseline diff check + dual approval guard invocation.
+  - baseline-changed PR/push without valid approval evidence must fail.
+- Escalation: bypassing baseline diff dual-approval in CI is a release blocker.
+- Rollback: restore CI workflow gate and rerun required checks before promotion.
+
+## Rule 43 - Baseline Sign Key Governance
+
+- Rule: baseline signing keys must be governed by explicit rotation/revocation policy and auditable procedure.
+- Rule: raw key values must not be committed into repository; only env/secret manager injection is allowed.
+- Check:
+  - `BASELINE_KEY_GOVERNANCE.md` must exist and describe rotation + incident flow.
+  - baseline-signing changes should include approval evidence and rotation log references.
+- Escalation: missing key-governance evidence blocks release-grade baseline changes.
+- Rollback: halt promotion and restore last trusted baseline/key-id pairing.
+
+## Rule 44 - Parser/Contract Fuzz Robustness Gate
+
+- Rule: parser/contract toolchain must have a crash-resilience fuzz gate to detect unstable behavior under malformed/randomized input.
+- Rule: fuzz gate must run in CI and regression with deterministic seed.
+- Check:
+  - `fuzz_contract_pipeline_gate.py` PASS with `crash_total=0`.
+  - report contract must be machine-readable and archived in run artifacts.
+- Escalation: any fuzz crash is treated as robustness regression and must block merge.
+- Rollback: revert parser/validator changes to last stable commit and rerun fuzz gate.
+
+## Rule 45 - Governance Document Consistency Gate
+
+- Rule: constitution / compliance matrix / fact baseline must remain mutually consistent in requirement indexing and latest-range coverage.
+- Rule: consistency guard must validate at least:
+  - compliance matrix `Rxx` sequence continuity and latest id alignment with title range upper bound.
+  - constitution `Rule xx` sequence continuity.
+  - fact baseline heading coverage for the latest requirement tail window.
+- Rule: policy can be tuned by env:
+  - `HONGZHI_GOVERNANCE_REQUIRE_MET_STATUS`
+  - `HONGZHI_GOVERNANCE_FACT_TAIL_WINDOW`
+- Check:
+  - `governance_consistency_guard.py` passes in strict self-upgrade, validate post-gates, CI, and regression.
+- Escalation: document chain drift means governance baseline is unreliable; block release discussion until repaired.
+- Rollback: restore last consistent docs baseline and re-apply incremental updates with guard pass evidence.
+
+## Rule 46 - Tool Syntax Gate
+
+- Rule: toolkit core python/shell scripts must pass syntax validation before promotion.
+- Rule: syntax gate validates:
+  - python compile (`py_compile`) for tooling modules.
+  - shell parse (`bash -n`) for strict entry scripts.
+- Rule: policy can be tuned by env:
+  - `HONGZHI_TOOL_SYNTAX_STRICT_SET`
+- Check:
+  - `tool_syntax_guard.py` passes in strict self-upgrade, validate post-gates, CI, and regression.
+- Escalation: syntax regression blocks merge and release discussion.
+- Rollback: revert syntax-breaking changes and rerun syntax gate + regression.
+
+## Rule 47 - Pipeline Trust Full-Coverage Gate
+
+- Rule: trust whitelist verification must cover every pipeline file, not only the currently selected pipeline.
+- Rule: coverage gate validates:
+  - whitelist entry existence/status/hash for all discovered pipelines.
+  - source-set drift for missing/unexpected pipeline paths.
+  - baseline signature contract (`sha256` / optional `hmac-sha256`).
+- Rule: gate must be enforceable in both wrapper and direct runner path.
+- Rule: policy can be tuned by env:
+  - `HONGZHI_PIPELINE_TRUST_COVERAGE_ENFORCE`
+  - `HONGZHI_PIPELINE_TRUST_COVERAGE_STRICT_SET`
+  - `HONGZHI_PIPELINE_TRUST_COVERAGE_REQUIRE_ACTIVE`
+- Check:
+  - `pipeline_trust_coverage_guard.py` passes in strict self-upgrade, validate post-gates, CI, and regression.
+  - direct `pipeline_runner.py run` must block on non-selected pipeline whitelist drift.
+- Escalation: full-coverage trust mismatch is treated as supply-chain drift and blocks promotion.
+- Rollback: restore trusted whitelist baseline and rerun strict preflight chain.
+
+## Rule 48 - Baseline Provenance Attestation Gate
+
+- Rule: toolkit must maintain a machine-verifiable provenance attestation for baseline governance assets.
+- Rule: provenance gate validates at least:
+  - tracked file hash consistency
+  - source-set consistency (missing/unexpected tracked files)
+  - baseline signature contract (`sha256` / optional `hmac-sha256`)
+  - optional age/head checks (policy controlled)
+- Rule: gate must be enforceable in strict wrapper, validate post-gates, direct runner path, CI, and regression.
+- Rule: policy can be tuned by env:
+  - `HONGZHI_BASELINE_PROVENANCE_FILE`
+  - `HONGZHI_BASELINE_PROVENANCE_STRICT_SET`
+  - `HONGZHI_BASELINE_PROVENANCE_MAX_AGE_SECONDS`
+  - `HONGZHI_BASELINE_PROVENANCE_REQUIRE_GIT`
+  - `HONGZHI_BASELINE_PROVENANCE_ENFORCE`
+- Check:
+  - `baseline_provenance_guard.py verify` passes on current baseline.
+  - mutated provenance must be blocked.
+- Escalation: provenance mismatch indicates baseline lineage drift; block promotion until rebuilt and reviewed.
+- Rollback: restore last trusted provenance file and rerun strict preflight chain.
+
+## Rule 49 - Mutation Resilience Gate
+
+- Rule: critical governance gates must prove mutation resilience through deterministic adversarial smoke mutations.
+- Rule: mutation guard must include at least:
+  - integrity manifest tamper mutation
+  - trust whitelist mutation with valid signature shell
+  - governance document index/range mutation
+  - tool syntax mutation
+- Rule: gate must run in strict self-upgrade, validate post-gates, CI, and regression.
+- Rule: policy can be tuned by env:
+  - `HONGZHI_MUTATION_GUARD_ENFORCE`
+- Check:
+  - `gate_mutation_guard.py` reports all cases blocked.
+  - concurrent mutation-guard runs must stay stable (no shared temp-file race / flaky false negatives).
+- Escalation: any mutation case not blocked is treated as guard regression and blocks release.
+- Rollback: revert recent gate-chain changes and rerun mutation guard before merge.
+
+## Rule 50 - Performance Budget Gate
+
+- Rule: core governance gates must remain within bounded runtime budgets to keep toolkit feedback loops responsive.
+- Rule: performance guard should measure and gate:
+  - `kit_selfcheck`
+  - `governance_consistency_guard`
+  - `tool_syntax_guard`
+  - `pipeline_trust_coverage_guard`
+- Rule: performance trend baseline should be supported as an optional enforceable gate:
+  - compare current runtime vs recent pass-history median by configurable window/sample/ratio.
+- Rule: gate must run in strict self-upgrade, validate post-gates, CI, and regression.
+- Rule: policy can be tuned by env:
+  - `HONGZHI_PERFORMANCE_GUARD_ENFORCE`
+  - `HONGZHI_PERF_MAX_SELFCHECK_SECONDS`
+  - `HONGZHI_PERF_MAX_GOVERNANCE_SECONDS`
+  - `HONGZHI_PERF_MAX_SYNTAX_SECONDS`
+  - `HONGZHI_PERF_MAX_TRUST_COVERAGE_SECONDS`
+  - `HONGZHI_PERF_MAX_TOTAL_SECONDS`
+  - `HONGZHI_PERF_TREND_ENFORCE`
+  - `HONGZHI_PERF_TREND_HISTORY_FILE`
+  - `HONGZHI_PERF_TREND_WINDOW`
+  - `HONGZHI_PERF_TREND_MIN_SAMPLES`
+  - `HONGZHI_PERF_TREND_MAX_RATIO`
+  - `HONGZHI_PERF_HISTORY_WRITE`
+- Check:
+  - `performance_budget_guard.py` passes with configured thresholds.
+- Escalation: budget breach is treated as efficiency regression and blocks promotion.
+- Rollback: revert performance-regressive changes or adjust threshold with documented justification.

@@ -1,0 +1,109 @@
+name: kit-guardrails
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'codex/**'
+  pull_request:
+
+jobs:
+  core-gates-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Baseline Dual Approval Proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA=""
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          elif [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          ZERO_SHA="0000000000000000000000000000000000000000"
+          if [ -z "${BASE_SHA}" ] || [ "${BASE_SHA}" = "${ZERO_SHA}" ]; then
+            echo "baseline dual-approval gate skipped: comparable base sha unavailable."
+            exit 0
+          fi
+
+          WATCH_FILES=(
+            "prompt-dsl-system/tools/kit_integrity_manifest.json"
+            "prompt-dsl-system/tools/pipeline_trust_whitelist.json"
+          )
+          CHANGED="$(git diff --name-only "${BASE_SHA}...${GITHUB_SHA}" -- "${WATCH_FILES[@]}" || true)"
+          if [ -z "${CHANGED}" ]; then
+            echo "baseline dual-approval gate skipped: no baseline file changes."
+            exit 0
+          fi
+
+          echo "baseline files changed:"
+          printf '%s\n' "${CHANGED}"
+          /usr/bin/python3 prompt-dsl-system/tools/kit_dual_approval_guard.py \
+            --repo-root . \
+            --watch-files "prompt-dsl-system/tools/kit_integrity_manifest.json,prompt-dsl-system/tools/pipeline_trust_whitelist.json" \
+            --approval-file "prompt-dsl-system/tools/baseline_dual_approval.json" \
+            --required-approvers 2 \
+            --enforce-always true \
+            --require-git true
+
+      - name: HMAC Strict Smoke
+        run: /usr/bin/python3 prompt-dsl-system/tools/hmac_strict_smoke.py --repo-root .
+
+      - name: Fuzz Gate
+        run: /usr/bin/python3 prompt-dsl-system/tools/fuzz_contract_pipeline_gate.py --repo-root . --iterations 400
+
+      - name: Governance Consistency Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/governance_consistency_guard.py --repo-root .
+
+      - name: Tool Syntax Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/tool_syntax_guard.py --repo-root .
+
+      - name: Pipeline Trust Coverage Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/pipeline_trust_coverage_guard.py --repo-root .
+
+      - name: Baseline Provenance Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/baseline_provenance_guard.py verify --repo-root . --provenance prompt-dsl-system/tools/baseline_provenance.json --strict-source-set true
+
+      - name: Mutation Resilience Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/gate_mutation_guard.py --repo-root .
+
+      - name: Performance Budget Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/performance_budget_guard.py --repo-root .
+
+      - name: Validate
+        run: ./prompt-dsl-system/tools/run.sh validate -r .
+
+  golden-regression-shards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard_group: [early, mid, late]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Golden Regression (${{ matrix.shard_group }})
+        run: bash prompt-dsl-system/tools/golden_path_regression.sh --repo-root . --shard-group "${{ matrix.shard_group }}" --tmp-dir "_regression_tmp_ci_${{ matrix.shard_group }}" --clean-tmp

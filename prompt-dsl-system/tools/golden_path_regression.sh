@@ -12,9 +12,91 @@
 
 set -euo pipefail
 
-REPO_ROOT="${1:-.}"
-if [ "$1" = "--repo-root" ] && [ -n "${2:-}" ]; then
-  REPO_ROOT="$2"
+usage() {
+  cat <<'EOF'
+Usage:
+  bash prompt-dsl-system/tools/golden_path_regression.sh \
+    [--repo-root <path>] \
+    [--tmp-dir <path>] \
+    [--report-out <path>] \
+    [--clean-tmp] \
+    [--shard-group <all|early|mid|late>]
+EOF
+}
+
+REPO_ROOT="."
+REPO_ROOT_SET="false"
+TMP_DIR=""
+REPORT_OUT=""
+CLEAN_TMP="false"
+SHARD_GROUP="all"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --repo-root)
+      shift
+      if [ $# -eq 0 ]; then
+        echo "error: --repo-root requires a path" >&2
+        usage >&2
+        exit 2
+      fi
+      REPO_ROOT="$1"
+      REPO_ROOT_SET="true"
+      ;;
+    --tmp-dir)
+      shift
+      if [ $# -eq 0 ]; then
+        echo "error: --tmp-dir requires a path" >&2
+        usage >&2
+        exit 2
+      fi
+      TMP_DIR="$1"
+      ;;
+    --report-out)
+      shift
+      if [ $# -eq 0 ]; then
+        echo "error: --report-out requires a path" >&2
+        usage >&2
+        exit 2
+      fi
+      REPORT_OUT="$1"
+      ;;
+    --clean-tmp)
+      CLEAN_TMP="true"
+      ;;
+    --shard-group)
+      shift
+      if [ $# -eq 0 ]; then
+        echo "error: --shard-group requires a value" >&2
+        usage >&2
+        exit 2
+      fi
+      SHARD_GROUP="$1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --*)
+      echo "error: unknown argument: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [ "$REPO_ROOT_SET" = "true" ]; then
+        echo "error: unexpected positional argument: $1" >&2
+        usage >&2
+        exit 2
+      fi
+      REPO_ROOT="$1"
+      REPO_ROOT_SET="true"
+      ;;
+  esac
+  shift
+done
+
+if [ ! -d "$REPO_ROOT" ]; then
+  echo "error: repo root does not exist or is not a directory: $REPO_ROOT" >&2
+  exit 2
 fi
 REPO_ROOT="$(cd "$REPO_ROOT" && pwd)"
 
@@ -23,8 +105,73 @@ PYTHON_BIN="${PYTHON_BIN:-/usr/bin/python3}"
 SKILLS_JSON="$REPO_ROOT/prompt-dsl-system/05_skill_registry/skills.json"
 SKILLS_DIR="$REPO_ROOT/prompt-dsl-system/05_skill_registry/skills"
 TEMPLATE_DIR="$REPO_ROOT/prompt-dsl-system/05_skill_registry/templates/skill_template"
-REGRESSION_TMP="$REPO_ROOT/_regression_tmp"
+if [ -z "$TMP_DIR" ]; then
+  REGRESSION_TMP="$REPO_ROOT/_regression_tmp"
+elif [[ "$TMP_DIR" = /* ]]; then
+  REGRESSION_TMP="$TMP_DIR"
+else
+  REGRESSION_TMP="$REPO_ROOT/$TMP_DIR"
+fi
+
+if [ -z "$REPORT_OUT" ]; then
+  REPORT_OUT_PATH=""
+elif [[ "$REPORT_OUT" = /* ]]; then
+  REPORT_OUT_PATH="$REPORT_OUT"
+else
+  REPORT_OUT_PATH="$REPO_ROOT/$REPORT_OUT"
+fi
+
+REPORT_TIMESTAMP="${HONGZHI_GOLDEN_REPORT_TIMESTAMP:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 REPORT_FILE="$REGRESSION_TMP/regression_report.md"
+SKILLS_BAK_FILE="$REGRESSION_TMP/skills.json.bak"
+
+RUN_EARLY="false"
+RUN_MID="false"
+RUN_LATE="false"
+case "$SHARD_GROUP" in
+  all)
+    RUN_EARLY="true"
+    RUN_MID="true"
+    RUN_LATE="true"
+    ;;
+  early)
+    RUN_EARLY="true"
+    ;;
+  mid)
+    RUN_MID="true"
+    ;;
+  late)
+    RUN_LATE="true"
+    ;;
+  *)
+    echo "error: invalid --shard-group: $SHARD_GROUP (expected all|early|mid|late)" >&2
+    exit 2
+    ;;
+esac
+
+CLEANUP_DONE="false"
+cleanup_state() {
+  if [ "$CLEANUP_DONE" = "true" ]; then
+    return
+  fi
+  CLEANUP_DONE="true"
+
+  if [ -f "$SKILLS_BAK_FILE" ]; then
+    cp "$SKILLS_BAK_FILE" "$SKILLS_JSON" 2>/dev/null || true
+  fi
+
+  if [ -n "${SIM_SKILL_DIR:-}" ] && [ -d "${SIM_SKILL_DIR:-}" ]; then
+    rm -rf "$SIM_SKILL_DIR" 2>/dev/null || true
+  fi
+
+  if [ -n "${SIM_DOMAIN:-}" ] && [ -d "$SKILLS_DIR/$SIM_DOMAIN" ]; then
+    rmdir "$SKILLS_DIR/$SIM_DOMAIN" 2>/dev/null || true
+  fi
+}
+
+trap cleanup_state EXIT
+trap 'cleanup_state; exit 130' INT
+trap 'cleanup_state; exit 143' TERM
 
 RC=0
 TOTAL=0
@@ -92,12 +239,27 @@ PY
 
 echo "=== Golden Path Regression ==="
 echo "repo-root: $REPO_ROOT"
+echo "shard-group: $SHARD_GROUP"
 echo ""
 
 # Cleanup previous runs
 rm -rf "$REGRESSION_TMP"
 mkdir -p "$REGRESSION_TMP"
 
+# Shared fixtures (needed by shard execution too).
+CASE1="$SCRIPT_DIR/_tmp_structure_cases/case1_standard"
+CASE2="$SCRIPT_DIR/_tmp_structure_cases/case2_classlevel"
+CASE4="$SCRIPT_DIR/_tmp_structure_cases/case4_endpoint_miss"
+CASE5="$SCRIPT_DIR/_tmp_structure_cases/case5_ambiguous_two_modules"
+CASE6="$SCRIPT_DIR/_tmp_structure_cases/case6_maven_multi_module"
+CASE7="$SCRIPT_DIR/_tmp_structure_cases/case7_nonstandard_java_root"
+CASE8="$SCRIPT_DIR/_tmp_structure_cases/case8_composed_annotation"
+CASE9="$SCRIPT_DIR/_tmp_structure_cases/case7_scan_graph_weird_annotations"
+PLUGIN="$SCRIPT_DIR/hongzhi_plugin.py"
+PLUGIN_STATE="$REGRESSION_TMP/plugin_global_state"
+mkdir -p "$PLUGIN_STATE"
+
+if [ "$RUN_EARLY" = "true" ]; then
 # ─── Phase 1: validate(strict) on current state ───
 echo "[phase 1] validate(strict) — current state"
 set +e
@@ -206,7 +368,7 @@ examples:
 EOYAML
 
 # Add to registry (backup original first)
-cp "$SKILLS_JSON" "$REGRESSION_TMP/skills.json.bak"
+cp "$SKILLS_JSON" "$SKILLS_BAK_FILE"
 "$PYTHON_BIN" -c "
 import json, pathlib
 f = pathlib.Path('$SKILLS_JSON')
@@ -996,6 +1158,9 @@ else
   check "Phase24:gov_block_has_versions_and_zero_write" "FAIL"
 fi
 
+fi
+
+if [ "$RUN_MID" = "true" ]; then
 # ─── Phase 25: governance_v3_limits_pipeline ───
 echo "[phase 25] governance_v3_limits_pipeline"
 PIPE_PLUGIN_DISCOVER="$REPO_ROOT/prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_plugin_discover.md"
@@ -3013,6 +3178,10 @@ if [ -f "$RUN_WRAPPER" ] && [ -d "$REPO_ROOT/prompt-dsl-system" ]; then
   if [ -f "$REPO_ROOT/README.md" ]; then
     cp "$REPO_ROOT/README.md" "$P36_REPO/README.md"
   fi
+  if [ -f "$REPO_ROOT/.github/workflows/kit_guardrails.yml" ]; then
+    mkdir -p "$P36_REPO/.github/workflows"
+    cp "$REPO_ROOT/.github/workflows/kit_guardrails.yml" "$P36_REPO/.github/workflows/kit_guardrails.yml"
+  fi
   (
     cd "$P36_REPO"
     git init -q >/dev/null 2>&1 || true
@@ -3070,6 +3239,9 @@ if [ -f "$RUN_WRAPPER" ] && [ -d "$REPO_ROOT/prompt-dsl-system" ]; then
   if [ -f "$REPO_ROOT/README.md" ]; then
     cp "$REPO_ROOT/README.md" "$P37_REPO/README.md"
   fi
+  if [ -d "$REPO_ROOT/.github" ]; then
+    cp -R "$REPO_ROOT/.github" "$P37_REPO/.github"
+  fi
   (
     cd "$P37_REPO"
     git init -q >/dev/null 2>&1 || true
@@ -3078,7 +3250,7 @@ if [ -f "$RUN_WRAPPER" ] && [ -d "$REPO_ROOT/prompt-dsl-system" ]; then
   )
 
   set +e
-  P37_OUT=$(bash "$RUN_WRAPPER" validate -r "$P37_REPO" 2>/dev/null)
+  P37_OUT=$(bash "$RUN_WRAPPER" validate -r "$P37_REPO" -m "$P37_REPO" 2>/dev/null)
   P37_RC=$?
   set -e
   printf '%s\n' "$P37_OUT" > "$REGRESSION_TMP/phase37_validate.log"
@@ -3295,6 +3467,9 @@ else
   check "Phase40:selfcheck_gate_accepts_high_quality_report" "FAIL"
 fi
 
+fi
+
+if [ "$RUN_LATE" = "true" ]; then
 # ─── Phase 41: selfcheck required dimensions + summary count contract ───
 echo "[phase 41] selfcheck_dimension_contract_round35"
 SELFCHECK_GATE="$SCRIPT_DIR/kit_selfcheck_gate.py"
@@ -3372,6 +3547,909 @@ else
   check "Phase41:selfcheck_gate_blocks_dimension_count_mismatch" "FAIL"
 fi
 
+# ─── Phase 42: selfcheck freshness + git snapshot consistency ───
+echo "[phase 42] selfcheck_freshness_gate_round36"
+SELFCHECK_FRESHNESS="$SCRIPT_DIR/kit_selfcheck_freshness_gate.py"
+SELFCHECK_SCRIPT="$SCRIPT_DIR/kit_selfcheck.py"
+if [ -f "$SELFCHECK_FRESHNESS" ] && [ -f "$SELFCHECK_SCRIPT" ]; then
+  P42_STALE="$REGRESSION_TMP/phase42_selfcheck_stale.json"
+  "$PYTHON_BIN" - "$P42_STALE" "$REPO_ROOT" <<'PY'
+import json
+import pathlib
+import subprocess
+import sys
+
+out_path = pathlib.Path(sys.argv[1])
+repo_root = pathlib.Path(sys.argv[2]).resolve()
+head = ""
+head_available = False
+try:
+    proc = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--verify", "HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        head = proc.stdout.strip()
+        head_available = bool(head)
+except OSError:
+    pass
+
+payload = {
+    "tool": "kit_selfcheck",
+    "tool_version": "1.0.0",
+    "generated_at": "2000-01-01T00:00:00Z",
+    "repo_root": str(repo_root),
+    "repo_snapshot": {
+        "git_head": head,
+        "git_head_available": head_available,
+        "git_dirty": False,
+    },
+    "summary": {
+        "overall_score": 0.9,
+        "overall_level": "high",
+        "dimension_count": 1,
+    },
+    "dimensions": {
+        "generality": {
+            "score": 0.9,
+            "level": "high",
+            "missing": [],
+        }
+    },
+}
+out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+  set +e
+  P42_OUT_STALE=$("$PYTHON_BIN" "$SELFCHECK_FRESHNESS" \
+    --report-json "$P42_STALE" \
+    --repo-root "$REPO_ROOT" \
+    --max-age-seconds 60 \
+    --require-git-head false 2>/dev/null)
+  P42_STALE_RC=$?
+  set -e
+  printf '%s\n' "$P42_OUT_STALE" > "$REGRESSION_TMP/phase42_freshness_stale.log"
+  if [ "$P42_STALE_RC" -ne 0 ] && echo "$P42_OUT_STALE" | grep -q 'report is stale'; then
+    check "Phase42:selfcheck_freshness_blocks_stale_report" "PASS"
+  else
+    check "Phase42:selfcheck_freshness_blocks_stale_report" "FAIL"
+  fi
+
+  P42_FRESH_JSON="$REGRESSION_TMP/phase42_selfcheck_fresh.json"
+  P42_FRESH_MD="$REGRESSION_TMP/phase42_selfcheck_fresh.md"
+  "$PYTHON_BIN" "$SELFCHECK_SCRIPT" \
+    --repo-root "$REPO_ROOT" \
+    --out-json "$P42_FRESH_JSON" \
+    --out-md "$P42_FRESH_MD" >/dev/null 2>&1
+  set +e
+  P42_OUT_FRESH=$("$PYTHON_BIN" "$SELFCHECK_FRESHNESS" \
+    --report-json "$P42_FRESH_JSON" \
+    --repo-root "$REPO_ROOT" \
+    --max-age-seconds 600 \
+    --require-git-head false 2>/dev/null)
+  P42_FRESH_RC=$?
+  set -e
+  printf '%s\n' "$P42_OUT_FRESH" > "$REGRESSION_TMP/phase42_freshness_fresh.log"
+  if [ "$P42_FRESH_RC" -eq 0 ] && echo "$P42_OUT_FRESH" | grep -q '\[selfcheck_freshness\] PASS'; then
+    check "Phase42:selfcheck_freshness_accepts_fresh_report" "PASS"
+  else
+    check "Phase42:selfcheck_freshness_accepts_fresh_report" "FAIL"
+  fi
+else
+  check "Phase42:selfcheck_freshness_blocks_stale_report" "FAIL"
+  check "Phase42:selfcheck_freshness_accepts_fresh_report" "FAIL"
+fi
+
+# ─── Phase 43: kit integrity manifest gate ───
+echo "[phase 43] kit_integrity_gate_round37"
+KIT_INTEGRITY="$SCRIPT_DIR/kit_integrity_guard.py"
+P43_MANIFEST="$REPO_ROOT/prompt-dsl-system/tools/kit_integrity_manifest.json"
+if [ -f "$KIT_INTEGRITY" ] && [ -f "$P43_MANIFEST" ]; then
+  set +e
+  P43_OUT_PASS=$("$PYTHON_BIN" "$KIT_INTEGRITY" verify \
+    --repo-root "$REPO_ROOT" \
+    --manifest "$P43_MANIFEST" \
+    --strict-source-set true 2>/dev/null)
+  P43_PASS_RC=$?
+  set -e
+  printf '%s\n' "$P43_OUT_PASS" > "$REGRESSION_TMP/phase43_integrity_pass.log"
+  if [ "$P43_PASS_RC" -eq 0 ] && echo "$P43_OUT_PASS" | grep -q '\[kit_integrity\] PASS'; then
+    check "Phase43:kit_integrity_accepts_manifest_baseline" "PASS"
+  else
+    check "Phase43:kit_integrity_accepts_manifest_baseline" "FAIL"
+  fi
+
+  P43_BAD_MANIFEST="$REGRESSION_TMP/phase43_integrity_bad_manifest.json"
+  cp "$P43_MANIFEST" "$P43_BAD_MANIFEST"
+  "$PYTHON_BIN" - "$P43_BAD_MANIFEST" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+entries = data.get("entries")
+if isinstance(entries, list) and entries and isinstance(entries[0], dict):
+    entries[0]["sha256"] = "0" * 64
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+  set +e
+  P43_OUT_FAIL=$("$PYTHON_BIN" "$KIT_INTEGRITY" verify \
+    --repo-root "$REPO_ROOT" \
+    --manifest "$P43_BAD_MANIFEST" \
+    --strict-source-set true 2>/dev/null)
+  P43_FAIL_RC=$?
+  set -e
+  printf '%s\n' "$P43_OUT_FAIL" > "$REGRESSION_TMP/phase43_integrity_fail.log"
+  if [ "$P43_FAIL_RC" -ne 0 ] && echo "$P43_OUT_FAIL" | grep -q 'sha256 mismatch'; then
+    check "Phase43:kit_integrity_detects_hash_mismatch" "PASS"
+  else
+    check "Phase43:kit_integrity_detects_hash_mismatch" "FAIL"
+  fi
+else
+  check "Phase43:kit_integrity_accepts_manifest_baseline" "FAIL"
+  check "Phase43:kit_integrity_detects_hash_mismatch" "FAIL"
+fi
+
+# ─── Phase 44: pipeline trust whitelist gate ───
+echo "[phase 44] pipeline_trust_gate_round38"
+PIPELINE_TRUST="$SCRIPT_DIR/pipeline_trust_guard.py"
+PIPELINE_RUNNER="$SCRIPT_DIR/pipeline_runner.py"
+P44_WHITELIST="$REPO_ROOT/prompt-dsl-system/tools/pipeline_trust_whitelist.json"
+P44_PIPELINE_REL="prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md"
+P44_PIPELINE_ABS="$REPO_ROOT/$P44_PIPELINE_REL"
+if [ -f "$PIPELINE_TRUST" ] && [ -f "$PIPELINE_RUNNER" ] && [ -f "$P44_WHITELIST" ] && [ -f "$P44_PIPELINE_ABS" ]; then
+  set +e
+  P44_OUT_PASS=$("$PYTHON_BIN" "$PIPELINE_TRUST" verify \
+    --repo-root "$REPO_ROOT" \
+    --pipeline "$P44_PIPELINE_ABS" \
+    --whitelist "$P44_WHITELIST" \
+    --strict-source-set true \
+    --require-active true 2>/dev/null)
+  P44_PASS_RC=$?
+  set -e
+  printf '%s\n' "$P44_OUT_PASS" > "$REGRESSION_TMP/phase44_trust_pass.log"
+  if [ "$P44_PASS_RC" -eq 0 ] && echo "$P44_OUT_PASS" | grep -q '\[pipeline_trust\] PASS'; then
+    check "Phase44:pipeline_trust_accepts_whitelist_baseline" "PASS"
+  else
+    check "Phase44:pipeline_trust_accepts_whitelist_baseline" "FAIL"
+  fi
+
+  P44_BAD_WHITELIST="$REGRESSION_TMP/phase44_pipeline_trust_bad_whitelist.json"
+  cp "$P44_WHITELIST" "$P44_BAD_WHITELIST"
+  "$PYTHON_BIN" - "$P44_BAD_WHITELIST" "$P44_PIPELINE_REL" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+target = sys.argv[2]
+data = json.loads(path.read_text(encoding="utf-8"))
+entries = data.get("entries")
+if isinstance(entries, list):
+    for item in entries:
+        if isinstance(item, dict) and str(item.get("path", "")) == target:
+            item["sha256"] = "f" * 64
+            break
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+  set +e
+  P44_OUT_FAIL=$("$PYTHON_BIN" "$PIPELINE_TRUST" verify \
+    --repo-root "$REPO_ROOT" \
+    --pipeline "$P44_PIPELINE_ABS" \
+    --whitelist "$P44_BAD_WHITELIST" \
+    --strict-source-set true \
+    --require-active true 2>/dev/null)
+  P44_FAIL_RC=$?
+  set -e
+  printf '%s\n' "$P44_OUT_FAIL" > "$REGRESSION_TMP/phase44_trust_fail.log"
+  if [ "$P44_FAIL_RC" -ne 0 ] && echo "$P44_OUT_FAIL" | grep -q 'sha256 mismatch'; then
+    check "Phase44:pipeline_trust_detects_hash_mismatch" "PASS"
+  else
+    check "Phase44:pipeline_trust_detects_hash_mismatch" "FAIL"
+  fi
+
+  set +e
+  P44_RUN_OUT=$(HONGZHI_PIPELINE_TRUST_WHITELIST="$P44_BAD_WHITELIST" \
+    "$PYTHON_BIN" "$PIPELINE_RUNNER" run \
+      --repo-root "$REPO_ROOT" \
+      --module-path "$REPO_ROOT/prompt-dsl-system" \
+      --pipeline "$P44_PIPELINE_REL" 2>/dev/null)
+  P44_RUN_RC=$?
+  set -e
+  printf '%s\n' "$P44_RUN_OUT" > "$REGRESSION_TMP/phase44_runner_block.log"
+  if [ "$P44_RUN_RC" -ne 0 ] && echo "$P44_RUN_OUT" | grep -q '\[pipeline_trust\] FAIL'; then
+    check "Phase44:pipeline_runner_blocks_untrusted_pipeline" "PASS"
+  else
+    check "Phase44:pipeline_runner_blocks_untrusted_pipeline" "FAIL"
+  fi
+else
+  check "Phase44:pipeline_trust_accepts_whitelist_baseline" "FAIL"
+  check "Phase44:pipeline_trust_detects_hash_mismatch" "FAIL"
+  check "Phase44:pipeline_runner_blocks_untrusted_pipeline" "FAIL"
+fi
+
+# ─── Phase 45: baseline signature guard (manifest + whitelist) ───
+echo "[phase 45] baseline_signature_guard_round39"
+KIT_INTEGRITY="$SCRIPT_DIR/kit_integrity_guard.py"
+PIPELINE_TRUST="$SCRIPT_DIR/pipeline_trust_guard.py"
+P45_MANIFEST="$REPO_ROOT/prompt-dsl-system/tools/kit_integrity_manifest.json"
+P45_WHITELIST="$REPO_ROOT/prompt-dsl-system/tools/pipeline_trust_whitelist.json"
+P45_PIPELINE_REL="prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md"
+P45_PIPELINE_ABS="$REPO_ROOT/$P45_PIPELINE_REL"
+if [ -f "$KIT_INTEGRITY" ] && [ -f "$PIPELINE_TRUST" ] && [ -f "$P45_MANIFEST" ] && [ -f "$P45_WHITELIST" ]; then
+  P45_BAD_MANIFEST="$REGRESSION_TMP/phase45_bad_manifest_signature.json"
+  cp "$P45_MANIFEST" "$P45_BAD_MANIFEST"
+  "$PYTHON_BIN" - "$P45_BAD_MANIFEST" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+sig = data.get("signature")
+if isinstance(sig, dict):
+    sig["content_sha256"] = "0" * 64
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+  set +e
+  P45_OUT_MANIFEST=$("$PYTHON_BIN" "$KIT_INTEGRITY" verify \
+    --repo-root "$REPO_ROOT" \
+    --manifest "$P45_BAD_MANIFEST" \
+    --strict-source-set true 2>/dev/null)
+  P45_MANIFEST_RC=$?
+  set -e
+  printf '%s\n' "$P45_OUT_MANIFEST" > "$REGRESSION_TMP/phase45_manifest_signature.log"
+  if [ "$P45_MANIFEST_RC" -ne 0 ] && echo "$P45_OUT_MANIFEST" | grep -q 'signature content_sha256 mismatch'; then
+    check "Phase45:kit_integrity_detects_signature_mismatch" "PASS"
+  else
+    check "Phase45:kit_integrity_detects_signature_mismatch" "FAIL"
+  fi
+
+  P45_BAD_WHITELIST="$REGRESSION_TMP/phase45_bad_whitelist_signature.json"
+  cp "$P45_WHITELIST" "$P45_BAD_WHITELIST"
+  "$PYTHON_BIN" - "$P45_BAD_WHITELIST" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+sig = data.get("signature")
+if isinstance(sig, dict):
+    sig["content_sha256"] = "f" * 64
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+  set +e
+  P45_OUT_WHITELIST=$("$PYTHON_BIN" "$PIPELINE_TRUST" verify \
+    --repo-root "$REPO_ROOT" \
+    --pipeline "$P45_PIPELINE_ABS" \
+    --whitelist "$P45_BAD_WHITELIST" \
+    --strict-source-set true \
+    --require-active true 2>/dev/null)
+  P45_WHITELIST_RC=$?
+  set -e
+  printf '%s\n' "$P45_OUT_WHITELIST" > "$REGRESSION_TMP/phase45_whitelist_signature.log"
+  if [ "$P45_WHITELIST_RC" -ne 0 ] && echo "$P45_OUT_WHITELIST" | grep -q 'signature content_sha256 mismatch'; then
+    check "Phase45:pipeline_trust_detects_signature_mismatch" "PASS"
+  else
+    check "Phase45:pipeline_trust_detects_signature_mismatch" "FAIL"
+  fi
+else
+  check "Phase45:kit_integrity_detects_signature_mismatch" "FAIL"
+  check "Phase45:pipeline_trust_detects_signature_mismatch" "FAIL"
+fi
+
+# ─── Phase 46: dual approval gate ───
+echo "[phase 46] dual_approval_gate_round40"
+DUAL_APPROVAL="$SCRIPT_DIR/kit_dual_approval_guard.py"
+if [ -f "$DUAL_APPROVAL" ] && [ -f "$P45_MANIFEST" ] && [ -f "$P45_WHITELIST" ]; then
+  P46_REPO="$REGRESSION_TMP/phase46_repo"
+  rm -rf "$P46_REPO"
+  mkdir -p "$P46_REPO/prompt-dsl-system/tools"
+  cp "$P45_MANIFEST" "$P46_REPO/prompt-dsl-system/tools/kit_integrity_manifest.json"
+  cp "$P45_WHITELIST" "$P46_REPO/prompt-dsl-system/tools/pipeline_trust_whitelist.json"
+  (
+    cd "$P46_REPO"
+    git init -q >/dev/null 2>&1 || true
+    git config user.email "regression@example.com" >/dev/null 2>&1 || true
+    git config user.name "regression" >/dev/null 2>&1 || true
+    git add . >/dev/null 2>&1 || true
+    git commit -qm "phase46-baseline" >/dev/null 2>&1 || true
+  )
+  printf '\n' >> "$P46_REPO/prompt-dsl-system/tools/kit_integrity_manifest.json"
+
+  P46_APPROVAL="$P46_REPO/prompt-dsl-system/tools/baseline_dual_approval.json"
+  P46_OUT_JSON_NO="$REGRESSION_TMP/phase46_dual_no_approval.json"
+  set +e
+  P46_OUT_NO=$("$PYTHON_BIN" "$DUAL_APPROVAL" \
+    --repo-root "$P46_REPO" \
+    --approval-file "$P46_APPROVAL" \
+    --required-approvers 2 \
+    --require-git true \
+    --out-json "$P46_OUT_JSON_NO" 2>/dev/null)
+  P46_NO_RC=$?
+  set -e
+  printf '%s\n' "$P46_OUT_NO" > "$REGRESSION_TMP/phase46_dual_no.log"
+  if [ "$P46_NO_RC" -ne 0 ] && echo "$P46_OUT_NO" | grep -q 'approval file missing'; then
+    check "Phase46:dual_approval_blocks_changed_baseline_without_approval" "PASS"
+  else
+    check "Phase46:dual_approval_blocks_changed_baseline_without_approval" "FAIL"
+  fi
+
+  P46_FP=$("$PYTHON_BIN" - "$P46_OUT_JSON_NO" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+print(data.get("actual", {}).get("change_fingerprint", ""))
+PY
+)
+  cat > "$P46_APPROVAL" <<EOF
+{
+  "approved": true,
+  "change_fingerprint": "$P46_FP",
+  "approvers": ["approver_a", "approver_b"],
+  "approved_at": "2026-02-12T00:00:00Z",
+  "note": "phase46 regression approval"
+}
+EOF
+
+  set +e
+  P46_OUT_OK=$("$PYTHON_BIN" "$DUAL_APPROVAL" \
+    --repo-root "$P46_REPO" \
+    --approval-file "$P46_APPROVAL" \
+    --required-approvers 2 \
+    --require-git true 2>/dev/null)
+  P46_OK_RC=$?
+  set -e
+  printf '%s\n' "$P46_OUT_OK" > "$REGRESSION_TMP/phase46_dual_ok.log"
+  if [ "$P46_OK_RC" -eq 0 ] && echo "$P46_OUT_OK" | grep -q '\[kit_dual_approval\] PASS'; then
+    check "Phase46:dual_approval_accepts_matching_two_approvers" "PASS"
+  else
+    check "Phase46:dual_approval_accepts_matching_two_approvers" "FAIL"
+  fi
+else
+  check "Phase46:dual_approval_blocks_changed_baseline_without_approval" "FAIL"
+  check "Phase46:dual_approval_accepts_matching_two_approvers" "FAIL"
+fi
+
+# ─── Phase 47: CI mandatory gates workflow ───
+echo "[phase 47] ci_mandatory_gates_workflow_round41"
+CI_WORKFLOW="$REPO_ROOT/.github/workflows/kit_guardrails.yml"
+if [ -f "$CI_WORKFLOW" ]; then
+  check "Phase47:ci_workflow_exists" "PASS"
+else
+  check "Phase47:ci_workflow_exists" "FAIL"
+fi
+if [ -f "$CI_WORKFLOW" ] && grep -q 'run.sh validate -r .' "$CI_WORKFLOW" && grep -q 'golden_path_regression.sh --repo-root .' "$CI_WORKFLOW"; then
+  check "Phase47:ci_workflow_enforces_validate_and_golden" "PASS"
+else
+  check "Phase47:ci_workflow_enforces_validate_and_golden" "FAIL"
+fi
+
+# ─── Phase 48: HMAC strict smoke gate ───
+echo "[phase 48] hmac_strict_smoke_round42"
+HMAC_SMOKE="$SCRIPT_DIR/hmac_strict_smoke.py"
+if [ -f "$HMAC_SMOKE" ]; then
+  P48_OUT_JSON="$REGRESSION_TMP/phase48_hmac_smoke.json"
+  set +e
+  P48_OUT=$("$PYTHON_BIN" "$HMAC_SMOKE" --repo-root "$REPO_ROOT" --out-json "$P48_OUT_JSON" 2>/dev/null)
+  P48_RC=$?
+  set -e
+  printf '%s\n' "$P48_OUT" > "$REGRESSION_TMP/phase48_hmac_smoke.log"
+  if [ "$P48_RC" -eq 0 ] && echo "$P48_OUT" | grep -q '\[hmac_smoke\] PASS'; then
+    check "Phase48:hmac_strict_smoke_pass" "PASS"
+  else
+    check "Phase48:hmac_strict_smoke_pass" "FAIL"
+  fi
+  P48_JSON_OK=$("$PYTHON_BIN" - "$P48_OUT_JSON" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("0")
+    raise SystemExit(0)
+
+total = int(data.get("checks_total", 0))
+passed = int(data.get("checks_passed", -1))
+if data.get("passed") is True and total >= 6 and passed == total:
+    print("1")
+else:
+    print("0")
+PY
+)
+  if [ "$P48_JSON_OK" = "1" ]; then
+    check "Phase48:hmac_strict_smoke_report_contract" "PASS"
+  else
+    check "Phase48:hmac_strict_smoke_report_contract" "FAIL"
+  fi
+else
+  check "Phase48:hmac_strict_smoke_pass" "FAIL"
+  check "Phase48:hmac_strict_smoke_report_contract" "FAIL"
+fi
+
+# ─── Phase 49: CI baseline approval + extra gates workflow checks ───
+echo "[phase 49] ci_dual_approval_and_extra_gates_round43"
+if [ -f "$CI_WORKFLOW" ] && grep -q 'kit_dual_approval_guard.py' "$CI_WORKFLOW" && grep -q 'git diff --name-only' "$CI_WORKFLOW"; then
+  check "Phase49:ci_workflow_enforces_baseline_dual_approval_proof" "PASS"
+else
+  check "Phase49:ci_workflow_enforces_baseline_dual_approval_proof" "FAIL"
+fi
+if [ -f "$CI_WORKFLOW" ] && grep -q 'hmac_strict_smoke.py' "$CI_WORKFLOW" && grep -q 'fuzz_contract_pipeline_gate.py' "$CI_WORKFLOW"; then
+  check "Phase49:ci_workflow_enforces_hmac_and_fuzz_gates" "PASS"
+else
+  check "Phase49:ci_workflow_enforces_hmac_and_fuzz_gates" "FAIL"
+fi
+if [ -f "$CI_WORKFLOW" ] && grep -q 'governance_consistency_guard.py' "$CI_WORKFLOW" && grep -q 'tool_syntax_guard.py' "$CI_WORKFLOW" && grep -q 'pipeline_trust_coverage_guard.py' "$CI_WORKFLOW"; then
+  check "Phase49:ci_workflow_enforces_governance_syntax_trust_coverage_gates" "PASS"
+else
+  check "Phase49:ci_workflow_enforces_governance_syntax_trust_coverage_gates" "FAIL"
+fi
+if [ -f "$CI_WORKFLOW" ] && grep -q 'baseline_provenance_guard.py' "$CI_WORKFLOW" && grep -q 'gate_mutation_guard.py' "$CI_WORKFLOW" && grep -q 'performance_budget_guard.py' "$CI_WORKFLOW"; then
+  check "Phase49:ci_workflow_enforces_provenance_mutation_performance_gates" "PASS"
+else
+  check "Phase49:ci_workflow_enforces_provenance_mutation_performance_gates" "FAIL"
+fi
+
+# ─── Phase 50: parser/contract fuzz robustness gate ───
+echo "[phase 50] fuzz_gate_round44"
+FUZZ_GATE="$SCRIPT_DIR/fuzz_contract_pipeline_gate.py"
+if [ -f "$FUZZ_GATE" ]; then
+  P50_OUT_JSON="$REGRESSION_TMP/phase50_fuzz_gate.json"
+  set +e
+  P50_OUT=$("$PYTHON_BIN" "$FUZZ_GATE" --repo-root "$REPO_ROOT" --iterations 300 --seed 20260212 --out-json "$P50_OUT_JSON" 2>/dev/null)
+  P50_RC=$?
+  set -e
+  printf '%s\n' "$P50_OUT" > "$REGRESSION_TMP/phase50_fuzz_gate.log"
+  if [ "$P50_RC" -eq 0 ] && echo "$P50_OUT" | grep -q '\[fuzz_gate\] PASS'; then
+    check "Phase50:fuzz_gate_pass" "PASS"
+  else
+    check "Phase50:fuzz_gate_pass" "FAIL"
+  fi
+  P50_JSON_OK=$("$PYTHON_BIN" - "$P50_OUT_JSON" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("0")
+    raise SystemExit(0)
+
+summary = data.get("summary", {}) if isinstance(data.get("summary"), dict) else {}
+crash_total = int(summary.get("crash_total", -1))
+violations = int(summary.get("structural_violations", -1))
+if data.get("passed") is True and crash_total == 0 and violations == 0:
+    print("1")
+else:
+    print("0")
+PY
+)
+  if [ "$P50_JSON_OK" = "1" ]; then
+    check "Phase50:fuzz_gate_report_contract" "PASS"
+  else
+    check "Phase50:fuzz_gate_report_contract" "FAIL"
+  fi
+else
+  check "Phase50:fuzz_gate_pass" "FAIL"
+  check "Phase50:fuzz_gate_report_contract" "FAIL"
+fi
+
+# ─── Phase 51: governance consistency guard ───
+echo "[phase 51] governance_consistency_guard_round45"
+GOVERNANCE_GUARD="$SCRIPT_DIR/governance_consistency_guard.py"
+if [ -f "$GOVERNANCE_GUARD" ]; then
+  P51_OUT_JSON="$REGRESSION_TMP/phase51_governance_consistency.json"
+  set +e
+  P51_OUT=$("$PYTHON_BIN" "$GOVERNANCE_GUARD" --repo-root "$REPO_ROOT" --out-json "$P51_OUT_JSON" 2>/dev/null)
+  P51_RC=$?
+  set -e
+  printf '%s\n' "$P51_OUT" > "$REGRESSION_TMP/phase51_governance_consistency.log"
+  if [ "$P51_RC" -eq 0 ] && echo "$P51_OUT" | grep -q '\[governance_consistency\] PASS'; then
+    check "Phase51:governance_consistency_guard_pass" "PASS"
+  else
+    check "Phase51:governance_consistency_guard_pass" "FAIL"
+  fi
+  P51_JSON_OK=$("$PYTHON_BIN" - "$P51_OUT_JSON" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("0")
+    raise SystemExit(0)
+
+summary = data.get("summary", {}) if isinstance(data.get("summary"), dict) else {}
+if data.get("tool") == "governance_consistency_guard" and summary.get("passed") is True and int(summary.get("checks_total", 0)) >= 6:
+    print("1")
+else:
+    print("0")
+PY
+)
+  if [ "$P51_JSON_OK" = "1" ]; then
+    check "Phase51:governance_consistency_report_contract" "PASS"
+  else
+    check "Phase51:governance_consistency_report_contract" "FAIL"
+  fi
+else
+  check "Phase51:governance_consistency_guard_pass" "FAIL"
+  check "Phase51:governance_consistency_report_contract" "FAIL"
+fi
+
+# ─── Phase 52: tool syntax guard ───
+echo "[phase 52] tool_syntax_guard_round46"
+TOOL_SYNTAX_GUARD="$SCRIPT_DIR/tool_syntax_guard.py"
+if [ -f "$TOOL_SYNTAX_GUARD" ]; then
+  P52_OUT_JSON="$REGRESSION_TMP/phase52_tool_syntax.json"
+  set +e
+  P52_OUT=$("$PYTHON_BIN" "$TOOL_SYNTAX_GUARD" --repo-root "$REPO_ROOT" --out-json "$P52_OUT_JSON" 2>/dev/null)
+  P52_RC=$?
+  set -e
+  printf '%s\n' "$P52_OUT" > "$REGRESSION_TMP/phase52_tool_syntax.log"
+  if [ "$P52_RC" -eq 0 ] && echo "$P52_OUT" | grep -q '\[tool_syntax_guard\] PASS'; then
+    check "Phase52:tool_syntax_guard_pass" "PASS"
+  else
+    check "Phase52:tool_syntax_guard_pass" "FAIL"
+  fi
+  P52_JSON_OK=$("$PYTHON_BIN" - "$P52_OUT_JSON" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("0")
+    raise SystemExit(0)
+
+summary = data.get("summary", {}) if isinstance(data.get("summary"), dict) else {}
+actual = data.get("actual", {}) if isinstance(data.get("actual"), dict) else {}
+if data.get("tool") == "tool_syntax_guard" and summary.get("passed") is True and int(actual.get("python_checked", 0)) > 0 and int(actual.get("shell_checked", 0)) > 0:
+    print("1")
+else:
+    print("0")
+PY
+)
+  if [ "$P52_JSON_OK" = "1" ]; then
+    check "Phase52:tool_syntax_report_contract" "PASS"
+  else
+    check "Phase52:tool_syntax_report_contract" "FAIL"
+  fi
+else
+  check "Phase52:tool_syntax_guard_pass" "FAIL"
+  check "Phase52:tool_syntax_report_contract" "FAIL"
+fi
+
+# ─── Phase 53: pipeline trust coverage guard ───
+echo "[phase 53] pipeline_trust_coverage_guard_round47"
+TRUST_COVERAGE_GUARD="$SCRIPT_DIR/pipeline_trust_coverage_guard.py"
+P53_WHITELIST="$REPO_ROOT/prompt-dsl-system/tools/pipeline_trust_whitelist.json"
+P53_PIPELINE_REL="prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md"
+if [ -f "$TRUST_COVERAGE_GUARD" ] && [ -f "$PIPELINE_RUNNER" ] && [ -f "$P53_WHITELIST" ]; then
+  P53_OUT_JSON="$REGRESSION_TMP/phase53_trust_coverage.json"
+  set +e
+  P53_OUT=$("$PYTHON_BIN" "$TRUST_COVERAGE_GUARD" \
+    --repo-root "$REPO_ROOT" \
+    --whitelist "$P53_WHITELIST" \
+    --strict-source-set true \
+    --require-active true \
+    --out-json "$P53_OUT_JSON" 2>/dev/null)
+  P53_RC=$?
+  set -e
+  printf '%s\n' "$P53_OUT" > "$REGRESSION_TMP/phase53_trust_coverage.log"
+  if [ "$P53_RC" -eq 0 ] && echo "$P53_OUT" | grep -q '\[pipeline_trust_coverage\] PASS'; then
+    check "Phase53:pipeline_trust_coverage_guard_pass" "PASS"
+  else
+    check "Phase53:pipeline_trust_coverage_guard_pass" "FAIL"
+  fi
+  P53_JSON_OK=$("$PYTHON_BIN" - "$P53_OUT_JSON" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("0")
+    raise SystemExit(0)
+
+summary = data.get("summary", {}) if isinstance(data.get("summary"), dict) else {}
+actual = data.get("actual", {}) if isinstance(data.get("actual"), dict) else {}
+if data.get("tool") == "pipeline_trust_coverage_guard" and summary.get("passed") is True and int(actual.get("pipeline_count", 0)) >= 10:
+    print("1")
+else:
+    print("0")
+PY
+)
+  if [ "$P53_JSON_OK" = "1" ]; then
+    check "Phase53:pipeline_trust_coverage_report_contract" "PASS"
+  else
+    check "Phase53:pipeline_trust_coverage_report_contract" "FAIL"
+  fi
+
+  P53_BAD_WHITELIST="$REGRESSION_TMP/phase53_bad_whitelist_coverage.json"
+  cp "$P53_WHITELIST" "$P53_BAD_WHITELIST"
+  "$PYTHON_BIN" - "$P53_BAD_WHITELIST" <<'PY'
+import json
+import hashlib
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+entries = data.get("entries")
+if isinstance(entries, list):
+    for item in entries:
+        if isinstance(item, dict) and str(item.get("path", "")).endswith("pipeline_sql_oracle_to_dm8.md"):
+            item["sha256"] = "e" * 64
+            break
+
+signature = data.get("signature")
+if isinstance(signature, dict):
+    payload = {k: data[k] for k in sorted(data.keys()) if k != "signature"}
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    signature["scheme"] = "sha256"
+    signature["content_sha256"] = hashlib.sha256(canonical).hexdigest()
+    signature.pop("hmac_sha256", None)
+    signature.pop("key_id", None)
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+  set +e
+  P53_RUN_OUT=$(HONGZHI_PIPELINE_TRUST_WHITELIST="$P53_BAD_WHITELIST" \
+    "$PYTHON_BIN" "$PIPELINE_RUNNER" run \
+      --repo-root "$REPO_ROOT" \
+      --module-path "$REPO_ROOT/prompt-dsl-system" \
+      --pipeline "$P53_PIPELINE_REL" 2>/dev/null)
+  P53_RUN_RC=$?
+  set -e
+  printf '%s\n' "$P53_RUN_OUT" > "$REGRESSION_TMP/phase53_runner_trust_coverage_block.log"
+  if [ "$P53_RUN_RC" -ne 0 ] && echo "$P53_RUN_OUT" | grep -q '\[pipeline_trust_coverage\] FAIL'; then
+    check "Phase53:pipeline_runner_blocks_non_selected_pipeline_hash_drift" "PASS"
+  else
+    check "Phase53:pipeline_runner_blocks_non_selected_pipeline_hash_drift" "FAIL"
+  fi
+else
+  check "Phase53:pipeline_trust_coverage_guard_pass" "FAIL"
+  check "Phase53:pipeline_trust_coverage_report_contract" "FAIL"
+  check "Phase53:pipeline_runner_blocks_non_selected_pipeline_hash_drift" "FAIL"
+fi
+
+# ─── Phase 54: baseline provenance gate ───
+echo "[phase 54] baseline_provenance_guard_round48"
+P54_PROVENANCE_GUARD="$SCRIPT_DIR/baseline_provenance_guard.py"
+P54_PROVENANCE_JSON="$REPO_ROOT/prompt-dsl-system/tools/baseline_provenance.json"
+if [ -f "$P54_PROVENANCE_GUARD" ] && [ -f "$P54_PROVENANCE_JSON" ]; then
+  P54_OUT_JSON="$REGRESSION_TMP/phase54_provenance_report.json"
+  set +e
+  P54_OUT_PASS=$("$PYTHON_BIN" "$P54_PROVENANCE_GUARD" verify \
+    --repo-root "$REPO_ROOT" \
+    --provenance "$P54_PROVENANCE_JSON" \
+    --strict-source-set true \
+    --out-json "$P54_OUT_JSON" 2>/dev/null)
+  P54_PASS_RC=$?
+  set -e
+  printf '%s\n' "$P54_OUT_PASS" > "$REGRESSION_TMP/phase54_provenance_pass.log"
+  if [ "$P54_PASS_RC" -eq 0 ] && echo "$P54_OUT_PASS" | grep -q '\[baseline_provenance\] PASS'; then
+    check "Phase54:baseline_provenance_guard_pass" "PASS"
+  else
+    check "Phase54:baseline_provenance_guard_pass" "FAIL"
+  fi
+
+  P54_BAD_PROVENANCE="$REGRESSION_TMP/phase54_bad_provenance.json"
+  cp "$P54_PROVENANCE_JSON" "$P54_BAD_PROVENANCE"
+  "$PYTHON_BIN" - "$P54_BAD_PROVENANCE" <<'PY'
+import hashlib
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+entries = data.get("entries")
+if isinstance(entries, list):
+    for item in entries:
+        if isinstance(item, dict) and str(item.get("path", "")).endswith("pipeline_trust_whitelist.json"):
+            item["sha256"] = "d" * 64
+            break
+sig = data.get("signature")
+if isinstance(sig, dict):
+    payload = {k: data[k] for k in sorted(data.keys()) if k != "signature"}
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    sig["scheme"] = "sha256"
+    sig["content_sha256"] = hashlib.sha256(canonical).hexdigest()
+    sig.pop("hmac_sha256", None)
+    sig.pop("key_id", None)
+path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+  set +e
+  P54_OUT_FAIL=$("$PYTHON_BIN" "$P54_PROVENANCE_GUARD" verify \
+    --repo-root "$REPO_ROOT" \
+    --provenance "$P54_BAD_PROVENANCE" \
+    --strict-source-set true 2>/dev/null)
+  P54_FAIL_RC=$?
+  set -e
+  printf '%s\n' "$P54_OUT_FAIL" > "$REGRESSION_TMP/phase54_provenance_fail.log"
+  if [ "$P54_FAIL_RC" -ne 0 ] && echo "$P54_OUT_FAIL" | grep -q 'sha256 mismatch'; then
+    check "Phase54:baseline_provenance_detects_hash_mismatch" "PASS"
+  else
+    check "Phase54:baseline_provenance_detects_hash_mismatch" "FAIL"
+  fi
+else
+  check "Phase54:baseline_provenance_guard_pass" "FAIL"
+  check "Phase54:baseline_provenance_detects_hash_mismatch" "FAIL"
+fi
+
+# ─── Phase 55: mutation resilience gate ───
+echo "[phase 55] mutation_guard_round49"
+P55_MUTATION_GUARD="$SCRIPT_DIR/gate_mutation_guard.py"
+if [ -f "$P55_MUTATION_GUARD" ]; then
+  P55_OUT_JSON="$REGRESSION_TMP/phase55_mutation_guard.json"
+  set +e
+  P55_OUT=$("$PYTHON_BIN" "$P55_MUTATION_GUARD" --repo-root "$REPO_ROOT" --out-json "$P55_OUT_JSON" 2>/dev/null)
+  P55_RC=$?
+  set -e
+  printf '%s\n' "$P55_OUT" > "$REGRESSION_TMP/phase55_mutation_guard.log"
+  if [ "$P55_RC" -eq 0 ] && echo "$P55_OUT" | grep -q '\[mutation_guard\] PASS'; then
+    check "Phase55:mutation_guard_pass" "PASS"
+  else
+    check "Phase55:mutation_guard_pass" "FAIL"
+  fi
+  P55_JSON_OK=$("$PYTHON_BIN" - "$P55_OUT_JSON" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("0")
+    raise SystemExit(0)
+
+summary = data.get("summary", {}) if isinstance(data.get("summary"), dict) else {}
+if data.get("tool") == "gate_mutation_guard" and summary.get("passed") is True and int(summary.get("cases_total", 0)) >= 4:
+    print("1")
+else:
+    print("0")
+PY
+)
+  if [ "$P55_JSON_OK" = "1" ]; then
+    check "Phase55:mutation_guard_report_contract" "PASS"
+  else
+    check "Phase55:mutation_guard_report_contract" "FAIL"
+  fi
+
+  P55_CONC_A_LOG="$REGRESSION_TMP/phase55_mutation_guard_concurrent_a.log"
+  P55_CONC_B_LOG="$REGRESSION_TMP/phase55_mutation_guard_concurrent_b.log"
+  P55_CONC_A_JSON="$REGRESSION_TMP/phase55_mutation_guard_concurrent_a.json"
+  P55_CONC_B_JSON="$REGRESSION_TMP/phase55_mutation_guard_concurrent_b.json"
+  set +e
+  "$PYTHON_BIN" "$P55_MUTATION_GUARD" --repo-root "$REPO_ROOT" --out-json "$P55_CONC_A_JSON" > "$P55_CONC_A_LOG" 2>&1 &
+  P55_PID_A=$!
+  "$PYTHON_BIN" "$P55_MUTATION_GUARD" --repo-root "$REPO_ROOT" --out-json "$P55_CONC_B_JSON" > "$P55_CONC_B_LOG" 2>&1 &
+  P55_PID_B=$!
+  wait "$P55_PID_A"
+  P55_CONC_RC_A=$?
+  wait "$P55_PID_B"
+  P55_CONC_RC_B=$?
+  set -e
+  if [ "$P55_CONC_RC_A" -eq 0 ] && [ "$P55_CONC_RC_B" -eq 0 ] \
+     && grep -q '\[mutation_guard\] PASS' "$P55_CONC_A_LOG" \
+     && grep -q '\[mutation_guard\] PASS' "$P55_CONC_B_LOG"; then
+    check "Phase55:mutation_guard_concurrent_runs_pass" "PASS"
+  else
+    check "Phase55:mutation_guard_concurrent_runs_pass" "FAIL"
+  fi
+else
+  check "Phase55:mutation_guard_pass" "FAIL"
+  check "Phase55:mutation_guard_report_contract" "FAIL"
+  check "Phase55:mutation_guard_concurrent_runs_pass" "FAIL"
+fi
+
+# ─── Phase 56: performance budget gate ───
+echo "[phase 56] performance_guard_round50"
+P56_PERF_GUARD="$SCRIPT_DIR/performance_budget_guard.py"
+if [ -f "$P56_PERF_GUARD" ]; then
+  P56_OUT_JSON="$REGRESSION_TMP/phase56_performance_guard.json"
+  set +e
+  P56_OUT=$("$PYTHON_BIN" "$P56_PERF_GUARD" --repo-root "$REPO_ROOT" --out-json "$P56_OUT_JSON" 2>/dev/null)
+  P56_RC=$?
+  set -e
+  printf '%s\n' "$P56_OUT" > "$REGRESSION_TMP/phase56_performance_guard.log"
+  if [ "$P56_RC" -eq 0 ] && echo "$P56_OUT" | grep -q '\[performance_guard\] PASS'; then
+    check "Phase56:performance_guard_pass" "PASS"
+  else
+    check "Phase56:performance_guard_pass" "FAIL"
+  fi
+  P56_JSON_OK=$("$PYTHON_BIN" - "$P56_OUT_JSON" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+try:
+    data = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    print("0")
+    raise SystemExit(0)
+
+summary = data.get("summary", {}) if isinstance(data.get("summary"), dict) else {}
+actual = data.get("actual", {}) if isinstance(data.get("actual"), dict) else {}
+checks = actual.get("checks") if isinstance(actual.get("checks"), list) else []
+if data.get("tool") == "performance_budget_guard" and summary.get("passed") is True and len(checks) >= 4:
+    print("1")
+else:
+    print("0")
+PY
+)
+  if [ "$P56_JSON_OK" = "1" ]; then
+    check "Phase56:performance_guard_report_contract" "PASS"
+  else
+    check "Phase56:performance_guard_report_contract" "FAIL"
+  fi
+
+  P56_TREND_HISTORY="$REGRESSION_TMP/phase56_perf_history.jsonl"
+  "$PYTHON_BIN" - "$P56_TREND_HISTORY" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+rows = []
+for _ in range(6):
+    rows.append({
+        "tool": "performance_budget_guard",
+        "generated_at": "2026-01-01T00:00:00+00:00",
+        "summary": {"passed": True, "checks_total": 4, "checks_failed": 0},
+        "actual": {
+            "total_seconds": 0.05,
+            "checks": [
+                {"name": "kit_selfcheck", "seconds": 0.01, "returncode": 0},
+                {"name": "governance_consistency_guard", "seconds": 0.01, "returncode": 0},
+                {"name": "tool_syntax_guard", "seconds": 0.01, "returncode": 0},
+                {"name": "pipeline_trust_coverage_guard", "seconds": 0.01, "returncode": 0},
+            ],
+        },
+    })
+path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8")
+PY
+  set +e
+  P56_TREND_OUT=$("$PYTHON_BIN" "$P56_PERF_GUARD" \
+    --repo-root "$REPO_ROOT" \
+    --history-file "$P56_TREND_HISTORY" \
+    --history-window 6 \
+    --trend-min-samples 5 \
+    --trend-max-ratio 1.2 \
+    --trend-enforce true \
+    --history-write false 2>/dev/null)
+  P56_TREND_RC=$?
+  set -e
+  printf '%s\n' "$P56_TREND_OUT" > "$REGRESSION_TMP/phase56_performance_trend_block.log"
+  if [ "$P56_TREND_RC" -ne 0 ] && echo "$P56_TREND_OUT" | grep -q 'trend total regression'; then
+    check "Phase56:performance_trend_regression_block" "PASS"
+  else
+    check "Phase56:performance_trend_regression_block" "FAIL"
+  fi
+else
+  check "Phase56:performance_guard_pass" "FAIL"
+  check "Phase56:performance_guard_report_contract" "FAIL"
+  check "Phase56:performance_trend_regression_block" "FAIL"
+fi
+
 
 # ─── Phase 8: guard strict consistency (no-VCS strict should FAIL) ───
 echo "[phase 8] guard strict consistency"
@@ -3392,18 +4470,17 @@ else
   check "Phase8:guard_strict_no_vcs_fails" "FAIL"
 fi
 
+fi
+
 # ─── Cleanup: restore original state ───
 echo "[cleanup] restoring original state"
-cp "$REGRESSION_TMP/skills.json.bak" "$SKILLS_JSON"
-rm -rf "$SIM_SKILL_DIR"
-# Remove domain dir if empty
-rmdir "$SKILLS_DIR/$SIM_DOMAIN" 2>/dev/null || true
+cleanup_state
 
 # ─── Report ───
 cat > "$REPORT_FILE" <<EOF
 # Golden Path Regression Report
 
-Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+Generated: $REPORT_TIMESTAMP
 Repo Root: $REPO_ROOT
 
 ## Results
@@ -3424,5 +4501,16 @@ echo "=== Regression Report ==="
 cat "$REPORT_FILE"
 echo ""
 echo "report: $REPORT_FILE"
+
+if [ -n "$REPORT_OUT_PATH" ]; then
+  mkdir -p "$(dirname "$REPORT_OUT_PATH")"
+  cp "$REPORT_FILE" "$REPORT_OUT_PATH"
+  echo "report_out: $REPORT_OUT_PATH"
+fi
+
+if [ "$CLEAN_TMP" = "true" ]; then
+  rm -rf "$REGRESSION_TMP"
+  echo "cleanup_tmp: $REGRESSION_TMP"
+fi
 
 exit $RC

@@ -42,19 +42,20 @@ Scope: `prompt-dsl-system/**`
 
 ## 3) Current Tools Boundary
 
-- `run.sh`: stable wrapper (`/usr/bin/python3`) for `pipeline_runner.py`; supports `HONGZHI_VALIDATE_STRICT=1` env var for anti-false-green; includes `selfcheck` and `self-upgrade` unified entries; supports strict self-upgrade preflight (`--strict-self-upgrade` or `HONGZHI_SELF_UPGRADE_STRICT=1`) with quality + dimension contract gate (`HONGZHI_SELFCHECK_MIN_SCORE` / `HONGZHI_SELFCHECK_MIN_LEVEL` / `HONGZHI_SELFCHECK_MAX_LOW_DIMS` / `HONGZHI_SELFCHECK_REQUIRED_DIMS`)
+- `run.sh`: stable wrapper (`/usr/bin/python3`) for `pipeline_runner.py`; supports `HONGZHI_VALIDATE_STRICT=1` env var for anti-false-green; includes `selfcheck` and `self-upgrade` unified entries; supports strict self-upgrade preflight (`--strict-self-upgrade` or `HONGZHI_SELF_UPGRADE_STRICT=1`) with quality + dimension + freshness + integrity + trust + trust-coverage + provenance + governance-consistency + syntax + mutation-resilience + performance-budget + dual-approval(optional) gates (`HONGZHI_SELFCHECK_MIN_SCORE` / `HONGZHI_SELFCHECK_MIN_LEVEL` / `HONGZHI_SELFCHECK_MAX_LOW_DIMS` / `HONGZHI_SELFCHECK_REQUIRED_DIMS` / `HONGZHI_SELFCHECK_MAX_AGE_SECONDS` / `HONGZHI_SELFCHECK_REQUIRE_GIT_HEAD` / `HONGZHI_KIT_INTEGRITY_MANIFEST` / `HONGZHI_KIT_INTEGRITY_STRICT_SET` / `HONGZHI_PIPELINE_TRUST_WHITELIST` / `HONGZHI_PIPELINE_TRUST_STRICT_SET` / `HONGZHI_PIPELINE_TRUST_REQUIRE_ACTIVE` / `HONGZHI_PIPELINE_TRUST_COVERAGE_STRICT_SET` / `HONGZHI_PIPELINE_TRUST_COVERAGE_REQUIRE_ACTIVE` / `HONGZHI_BASELINE_PROVENANCE_FILE` / `HONGZHI_BASELINE_PROVENANCE_STRICT_SET` / `HONGZHI_BASELINE_PROVENANCE_MAX_AGE_SECONDS` / `HONGZHI_BASELINE_PROVENANCE_REQUIRE_GIT` / `HONGZHI_GOVERNANCE_REQUIRE_MET_STATUS` / `HONGZHI_GOVERNANCE_FACT_TAIL_WINDOW` / `HONGZHI_TOOL_SYNTAX_STRICT_SET` / `HONGZHI_MUTATION_GUARD_ENFORCE` / `HONGZHI_PERFORMANCE_GUARD_ENFORCE` / `HONGZHI_PERF_MAX_SELFCHECK_SECONDS` / `HONGZHI_PERF_MAX_GOVERNANCE_SECONDS` / `HONGZHI_PERF_MAX_SYNTAX_SECONDS` / `HONGZHI_PERF_MAX_TRUST_COVERAGE_SECONDS` / `HONGZHI_PERF_MAX_TOTAL_SECONDS` / `HONGZHI_PERF_TREND_ENFORCE` / `HONGZHI_PERF_TREND_HISTORY_FILE` / `HONGZHI_PERF_TREND_WINDOW` / `HONGZHI_PERF_TREND_MIN_SAMPLES` / `HONGZHI_PERF_TREND_MAX_RATIO` / `HONGZHI_PERF_HISTORY_WRITE` / `HONGZHI_BASELINE_SIGN_KEY_ENV` / `HONGZHI_BASELINE_SIGN_KEY` / `HONGZHI_BASELINE_REQUIRE_HMAC` / `HONGZHI_BASELINE_DUAL_APPROVAL` / `HONGZHI_BASELINE_APPROVAL_FILE` / `HONGZHI_BASELINE_APPROVAL_WATCH_FILES` / `HONGZHI_BASELINE_APPROVAL_REQUIRED_COUNT` / `HONGZHI_BASELINE_APPROVAL_ENFORCE_ALWAYS` / `HONGZHI_BASELINE_APPROVAL_REQUIRE_GIT`)
 - `pipeline_runner.py`:
   - `list/validate/run`
   - validates registry + pipelines
   - parses YAML blocks in pipeline markdown
   - generates `run_plan.yaml` and `validate_report.json`
+  - enforces selected-pipeline trust gate + full pipeline trust-coverage gate + baseline provenance gate in direct `run` path
   - supports company profile default injection (`schema_strategy/execution_tool/require_precheck_gate`)
 - `merged_guard.py`: merged/batch SQL integrity gate for trace delivery
 - `path_diff_guard.py`: path diff + violation detection + VCS strict fail (HONGZHI_VALIDATE_STRICT/HONGZHI_GUARD_REQUIRE_VCS)
 - `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS) + multi-path + ignore patterns
 - `skill_template_audit.py`: post-validate audit (placeholder + schema + registry↔fs consistency + --scope + --fail-on-empty)
 - `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject + identity hints)
-- `golden_path_regression.sh`: end-to-end regression (132 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics + Phase28 profile_delta hint assetization/verification/scope gating/index gating + Phase29 federated index write/query/explain/scope gating/zero-write governance + Phase30 zero-touch/status-index, full snapshot guard, policy parse fail-closed, machine-path safety, jsonl concurrency, IO stats stability, composed endpoint extraction, hint effectiveness + Phase31 unified scan graph/cross-command reuse/mismatch gate + Phase32 schema/versioned scan-graph + mismatch reason + machine-line json + default hot-reuse/no-rescan + governance zero-write + full snapshot/limits decoupling guard + Phase33 machine-json roundtrip/no-newline + deterministic artifacts/candidates ordering + mismatch enum/suggestion + read-command zero-touch probe guard + Phase34 contract schema v1/v2 + validator + additive guard + Phase35 company scope gate + governance skill lifecycle convergence + Phase36 strict self-upgrade preflight + contract sample replay + A3 template baseline + Phase37 validate default post-gates + Phase38 health_report post-gate section + Phase39 runbook post-gate fail-first + Phase40 selfcheck quality threshold gate + Phase41 selfcheck dimension contract gate)
+- `golden_path_regression.sh`: end-to-end regression (168 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics + Phase28 profile_delta hint assetization/verification/scope gating/index gating + Phase29 federated index write/query/explain/scope gating/zero-write governance + Phase30 zero-touch/status-index, full snapshot guard, policy parse fail-closed, machine-path safety, jsonl concurrency, IO stats stability, composed endpoint extraction, hint effectiveness + Phase31 unified scan graph/cross-command reuse/mismatch gate + Phase32 schema/versioned scan-graph + mismatch reason + machine-line json + default hot-reuse/no-rescan + governance zero-write + full snapshot/limits decoupling guard + Phase33 machine-json roundtrip/no-newline + deterministic artifacts/candidates ordering + mismatch enum/suggestion + read-command zero-touch probe guard + Phase34 contract schema v1/v2 + validator + additive guard + Phase35 company scope gate + governance skill lifecycle convergence + Phase36 strict self-upgrade preflight + contract sample replay + A3 template baseline + Phase37 validate default post-gates + Phase38 health_report post-gate section + Phase39 runbook post-gate fail-first + Phase40 selfcheck quality threshold gate + Phase41 selfcheck dimension contract gate + Phase42 selfcheck freshness gate + Phase43 kit integrity manifest gate + Phase44 pipeline trust whitelist gate + Phase45 baseline signature gate + Phase46 dual approval gate + Phase47 CI workflow gate + Phase48 HMAC strict smoke gate + Phase49 CI baseline proof/fuzz/governance+syntax+coverage gate check + Phase50 fuzz robustness gate + Phase51 governance consistency gate + Phase52 tool syntax gate + Phase53 pipeline trust coverage gate + Phase54 baseline provenance gate + Phase55 mutation-resilience gate + Phase56 performance budget gate + concurrent mutation stress + trend regression block)
 - `module_profile_scanner.py`: generates discovered profile (Layer2) — scanning + grep + fingerprint + multi-root + concurrent + incremental + `--out-root`/`--read-only`/`--workspace-root`
 - `module_roots_discover.py`: auto-discovers module roots from identity hints + structure fallback + optional `--module-key` (auto-discover) + `--out-root`/`--read-only` (Layer2R)
 - `structure_discover.py` v2: auto-identifies module structure — endpoint v2, per-file incremental cache, `--out-root`/`--read-only`/`--workspace-root` (Layer2S)
@@ -64,12 +65,28 @@ Scope: `prompt-dsl-system/**`
 - `kit_selfcheck.py`: outputs toolkit quality scorecards (`kit_selfcheck_report.json` + `.md`) across 7 dimensions with missing-path recommendations
   - machine signal: `KIT_CAPS <abs_json_path> path="..." json='...'`
 - `kit_selfcheck_gate.py`: enforces strict self-upgrade quality + dimension contract from selfcheck report (`overall_score`, `overall_level`, `low_dimensions`, `required_dimensions`, `summary.dimension_count`)
+- `kit_selfcheck_freshness_gate.py`: enforces strict self-upgrade selfcheck freshness and repo/head consistency (`generated_at`, `repo_root`, `repo_snapshot.git_head`)
+- `kit_integrity_guard.py`: builds/verifies critical-asset integrity manifest (`kit_integrity_manifest.json`)
+- `pipeline_trust_guard.py`: builds/verifies trusted pipeline whitelist (`pipeline_trust_whitelist.json`) and hash/status gate
+- `pipeline_trust_coverage_guard.py`: verifies whitelist hash/status coverage for all pipeline files (not only selected pipeline)
+- `baseline_provenance_guard.py`: builds/verifies baseline provenance attestation (`baseline_provenance.json`)
+- `governance_consistency_guard.py`: validates constitution/compliance/fact baseline requirement-chain consistency
+- `tool_syntax_guard.py`: validates python/shell syntax for core toolkit scripts
+- `gate_mutation_guard.py`: validates mutation-resilience of critical governance gates
+- `performance_budget_guard.py`: validates runtime performance budgets for core governance gates
+- `kit_dual_approval_guard.py`: enforces dual-approval evidence for baseline changes (fingerprint + required distinct approvers)
+- `baseline_dual_approval.template.json`: baseline change approval evidence template
+- `baseline_provenance.json`: machine-verifiable provenance baseline for governance assets
+- `hmac_strict_smoke.py`: strict HMAC smoke suite for baseline integrity/trust guards
+- `fuzz_contract_pipeline_gate.py`: parser + contract validator fuzz robustness gate
+- `BASELINE_KEY_GOVERNANCE.md`: signing key rotation/revocation/audit policy
 - `contract_schema_v1.json` / `contract_schema_v2.json`: machine-line contracts; v2 is additive over v1
 - `contract_validator.py`: validates machine lines; default schema auto-select prefers v2, with optional `--baseline-schema` additive guard
 - `contract_samples/`: replayable validator sample logs and replay script (`replay_contract_samples.sh`)
 - `tools/artifacts/templates/kit_self_upgrade/`: A3 closure templates (`change_ledger`, `rollback_plan`, `cleanup_report`)
 - `kit_self_upgrade_template_guard.py`: validates A3 template existence + required sections/placeholders
 - `health_post_validate_sync.py`: syncs validate post-gate summary into `health_report` JSON/Markdown section
+- `.github/workflows/kit_guardrails.yml`: CI mandatory gate workflow (`validate` + `golden_path_regression` + baseline diff dual approval + hmac/fuzz + governance-consistency + tool-syntax + trust-coverage + provenance + mutation + performance gates)
 - `hongzhi_plugin.py`: v4 contract-capable runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental, capability registry, `HONGZHI_CAPS` line, capabilities.jsonl journal
 - `calibration_engine.py`: lightweight calibration layer for discover confidence, reasons enum, and workspace-only hint/report artifacts
 - `layout_adapters.py`: layout adapters v1 for multi-module/non-standard Java root detection and roots mapping
@@ -82,9 +99,9 @@ Scope: `prompt-dsl-system/**`
 
 ## 4) Conventions Documents
 
-- `HONGZHI_COMPANY_CONSTITUTION.md`: 34 rules, company-domain governance
+- `HONGZHI_COMPANY_CONSTITUTION.md`: 50 rules, company-domain governance
 - `SKILL_SPEC.md`: YAML schema, registry contract, trace parameters, template generation, bundled resources, progressive disclosure + NavIndex, skill status lifecycle (staging/deployed/deprecated)
-- `COMPLIANCE_MATRIX.md`: 15 requirements mapped to implementation
+- `COMPLIANCE_MATRIX.md`: 15 requirements + R16~R61 mapped to implementation
 - `ROLLBACK_INSTRUCTIONS.md`: rollback procedure
 - `FACT_BASELINE.md`: this document
 - `CPP_STYLE_NAMING.md`: C++ style naming conventions for Java8+SpringBoot
@@ -375,7 +392,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
 ## 21) Kit Strict Self-Upgrade + Contract v2 Compatibility (R39/R40)
 
 - `run.sh` strict self-upgrade preflight chain is available:
-  - `selfcheck -> contract_validator -> selfcheck_gate -> pipeline_contract_lint -> skill_template_audit -> validate(strict)`
+  - `selfcheck -> contract_validator -> selfcheck_gate -> selfcheck_freshness -> kit_integrity -> pipeline_trust -> pipeline_contract_lint -> skill_template_audit -> validate(strict)`
   - trigger: `--strict-self-upgrade` or `HONGZHI_SELF_UPGRADE_STRICT=1`
   - any preflight gate failure is fail-fast.
 - Contract schema evolution baseline:
@@ -456,3 +473,256 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Regression hardening:
   - Phase41 validates missing required dimensions are blocked.
   - Phase41 validates summary dimension count mismatch is blocked.
+
+## 27) Strict Selfcheck Freshness Gate (R46)
+
+- Strict preflight now validates selfcheck report freshness and repo snapshot consistency:
+  - `generated_at` must be within max age window
+  - report `repo_root` must match current repo root
+  - when current repo has HEAD, report `repo_snapshot.git_head` must match
+- Freshness knobs (env):
+  - `HONGZHI_SELFCHECK_MAX_AGE_SECONDS` (default `900`)
+  - `HONGZHI_SELFCHECK_REQUIRE_GIT_HEAD` (default `0`)
+- Regression hardening:
+  - Phase42 validates stale selfcheck report is blocked.
+  - Phase42 validates fresh selfcheck report is accepted.
+
+## 28) Kit Integrity Manifest Gate (R47)
+
+- Strict preflight now validates critical-asset supply-chain integrity:
+  - core tracked files hash (`sha256`) must match manifest
+  - tracked source-set drift (missing/unexpected) is blocked in strict mode
+- Integrity knobs (env):
+  - `HONGZHI_KIT_INTEGRITY_MANIFEST`
+  - `HONGZHI_KIT_INTEGRITY_STRICT_SET`
+- Baseline artifacts:
+  - `prompt-dsl-system/tools/kit_integrity_manifest.json`
+  - `prompt-dsl-system/tools/kit_integrity_guard.py`
+- Regression hardening:
+  - Phase43 validates baseline manifest verify pass.
+  - Phase43 validates hash mismatch is blocked.
+
+## 29) Pipeline Trust Whitelist Gate (R48)
+
+- Pipeline execution now requires trust whitelist (`path + sha256 + status`) validation:
+  - strict self-upgrade preflight gate (`run.sh`)
+  - direct runner gate (`pipeline_runner.py run`) to prevent bypass
+- Trust knobs (env):
+  - `HONGZHI_PIPELINE_TRUST_WHITELIST`
+  - `HONGZHI_PIPELINE_TRUST_STRICT_SET`
+  - `HONGZHI_PIPELINE_TRUST_REQUIRE_ACTIVE`
+  - `HONGZHI_PIPELINE_TRUST_ENFORCE`
+- Baseline artifacts:
+  - `prompt-dsl-system/tools/pipeline_trust_whitelist.json`
+  - `prompt-dsl-system/tools/pipeline_trust_guard.py`
+- Regression hardening:
+  - Phase44 validates whitelist baseline verify pass.
+  - Phase44 validates hash mismatch is blocked.
+  - Phase44 validates runner blocks untrusted pipeline.
+
+## 30) Baseline Signature Tamper-Evident Gate (R49)
+
+- Integrity/trust baselines now include embedded `signature` block and fail on signature drift:
+  - `signature.scheme` (`sha256` or `hmac-sha256`)
+  - `signature.content_sha256`
+- Optional HMAC hardening is supported via env:
+  - `HONGZHI_BASELINE_SIGN_KEY`
+  - `HONGZHI_BASELINE_REQUIRE_HMAC`
+- Baseline artifacts:
+  - `prompt-dsl-system/tools/kit_integrity_manifest.json`
+  - `prompt-dsl-system/tools/pipeline_trust_whitelist.json`
+- Regression hardening:
+  - Phase45 validates integrity manifest signature mismatch is blocked.
+  - Phase45 validates trust whitelist signature mismatch is blocked.
+
+## 31) CI Mandatory Validate + Golden Gates (R50)
+
+- CI baseline workflow is now mandatory:
+  - `./prompt-dsl-system/tools/run.sh validate -r .`
+  - `bash prompt-dsl-system/tools/golden_path_regression.sh --repo-root .`
+- CI baseline artifact:
+  - `.github/workflows/kit_guardrails.yml`
+- Regression hardening:
+  - Phase47 validates workflow file exists.
+  - Phase47 validates workflow enforces both validate and golden commands.
+
+## 32) Dual-Approval Baseline Gate (R51)
+
+- Optional dual-approval mode now blocks baseline changes unless approval evidence matches current change fingerprint.
+- Approval evidence requirements:
+  - `approved=true`
+  - `change_fingerprint` equals runtime computed fingerprint
+  - at least configured distinct approvers
+- Dual-approval knobs (env):
+  - `HONGZHI_BASELINE_DUAL_APPROVAL`
+  - `HONGZHI_BASELINE_APPROVAL_FILE`
+  - `HONGZHI_BASELINE_APPROVAL_WATCH_FILES`
+  - `HONGZHI_BASELINE_APPROVAL_REQUIRED_COUNT`
+  - `HONGZHI_BASELINE_APPROVAL_ENFORCE_ALWAYS`
+  - `HONGZHI_BASELINE_APPROVAL_REQUIRE_GIT`
+- Baseline template:
+  - `prompt-dsl-system/tools/baseline_dual_approval.template.json`
+- Regression hardening:
+  - Phase46 validates changed baseline without approval is blocked.
+  - Phase46 validates matching fingerprint + two approvers passes.
+
+## 33) Strict HMAC Baseline Smoke Gate (R52)
+
+- Added strict-HMAC smoke suite to guarantee `require_hmac=true` readiness:
+  - build HMAC-signed manifest/whitelist
+  - verify pass with correct key
+  - verify fail with wrong/missing key
+- Strict preflight HMAC policy:
+  - `HONGZHI_BASELINE_SIGN_KEY_ENV` (default `HONGZHI_BASELINE_SIGN_KEY`)
+  - `HONGZHI_BASELINE_REQUIRE_HMAC=auto|0|1`
+- Baseline artifact:
+  - `prompt-dsl-system/tools/hmac_strict_smoke.py`
+- Regression hardening:
+  - Phase48 validates strict HMAC smoke pass.
+  - Phase48 validates HMAC smoke report contract.
+
+## 34) CI Baseline Diff Dual-Approval Proof (R53)
+
+- CI workflow now enforces dual-approval proof only when baseline files changed in compared diff range.
+- Compared files:
+  - `prompt-dsl-system/tools/kit_integrity_manifest.json`
+  - `prompt-dsl-system/tools/pipeline_trust_whitelist.json`
+- Baseline artifact:
+  - `.github/workflows/kit_guardrails.yml` (baseline diff + dual-approval proof step)
+- Regression hardening:
+  - Phase49 validates CI workflow includes baseline diff dual-approval proof.
+
+## 35) Baseline Signing Key Governance (R54)
+
+- Added explicit signing key governance policy:
+  - key rotation cadence
+  - incident rotation/revocation flow
+  - audit artifact requirements
+- Baseline artifact:
+  - `prompt-dsl-system/tools/BASELINE_KEY_GOVERNANCE.md`
+- Governance requirement:
+  - no raw signing key values committed in repository.
+
+## 36) Parser/Contract Fuzz Robustness Gate (R55)
+
+- Added deterministic fuzz gate for:
+  - pipeline parser (`extract_yaml_blocks` + `parse_yaml_step_block`)
+  - machine-line contract validator (`_parse_machine_line` + `_validate_machine_line`)
+- Baseline artifact:
+  - `prompt-dsl-system/tools/fuzz_contract_pipeline_gate.py`
+- CI gate:
+  - workflow executes fuzz gate with deterministic seed.
+- Regression hardening:
+  - Phase50 validates fuzz gate pass.
+  - Phase50 validates fuzz report contract (`crash_total=0`, `structural_violations=0`).
+
+## 37) Governance Document Consistency Gate (R56)
+
+- Added governance consistency guard for constitution/compliance/fact chain:
+  - compliance matrix `Rxx` continuity + title max alignment
+  - constitution `Rule xx` continuity
+  - fact baseline latest tail-window coverage continuity
+- Baseline artifact:
+  - `prompt-dsl-system/tools/governance_consistency_guard.py`
+- Integration:
+  - strict self-upgrade preflight gate
+  - validate post-gate
+  - CI workflow gate
+- Regression hardening:
+  - Phase51 validates governance consistency pass.
+  - Phase51 validates governance consistency report contract.
+
+## 38) Tool Syntax Gate (R57)
+
+- Added syntax guard for core toolkit scripts:
+  - python compile check (`py_compile`)
+  - shell parse check (`bash -n`)
+- Baseline artifact:
+  - `prompt-dsl-system/tools/tool_syntax_guard.py`
+- Integration:
+  - strict self-upgrade preflight gate
+  - validate post-gate
+  - CI workflow gate
+- Regression hardening:
+  - Phase52 validates syntax gate pass.
+  - Phase52 validates syntax gate report contract.
+
+## 39) Pipeline Trust Full-Coverage Gate (R58)
+
+- Added trust coverage guard to verify whitelist quality for all pipeline files:
+  - per-pipeline entry existence + active status + hash alignment
+  - source-set drift (missing/unexpected paths)
+  - baseline signature validation (`sha256` / optional `hmac`)
+- Baseline artifact:
+  - `prompt-dsl-system/tools/pipeline_trust_coverage_guard.py`
+- Integration:
+  - strict self-upgrade preflight gate
+  - validate post-gate
+  - direct `pipeline_runner.py run` gate (prevents trust bypass on non-selected pipeline drift)
+  - CI workflow gate
+- Regression hardening:
+  - Phase53 validates trust coverage pass.
+  - Phase53 validates trust coverage report contract.
+  - Phase53 validates direct runner blocks non-selected pipeline hash drift.
+
+## 40) Baseline Provenance Attestation Gate (R59)
+
+- Added provenance attestation gate for critical governance baseline assets:
+  - tracked file hash consistency
+  - source-set drift detection (missing/unexpected tracked assets)
+  - baseline signature validation (`sha256` / optional `hmac`)
+  - optional age/head checks for provenance freshness
+- Baseline artifacts:
+  - `prompt-dsl-system/tools/baseline_provenance_guard.py`
+  - `prompt-dsl-system/tools/baseline_provenance.json`
+- Integration:
+  - strict self-upgrade preflight gate
+  - validate post-gate
+  - direct `pipeline_runner.py run` gate
+  - CI workflow gate
+- Regression hardening:
+  - Phase54 validates provenance gate pass.
+  - Phase54 validates provenance hash mismatch is blocked.
+
+## 41) Mutation Resilience Gate (R60)
+
+- Added deterministic mutation-resilience guard for critical governance gates:
+  - integrity manifest tamper mutation
+  - trust whitelist hash mutation with valid signature shell
+  - governance matrix title-range mutation
+  - shell syntax mutation
+- Baseline artifact:
+  - `prompt-dsl-system/tools/gate_mutation_guard.py`
+- Integration:
+  - strict self-upgrade preflight gate
+  - validate post-gate
+  - CI workflow gate
+- Regression hardening:
+  - Phase55 validates mutation guard pass.
+  - Phase55 validates mutation guard report contract.
+  - Phase55 validates concurrent mutation guard runs pass without temp-file race.
+
+## 42) Performance Budget Gate (R61)
+
+- Added runtime budget gate for core governance checks:
+  - `kit_selfcheck`
+  - `governance_consistency_guard`
+  - `tool_syntax_guard`
+  - `pipeline_trust_coverage_guard`
+- Optional trend baseline enforcement (history-median based) is supported via:
+  - `HONGZHI_PERF_TREND_ENFORCE`
+  - `HONGZHI_PERF_TREND_HISTORY_FILE`
+  - `HONGZHI_PERF_TREND_WINDOW`
+  - `HONGZHI_PERF_TREND_MIN_SAMPLES`
+  - `HONGZHI_PERF_TREND_MAX_RATIO`
+  - `HONGZHI_PERF_HISTORY_WRITE`
+- Baseline artifact:
+  - `prompt-dsl-system/tools/performance_budget_guard.py`
+- Integration:
+  - strict self-upgrade preflight gate
+  - validate post-gate
+  - CI workflow gate
+- Regression hardening:
+  - Phase56 validates performance gate pass.
+  - Phase56 validates performance gate report contract.
+  - Phase56 validates trend-regression block when history baseline degrades beyond ratio.

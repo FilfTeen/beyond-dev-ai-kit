@@ -1,25 +1,25 @@
 {
-  "generated_at": "2026-02-12T11:12:19+08:00",
+  "generated_at": "2026-02-12T16:20:06+08:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
   "window": 20,
   "timezone": "local",
   "build_integrity": {
     "validate_report": "prompt-dsl-system/tools/validate_report.json",
-    "registry_entries": 5,
-    "pipelines_checked": 10,
+    "registry_entries": 6,
+    "pipelines_checked": 13,
     "errors": 0,
     "warnings": 0,
     "validate_status": "PASS",
     "yaml_json_parity": null,
     "skills_versions": {
-      "1.0.0": 3,
+      "1.0.0": 4,
       "3.0.0": 1,
       "4.0.0": 1
     },
     "skills_versions_top3": [
       {
         "version": "1.0.0",
-        "count": 3
+        "count": 4
       },
       {
         "version": "3.0.0",

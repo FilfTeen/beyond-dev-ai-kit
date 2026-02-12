@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-02-11T02:00:18+00:00",
+  "generated_at": "2026-02-12T08:20:07+00:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
   "tools_dir": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools",
   "summary": {
-    "trace_ids": 25,
+    "trace_ids": 26,
     "commands": {
       "unknown": 11,
-      "run": 14
+      "run": 15
     },
     "failures": {
       "exit_4": 3,
@@ -14,6 +14,39 @@
     }
   },
   "items": [
+    {
+      "trace_id": "trace-2bdc9916ec76415e940992a2e7961769",
+      "context_id": "ctx-a4e3fd25fe91",
+      "last_seen_at": "2026-02-12T08:20:07+00:00",
+      "commands": [
+        {
+          "ts": "2026-02-12T08:20:07+00:00",
+          "command": "run",
+          "exit_code": 0,
+          "blocked_by": "none",
+          "verify_status": "PASS",
+          "snapshot_path": null
+        }
+      ],
+      "paths": {
+        "deliveries_dir": null,
+        "snapshot_paths": [],
+        "run_plan": "prompt-dsl-system/tools/run_plan.yaml",
+        "validate_report": "prompt-dsl-system/tools/validate_report.json",
+        "health_report": "prompt-dsl-system/tools/health_report.json",
+        "verify_report": null,
+        "risk_gate_report": "prompt-dsl-system/tools/risk_gate_report.json",
+        "risk_gate_token": null
+      },
+      "highlights": {
+        "latest_exit_code": 0,
+        "latest_verify_status": "PASS",
+        "bypass_attempt": false,
+        "blocked_by_counts": {
+          "none": 1
+        }
+      }
+    },
     {
       "trace_id": "trace-1f6e3027456843c1a8a40ef56360a28b",
       "context_id": "ctx-3ae79fe189f9",
@@ -32,8 +65,8 @@
         "deliveries_dir": null,
         "snapshot_paths": [],
         "run_plan": null,
-        "validate_report": "prompt-dsl-system/tools/validate_report.json",
-        "health_report": "prompt-dsl-system/tools/health_report.json",
+        "validate_report": null,
+        "health_report": null,
         "verify_report": null,
         "risk_gate_report": null,
         "risk_gate_token": null
@@ -64,11 +97,11 @@
       "paths": {
         "deliveries_dir": null,
         "snapshot_paths": [],
-        "run_plan": "prompt-dsl-system/tools/run_plan.yaml",
+        "run_plan": null,
         "validate_report": null,
         "health_report": null,
         "verify_report": null,
-        "risk_gate_report": "prompt-dsl-system/tools/risk_gate_report.json",
+        "risk_gate_report": null,
         "risk_gate_token": null
       },
       "highlights": {

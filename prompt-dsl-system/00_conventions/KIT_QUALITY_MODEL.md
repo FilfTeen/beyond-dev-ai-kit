@@ -16,11 +16,11 @@ Scope: toolkit repository only (`prompt-dsl-system/**` and package/docs tooling)
 
 3. `robustness`
 - Does the kit have operational gates and rollback-safe flows?
-- Signals: validate/audit/lint/guard/regression scripts, constitution rules.
+- Signals: validate/audit/lint/guard/regression scripts, constitution rules, CI mandatory gate workflow, parser/contract fuzz gate, tool syntax gate, mutation-resilience gate, baseline provenance gate.
 
 4. `efficiency`
 - Does the kit avoid redundant scans and unnecessary cost?
-- Signals: scan graph, smart reuse tools, bounded scanning controls.
+- Signals: scan graph, smart reuse tools, bounded scanning controls, performance budget gate.
 
 5. `extensibility`
 - Can new skills/pipelines be added with low risk and low friction?
@@ -28,7 +28,7 @@ Scope: toolkit repository only (`prompt-dsl-system/**` and package/docs tooling)
 
 6. `security_governance`
 - Does the kit enforce safety, scope, read-only defaults, and governance blocks?
-- Signals: constitution, plugin governance gates, path guard rules, policy fail-closed behavior.
+- Signals: constitution, plugin governance gates, path guard rules, policy fail-closed behavior, baseline signature integrity and dual-approval enforcement, full pipeline trust coverage, baseline provenance attestation, governance document consistency gate.
 
 7. `kit_mainline_focus`
 - Does current work stay on toolkit mainline and avoid external repo mutation?
@@ -55,3 +55,24 @@ Scope: toolkit repository only (`prompt-dsl-system/**` and package/docs tooling)
 - Default strict dimension contract:
   - required dimensions: `generality`, `completeness`, `robustness`, `efficiency`, `extensibility`, `security_governance`, `kit_mainline_focus`
   - `summary.dimension_count` equals actual `dimensions` size
+- Default strict freshness contract:
+  - report age <= `HONGZHI_SELFCHECK_MAX_AGE_SECONDS` (default 900)
+  - report `repo_root` equals current repo root
+  - when current repo has HEAD, report `repo_snapshot.git_head` must match
+- Default strict integrity contract:
+  - `kit_integrity_manifest.json` verifies all tracked critical files
+  - source-set drift in tracked scope fails when strict-set enabled
+  - embedded baseline signatures must pass (`sha256` / optional `hmac-sha256`)
+- Default strict pipeline trust contract:
+  - executed pipeline must exist in `pipeline_trust_whitelist.json`
+  - whitelist hash and status must match runtime pipeline content
+- Default strict provenance contract:
+  - `baseline_provenance.json` must pass hash/signature/source-set checks
+  - optional provenance freshness (`max_age_seconds`) and git-head consistency may be enforced by policy
+- Default strict mutation-resilience contract:
+  - `gate_mutation_guard.py` must block all configured mutation cases
+- Default strict performance budget contract:
+  - `performance_budget_guard.py` must keep all core checks within configured per-step and total thresholds
+  - optional trend-enforce mode blocks significant runtime regression against recent pass-history median baseline
+- Optional strict dual-approval contract:
+  - when enabled, baseline trust/integrity changes require matching fingerprint + required distinct approvers

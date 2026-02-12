@@ -1,4 +1,4 @@
-# Compliance Matrix (Original 15 Requirements + R16~R45 -> Current Implementation)
+# Compliance Matrix (Original 15 Requirements + R16~R61 -> Current Implementation)
 
 ## Validation Snapshot
 
@@ -45,13 +45,29 @@
 | R36 | 套件自检门禁：重大升级前必须运行质量评分并据此给出升级路线 | constitution Rule 25; `KIT_QUALITY_MODEL.md`; `kit_selfcheck.py`; `pipeline_kit_self_upgrade.md`; `skill_governance_audit_kit_quality.yaml` | `run.sh validate` + `kit_selfcheck.py` | Met |
 | R37 | agent 主动感知：selfcheck 需输出机器可读 `KIT_CAPS` 指针行 | constitution Rule 26; `kit_selfcheck.py`; `run.sh selfcheck` | `./prompt-dsl-system/tools/run.sh selfcheck -r .` | Met |
 | R38 | 统一自升级入口：`run.sh self-upgrade` 注入默认 module_path(仓库根)/pipeline，避免参数漂移 | constitution Rule 27; `run.sh`; `pipeline_kit_self_upgrade.md` | `./prompt-dsl-system/tools/run.sh self-upgrade -r .` | Met |
-| R39 | 严格自升级门禁链：selfcheck(contract)→selfcheck_gate→lint→audit→validate(strict) fail-fast | constitution Rule 28; `run.sh --strict-self-upgrade`; `contract_validator.py`; `kit_selfcheck_gate.py`; `pipeline_contract_lint.py`; `skill_template_audit.py` | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
+| R39 | 严格自升级门禁链（扩展链路）fail-fast：selfcheck(contract)→selfcheck_gate→selfcheck_freshness→kit_integrity→pipeline_trust→pipeline_trust_coverage→baseline_provenance→governance_consistency→tool_syntax→mutation_guard→performance_guard→(dual_approval opt)→lint→audit→validate(strict) | constitution Rule 28; `run.sh --strict-self-upgrade`; `contract_validator.py`; `kit_selfcheck_gate.py`; `kit_selfcheck_freshness_gate.py`; `kit_integrity_guard.py`; `pipeline_trust_guard.py`; `pipeline_trust_coverage_guard.py`; `baseline_provenance_guard.py`; `governance_consistency_guard.py`; `tool_syntax_guard.py`; `gate_mutation_guard.py`; `performance_budget_guard.py`; `kit_dual_approval_guard.py`; `pipeline_contract_lint.py`; `skill_template_audit.py` | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
 | R40 | 合约演进可兼容：schema v2 对 v1 进行 additive guard 校验，默认优先最新 schema | constitution Rule 29; `contract_schema_v2.json`; `contract_schema_v1.json`; `CONTRACT_COMPATIBILITY_STRATEGY.md`; `contract_validator.py` | `contract_validator.py --schema v2 --baseline-schema v1` | Met |
 | R41 | 自升级收尾标准化：A3 模板化交付 + 合约样例回放基线 | constitution Rule 30; `tools/artifacts/templates/kit_self_upgrade/**`; `tools/contract_samples/**`; `golden_path_regression.sh` Phase36 | `bash prompt-dsl-system/tools/contract_samples/replay_contract_samples.sh --repo-root .` | Met |
 | R42 | validate 默认后置闸门：contract replay + template guard，失败即失败 | constitution Rule 31; `run.sh`; `kit_self_upgrade_template_guard.py`; `contract_samples/replay_contract_samples.sh`; `golden_path_regression.sh` Phase37 | `./prompt-dsl-system/tools/run.sh validate -r .` | Met |
 | R43 | 可观测性强化：post-gate 结果必须汇总进 health_report 独立 section | constitution Rule 32; `health_post_validate_sync.py`; `run.sh`; `golden_path_regression.sh` Phase38 | `./prompt-dsl-system/tools/run.sh validate -r .` + `health_report.json` | Met |
 | R44 | 严格自升级质量阈值门禁：selfcheck 分数/等级/low维度需达标，否则阻断 | constitution Rule 33; `run.sh --strict-self-upgrade`; `kit_selfcheck_gate.py`; `KIT_QUALITY_MODEL.md`; `golden_path_regression.sh` Phase40 | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
 | R45 | 严格自升级维度契约门禁：required dimensions + dimension_count 一致性不满足即阻断 | constitution Rule 34; `run.sh --strict-self-upgrade`; `kit_selfcheck_gate.py`; `KIT_QUALITY_MODEL.md`; `golden_path_regression.sh` Phase41 | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
+| R46 | 严格自升级自检新鲜度门禁：selfcheck 报告必须时效有效且 repo/head 一致 | constitution Rule 35; `run.sh --strict-self-upgrade`; `kit_selfcheck.py`; `kit_selfcheck_freshness_gate.py`; `golden_path_regression.sh` Phase42 | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
+| R47 | 套件供应链完整性门禁：关键资产 manifest 哈希与 source-set 漂移校验 | constitution Rule 36; `run.sh --strict-self-upgrade`; `kit_integrity_guard.py`; `kit_integrity_manifest.json`; `golden_path_regression.sh` Phase43 | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
+| R48 | pipeline 信任白名单门禁：run.sh 与 runner 直连均需 whitelist hash 校验 | constitution Rule 37; `run.sh --strict-self-upgrade`; `pipeline_runner.py`; `pipeline_trust_guard.py`; `pipeline_trust_whitelist.json`; `golden_path_regression.sh` Phase44 | `./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
+| R49 | 基线签名防篡改门禁：integrity manifest 与 trust whitelist 必须通过 signature 校验（支持可选 HMAC） | constitution Rule 38; `kit_integrity_guard.py`; `pipeline_trust_guard.py`; `kit_integrity_manifest.json`; `pipeline_trust_whitelist.json`; `golden_path_regression.sh` Phase45 | `kit_integrity_guard.py verify` + `pipeline_trust_guard.py verify` | Met |
+| R50 | CI 必过门禁：工作流强制执行 validate + golden regression | constitution Rule 39; `.github/workflows/kit_guardrails.yml`; `golden_path_regression.sh` Phase47 | GitHub Actions + regression workflow check | Met |
+| R51 | 基线变更双人审批模式：启用时 trust/integrity 基线变更必须双人审批 | constitution Rule 40; `run.sh`; `pipeline_runner.py`; `kit_dual_approval_guard.py`; `baseline_dual_approval.template.json`; `golden_path_regression.sh` Phase46 | `HONGZHI_BASELINE_DUAL_APPROVAL=1 ./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade` | Met |
+| R52 | 基线 HMAC 严格模式门禁：必须具备 `require_hmac=true` 烟测闭环（正反用例） | constitution Rule 41; `run.sh` strict baseline signature policy; `hmac_strict_smoke.py`; `golden_path_regression.sh` Phase48 | `/usr/bin/python3 prompt-dsl-system/tools/hmac_strict_smoke.py --repo-root .` | Met |
+| R53 | CI 基线差异双审批证明：仅当 baseline 文件变更时强制 dual-approval 证明 | constitution Rule 42; `.github/workflows/kit_guardrails.yml`; `kit_dual_approval_guard.py`; `golden_path_regression.sh` Phase49 | GitHub Actions baseline diff proof step | Met |
+| R54 | 基线签名密钥治理：轮换/吊销/审计流程必须文档化并可执行 | constitution Rule 43; `BASELINE_KEY_GOVERNANCE.md` | docs review + strict self-upgrade process | Met |
+| R55 | 解析稳健性门禁：pipeline parser + machine contract validator 必须通过 fuzz crash-resilience gate | constitution Rule 44; `fuzz_contract_pipeline_gate.py`; `.github/workflows/kit_guardrails.yml`; `golden_path_regression.sh` Phase50 | `/usr/bin/python3 prompt-dsl-system/tools/fuzz_contract_pipeline_gate.py --repo-root . --iterations 400` | Met |
+| R56 | 治理文档一致性门禁：constitution/compliance/fact baseline 必须索引一致且尾部需求覆盖连续 | constitution Rule 45; `governance_consistency_guard.py`; `run.sh`; `.github/workflows/kit_guardrails.yml`; `golden_path_regression.sh` Phase51 | `/usr/bin/python3 prompt-dsl-system/tools/governance_consistency_guard.py --repo-root .` | Met |
+| R57 | 工具语法门禁：核心 python/shell 工具必须通过 compile/bash -n 语法校验 | constitution Rule 46; `tool_syntax_guard.py`; `run.sh`; `.github/workflows/kit_guardrails.yml`; `golden_path_regression.sh` Phase52 | `/usr/bin/python3 prompt-dsl-system/tools/tool_syntax_guard.py --repo-root .` | Met |
+| R58 | Pipeline Trust 全覆盖门禁：whitelist 必须覆盖并校验所有 pipeline（含 runner 直连路径） | constitution Rule 47; `pipeline_trust_coverage_guard.py`; `pipeline_runner.py`; `run.sh`; `.github/workflows/kit_guardrails.yml`; `golden_path_regression.sh` Phase53 | `/usr/bin/python3 prompt-dsl-system/tools/pipeline_trust_coverage_guard.py --repo-root .` | Met |
+| R59 | 基线溯源证明门禁：关键治理基线必须具备可验证 provenance（含签名、source-set、可选时效/head） | constitution Rule 48; `baseline_provenance_guard.py`; `baseline_provenance.json`; `run.sh`; `pipeline_runner.py`; `.github/workflows/kit_guardrails.yml`; `golden_path_regression.sh` Phase54 | `/usr/bin/python3 prompt-dsl-system/tools/baseline_provenance_guard.py verify --repo-root . --provenance prompt-dsl-system/tools/baseline_provenance.json` | Met |
+| R60 | 门禁抗变异能力验证：关键 gate 必须通过确定性 mutation-resilience smoke | constitution Rule 49; `gate_mutation_guard.py`; `run.sh`; `.github/workflows/kit_guardrails.yml`; `golden_path_regression.sh` Phase55 | `/usr/bin/python3 prompt-dsl-system/tools/gate_mutation_guard.py --repo-root .` | Met |
+| R61 | 门禁性能预算约束：核心治理 gate 必须满足运行时预算上限，并支持趋势退化门禁 | constitution Rule 50; `performance_budget_guard.py`; `run.sh`; `.github/workflows/kit_guardrails.yml`; `golden_path_regression.sh` Phase56 | `/usr/bin/python3 prompt-dsl-system/tools/performance_budget_guard.py --repo-root .` | Met |
 
 ## File Mapping (Core)
 
@@ -92,6 +108,24 @@
   - `prompt-dsl-system/tools/project_stack_scanner.py` (project-level stack scanner: declared/discovered KB bootstrap with evidence output)
   - `prompt-dsl-system/tools/kit_selfcheck.py` (kit quality dimension scorecard + recommendations)
   - `prompt-dsl-system/tools/kit_selfcheck_gate.py` (strict self-upgrade gate for score/level/required-dimensions/dimension_count contract)
+  - `prompt-dsl-system/tools/kit_selfcheck_freshness_gate.py` (strict self-upgrade freshness + repo/head consistency gate)
+  - `prompt-dsl-system/tools/kit_integrity_guard.py` (critical asset integrity manifest build/verify gate)
+  - `prompt-dsl-system/tools/pipeline_trust_guard.py` (pipeline whitelist trust gate build/verify)
+  - `prompt-dsl-system/tools/kit_dual_approval_guard.py` (dual-approval gate for trust/integrity baseline changes)
+  - `prompt-dsl-system/tools/baseline_dual_approval.template.json` (dual-approval evidence template)
+  - `prompt-dsl-system/tools/hmac_strict_smoke.py` (strict-HMAC smoke suite for baseline guards)
+  - `prompt-dsl-system/tools/fuzz_contract_pipeline_gate.py` (parser/contract fuzz robustness gate)
+  - `prompt-dsl-system/tools/governance_consistency_guard.py` (constitution/compliance/fact consistency gate)
+  - `prompt-dsl-system/tools/tool_syntax_guard.py` (python/shell syntax gate for core tooling scripts)
+  - `prompt-dsl-system/tools/pipeline_trust_coverage_guard.py` (full pipeline whitelist trust coverage gate)
+  - `prompt-dsl-system/tools/baseline_provenance_guard.py` (baseline provenance attestation build/verify gate)
+  - `prompt-dsl-system/tools/baseline_provenance.json` (governance baseline provenance attestation file)
+  - `prompt-dsl-system/tools/gate_mutation_guard.py` (deterministic mutation-resilience gate)
+  - `prompt-dsl-system/tools/performance_budget_guard.py` (core governance gates runtime budget gate)
+  - `prompt-dsl-system/tools/BASELINE_KEY_GOVERNANCE.md` (baseline signing key rotation/revocation governance)
+  - `prompt-dsl-system/tools/kit_integrity_manifest.json` (baseline integrity manifest for strict preflight)
+  - `prompt-dsl-system/tools/pipeline_trust_whitelist.json` (trusted pipeline hash whitelist baseline)
+  - `.github/workflows/kit_guardrails.yml` (CI mandatory validate + golden + dual-approval diff proof + hmac/fuzz + governance/syntax/trust-coverage + provenance/mutation/performance gates)
   - `prompt-dsl-system/tools/contract_schema_v2.json` (machine-line contract v2, additive over v1)
   - `prompt-dsl-system/tools/contract_validator.py` (default prefer latest schema + additive baseline guard)
   - `prompt-dsl-system/tools/contract_samples/` (replayable machine-line samples + replay script)
@@ -101,7 +135,7 @@
   - `prompt-dsl-system/tools/merged_guard.py`
   - `prompt-dsl-system/tools/skill_template_audit.py` (--scope, --fail-on-empty, registry↔fs consistency)
   - `prompt-dsl-system/tools/pipeline_contract_lint.py` (--fail-on-empty, module_root + NavIndex + profile template check + strict TODO reject + identity hints)
-- `prompt-dsl-system/tools/golden_path_regression.sh` (132 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner & governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 package/entry/contract + uninstalled install-hint checks + Phase24 release build/version triplet/gitignore/governance-no-write + Phase25 token ttl/scope/symlink/limits/capability-index-gating/pipeline decision chain + Phase26 calibration strict/non-strict/output/schema checks + Phase27 hint-loop/apply-hints/layout adapters/reuse validation/governance no-write/index-hint-metrics checks + Phase28 profile_delta hint bundle schema/apply/expiry/scope/index gating checks + Phase29 federated index write/query/explain/scope gating/zero-write checks + Phase30 hardening checks for zero-touch/full-snapshot/fail-closed/path-safe/concurrency/io-stats/endpoint/hint-effectiveness + Phase31 unified scan graph/cross-command reuse/strict mismatch checks + Phase32 additive contract/machine-json/reuse-no-rescan/full-snapshot-limits checks + Phase33 machine-json roundtrip/no-newline, deterministic artifacts/modules ordering, mismatch enum/suggestion, status/index zero-touch probe checks + Phase34 contract schema v1/v2 + validator + additive guard checks + Phase35 company-scope gate and governance skill lifecycle checks + Phase36 strict self-upgrade preflight + contract sample replay + A3 template baseline checks + Phase37 validate default post-gates checks + Phase38 health_report post-gate section checks + Phase39 runbook post-gate fail-first checks + Phase40 selfcheck quality threshold gate checks + Phase41 selfcheck dimension contract checks)
+- `prompt-dsl-system/tools/golden_path_regression.sh` (168 checks: Phase1~Phase56 + Phase8 guard strict consistency + concurrent mutation stress + performance trend regression block, including R56 governance consistency gate, R57 tool syntax gate, R58 pipeline trust full-coverage gate, R59 baseline provenance gate, R60 mutation-resilience gate, and R61 performance budget gate)
   - `prompt-dsl-system/tools/module_profile_scanner.py` (Layer2 + fingerprint + multi-root + concurrent + incremental + --out-root/--read-only/--workspace-root)
   - `prompt-dsl-system/tools/module_roots_discover.py` (Layer2R + identity hints + structure fallback + optional --module-key + --out-root/--read-only)
   - `prompt-dsl-system/tools/structure_discover.py` v2 (Layer2S + endpoint v2 + per-file incremental cache + --out-root/--read-only/--workspace-root)

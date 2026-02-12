@@ -1,0 +1,10 @@
+{
+  "approved": true,
+  "change_fingerprint": "<paste-from-kit_dual_approval_guard-output>",
+  "approvers": [
+    "approver_a",
+    "approver_b"
+  ],
+  "approved_at": "<YYYY-MM-DDTHH:MM:SSZ>",
+  "note": "Dual approval for trust/integrity baseline update"
+}

@@ -18,4 +18,5 @@ prompt-dsl-system/tools/_tmp_*/
 prompt-dsl-system/tools/deliveries/
 prompt-dsl-system/tools/snapshots/
 prompt-dsl-system/tools/.structure_cache/
+prompt-dsl-system/tools/performance_history.jsonl
 *.discovered.yaml

@@ -772,10 +772,20 @@ if [ "$subcommand" = "selfcheck" ]; then
 fi
 
 if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 1 ]; then
-  echo "[hongzhi][self-upgrade][strict] preflight start (selfcheck(contract) -> selfcheck_gate -> lint -> audit -> validate)"
+  echo "[hongzhi][self-upgrade][strict] preflight start (selfcheck(contract) -> selfcheck_gate -> selfcheck_freshness -> kit_integrity -> pipeline_trust -> pipeline_trust_coverage -> baseline_provenance -> governance_consistency -> tool_syntax -> mutation_guard -> performance_guard -> dual_approval(opt) -> lint -> audit -> validate)"
 
   SELFCHECK_SCRIPT="${SCRIPT_DIR}/kit_selfcheck.py"
   SELFCHECK_GATE_SCRIPT="${SCRIPT_DIR}/kit_selfcheck_gate.py"
+  SELFCHECK_FRESHNESS_SCRIPT="${SCRIPT_DIR}/kit_selfcheck_freshness_gate.py"
+  KIT_INTEGRITY_SCRIPT="${SCRIPT_DIR}/kit_integrity_guard.py"
+  PIPELINE_TRUST_SCRIPT="${SCRIPT_DIR}/pipeline_trust_guard.py"
+  PIPELINE_TRUST_COVERAGE_SCRIPT="${SCRIPT_DIR}/pipeline_trust_coverage_guard.py"
+  BASELINE_PROVENANCE_SCRIPT="${SCRIPT_DIR}/baseline_provenance_guard.py"
+  GOVERNANCE_CONSISTENCY_SCRIPT="${SCRIPT_DIR}/governance_consistency_guard.py"
+  TOOL_SYNTAX_SCRIPT="${SCRIPT_DIR}/tool_syntax_guard.py"
+  MUTATION_GUARD_SCRIPT="${SCRIPT_DIR}/gate_mutation_guard.py"
+  PERFORMANCE_GUARD_SCRIPT="${SCRIPT_DIR}/performance_budget_guard.py"
+  DUAL_APPROVAL_SCRIPT="${SCRIPT_DIR}/kit_dual_approval_guard.py"
   VALIDATOR_SCRIPT="${SCRIPT_DIR}/contract_validator.py"
   LINT_SCRIPT="${SCRIPT_DIR}/pipeline_contract_lint.py"
   AUDIT_SCRIPT="${SCRIPT_DIR}/skill_template_audit.py"
@@ -790,6 +800,46 @@ if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 
   fi
   if [ ! -f "$SELFCHECK_GATE_SCRIPT" ]; then
     echo "[ERROR] missing strict gate dependency: $SELFCHECK_GATE_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$SELFCHECK_FRESHNESS_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $SELFCHECK_FRESHNESS_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$KIT_INTEGRITY_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $KIT_INTEGRITY_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$PIPELINE_TRUST_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $PIPELINE_TRUST_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$PIPELINE_TRUST_COVERAGE_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $PIPELINE_TRUST_COVERAGE_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$BASELINE_PROVENANCE_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $BASELINE_PROVENANCE_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$GOVERNANCE_CONSISTENCY_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $GOVERNANCE_CONSISTENCY_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$TOOL_SYNTAX_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $TOOL_SYNTAX_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$MUTATION_GUARD_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $MUTATION_GUARD_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$PERFORMANCE_GUARD_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $PERFORMANCE_GUARD_SCRIPT" >&2
+    exit 2
+  fi
+  if [ ! -f "$DUAL_APPROVAL_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $DUAL_APPROVAL_SCRIPT" >&2
     exit 2
   fi
   if [ ! -f "$LINT_SCRIPT" ]; then
@@ -811,8 +861,22 @@ if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 
   strict_tmp_json="/tmp/hz_selfupgrade_${$}_selfcheck.json"
   strict_tmp_md="/tmp/hz_selfupgrade_${$}_selfcheck.md"
   strict_tmp_gate_json="/tmp/hz_selfupgrade_${$}_selfcheck_gate.json"
+  strict_tmp_fresh_json="/tmp/hz_selfupgrade_${$}_selfcheck_freshness.json"
+  strict_tmp_integrity_json="/tmp/hz_selfupgrade_${$}_kit_integrity.json"
+  strict_tmp_trust_json="/tmp/hz_selfupgrade_${$}_pipeline_trust.json"
+  strict_tmp_trust_coverage_json="/tmp/hz_selfupgrade_${$}_pipeline_trust_coverage.json"
+  strict_tmp_provenance_json="/tmp/hz_selfupgrade_${$}_baseline_provenance.json"
+  strict_tmp_consistency_json="/tmp/hz_selfupgrade_${$}_governance_consistency.json"
+  strict_tmp_syntax_json="/tmp/hz_selfupgrade_${$}_tool_syntax.json"
+  strict_tmp_mutation_json="/tmp/hz_selfupgrade_${$}_mutation_guard.json"
+  strict_tmp_perf_json="/tmp/hz_selfupgrade_${$}_performance_guard.json"
+  strict_tmp_dual_json="/tmp/hz_selfupgrade_${$}_dual_approval.json"
   cleanup_strict_temp() {
-    rm -f "$strict_tmp_json" "$strict_tmp_md" "$strict_tmp_gate_json" >/dev/null 2>&1 || true
+    rm -f "$strict_tmp_json" "$strict_tmp_md" "$strict_tmp_gate_json" \
+      "$strict_tmp_fresh_json" "$strict_tmp_integrity_json" "$strict_tmp_trust_json" \
+      "$strict_tmp_trust_coverage_json" "$strict_tmp_provenance_json" \
+      "$strict_tmp_consistency_json" "$strict_tmp_syntax_json" "$strict_tmp_mutation_json" "$strict_tmp_perf_json" \
+      "$strict_tmp_dual_json" >/dev/null 2>&1 || true
   }
   strict_validator_args=(--stdin --schema "$strict_schema")
   if [ "$strict_schema" = "$strict_schema_v2" ] && [ -f "$strict_schema_v1" ]; then
@@ -859,6 +923,310 @@ if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 
     exit "$strict_selfcheck_gate_rc"
   fi
 
+  strict_selfcheck_max_age="${HONGZHI_SELFCHECK_MAX_AGE_SECONDS:-900}"
+  strict_selfcheck_require_head="${HONGZHI_SELFCHECK_REQUIRE_GIT_HEAD:-0}"
+  echo "[hongzhi][self-upgrade][strict] selfcheck_freshness max_age_seconds=$strict_selfcheck_max_age require_git_head=$strict_selfcheck_require_head"
+  set +e
+  "$PYTHON_BIN" "$SELFCHECK_FRESHNESS_SCRIPT" \
+    --report-json "$strict_tmp_json" \
+    --repo-root "$effective_repo_root" \
+    --max-age-seconds "$strict_selfcheck_max_age" \
+    --require-git-head "$strict_selfcheck_require_head" \
+    --out-json "$strict_tmp_fresh_json"
+  strict_selfcheck_fresh_rc=$?
+  set -e
+  if [ "$strict_selfcheck_fresh_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: selfcheck freshness gate failed (exit=$strict_selfcheck_fresh_rc)" >&2
+    exit "$strict_selfcheck_fresh_rc"
+  fi
+
+  strict_sign_key_env_name="${HONGZHI_BASELINE_SIGN_KEY_ENV:-HONGZHI_BASELINE_SIGN_KEY}"
+  if ! [[ "$strict_sign_key_env_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: invalid HONGZHI_BASELINE_SIGN_KEY_ENV=$strict_sign_key_env_name" >&2
+    exit 2
+  fi
+  strict_sign_key_value="${!strict_sign_key_env_name:-}"
+
+  strict_require_hmac_raw="${HONGZHI_BASELINE_REQUIRE_HMAC:-auto}"
+  strict_require_hmac=0
+  if [ -z "$strict_require_hmac_raw" ] || [ "$strict_require_hmac_raw" = "auto" ]; then
+    if [ -n "$strict_sign_key_value" ]; then
+      strict_require_hmac=1
+    fi
+  else
+    strict_require_hmac="$(parse_bool "$strict_require_hmac_raw" || true)"
+    if [ -z "$strict_require_hmac" ]; then
+      cleanup_strict_temp
+      echo "[hongzhi][self-upgrade][strict] FAIL: invalid HONGZHI_BASELINE_REQUIRE_HMAC=$strict_require_hmac_raw" >&2
+      exit 2
+    fi
+  fi
+  if [ "$strict_require_hmac" -eq 1 ] && [ -z "$strict_sign_key_value" ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: require_hmac=1 but sign key env '$strict_sign_key_env_name' is empty" >&2
+    exit 2
+  fi
+
+  strict_integrity_manifest="${HONGZHI_KIT_INTEGRITY_MANIFEST:-prompt-dsl-system/tools/kit_integrity_manifest.json}"
+  if [ "${strict_integrity_manifest#/}" = "$strict_integrity_manifest" ]; then
+    strict_integrity_manifest="$effective_repo_root/$strict_integrity_manifest"
+  fi
+  strict_integrity_manifest="$(normalize_path_allow_missing "$strict_integrity_manifest")"
+  strict_integrity_strict_set="${HONGZHI_KIT_INTEGRITY_STRICT_SET:-1}"
+  echo "[hongzhi][self-upgrade][strict] baseline_signature require_hmac=$strict_require_hmac sign_key_env=$strict_sign_key_env_name sign_key_present=$([ -n "$strict_sign_key_value" ] && echo 1 || echo 0)"
+  echo "[hongzhi][self-upgrade][strict] kit_integrity manifest=$strict_integrity_manifest strict_source_set=$strict_integrity_strict_set"
+  set +e
+  "$PYTHON_BIN" "$KIT_INTEGRITY_SCRIPT" verify \
+    --repo-root "$effective_repo_root" \
+    --manifest "$strict_integrity_manifest" \
+    --strict-source-set "$strict_integrity_strict_set" \
+    --sign-key-env "$strict_sign_key_env_name" \
+    --require-hmac "$strict_require_hmac" \
+    --out-json "$strict_tmp_integrity_json"
+  strict_integrity_rc=$?
+  set -e
+  if [ "$strict_integrity_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: kit integrity gate failed (exit=$strict_integrity_rc)" >&2
+    exit "$strict_integrity_rc"
+  fi
+
+  strict_pipeline_arg=""
+  for (( i=0; i<${#args[@]}; i++ )); do
+    arg="${args[$i]}"
+    case "$arg" in
+      --pipeline)
+        next=$((i + 1))
+        if [ "$next" -lt "${#args[@]}" ]; then
+          strict_pipeline_arg="${args[$next]}"
+          i=$next
+        fi
+        ;;
+      --pipeline=*)
+        strict_pipeline_arg="${arg#*=}"
+        ;;
+    esac
+  done
+  if [ -z "$strict_pipeline_arg" ]; then
+    strict_pipeline_arg="prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md"
+  fi
+  strict_pipeline_abs="$strict_pipeline_arg"
+  if [ "${strict_pipeline_abs#/}" = "$strict_pipeline_abs" ]; then
+    strict_pipeline_abs="$effective_repo_root/$strict_pipeline_abs"
+  fi
+  strict_pipeline_abs="$(normalize_path_allow_missing "$strict_pipeline_abs")"
+
+  strict_trust_whitelist="${HONGZHI_PIPELINE_TRUST_WHITELIST:-prompt-dsl-system/tools/pipeline_trust_whitelist.json}"
+  if [ "${strict_trust_whitelist#/}" = "$strict_trust_whitelist" ]; then
+    strict_trust_whitelist="$effective_repo_root/$strict_trust_whitelist"
+  fi
+  strict_trust_whitelist="$(normalize_path_allow_missing "$strict_trust_whitelist")"
+  strict_trust_strict_set="${HONGZHI_PIPELINE_TRUST_STRICT_SET:-1}"
+  strict_trust_require_active="${HONGZHI_PIPELINE_TRUST_REQUIRE_ACTIVE:-1}"
+  echo "[hongzhi][self-upgrade][strict] pipeline_trust whitelist=$strict_trust_whitelist strict_source_set=$strict_trust_strict_set require_active=$strict_trust_require_active"
+  set +e
+  "$PYTHON_BIN" "$PIPELINE_TRUST_SCRIPT" verify \
+    --repo-root "$effective_repo_root" \
+    --pipeline "$strict_pipeline_abs" \
+    --whitelist "$strict_trust_whitelist" \
+    --strict-source-set "$strict_trust_strict_set" \
+    --require-active "$strict_trust_require_active" \
+    --sign-key-env "$strict_sign_key_env_name" \
+    --require-hmac "$strict_require_hmac" \
+    --out-json "$strict_tmp_trust_json"
+  strict_trust_rc=$?
+  set -e
+  if [ "$strict_trust_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: pipeline trust gate failed (exit=$strict_trust_rc)" >&2
+    exit "$strict_trust_rc"
+  fi
+
+  strict_trust_coverage_strict_set="${HONGZHI_PIPELINE_TRUST_COVERAGE_STRICT_SET:-1}"
+  strict_trust_coverage_require_active="${HONGZHI_PIPELINE_TRUST_COVERAGE_REQUIRE_ACTIVE:-1}"
+  echo "[hongzhi][self-upgrade][strict] pipeline_trust_coverage strict_source_set=$strict_trust_coverage_strict_set require_active=$strict_trust_coverage_require_active"
+  set +e
+  "$PYTHON_BIN" "$PIPELINE_TRUST_COVERAGE_SCRIPT" \
+    --repo-root "$effective_repo_root" \
+    --whitelist "$strict_trust_whitelist" \
+    --strict-source-set "$strict_trust_coverage_strict_set" \
+    --require-active "$strict_trust_coverage_require_active" \
+    --sign-key-env "$strict_sign_key_env_name" \
+    --require-hmac "$strict_require_hmac" \
+    --out-json "$strict_tmp_trust_coverage_json"
+  strict_trust_coverage_rc=$?
+  set -e
+  if [ "$strict_trust_coverage_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: pipeline trust coverage gate failed (exit=$strict_trust_coverage_rc)" >&2
+    exit "$strict_trust_coverage_rc"
+  fi
+
+  strict_provenance_file="${HONGZHI_BASELINE_PROVENANCE_FILE:-prompt-dsl-system/tools/baseline_provenance.json}"
+  if [ "${strict_provenance_file#/}" = "$strict_provenance_file" ]; then
+    strict_provenance_file="$effective_repo_root/$strict_provenance_file"
+  fi
+  strict_provenance_file="$(normalize_path_allow_missing "$strict_provenance_file")"
+  strict_provenance_strict_set="${HONGZHI_BASELINE_PROVENANCE_STRICT_SET:-1}"
+  strict_provenance_max_age="${HONGZHI_BASELINE_PROVENANCE_MAX_AGE_SECONDS:-0}"
+  strict_provenance_require_git="${HONGZHI_BASELINE_PROVENANCE_REQUIRE_GIT:-0}"
+  echo "[hongzhi][self-upgrade][strict] baseline_provenance file=$strict_provenance_file strict_source_set=$strict_provenance_strict_set max_age_seconds=$strict_provenance_max_age require_git_head=$strict_provenance_require_git"
+  set +e
+  "$PYTHON_BIN" "$BASELINE_PROVENANCE_SCRIPT" verify \
+    --repo-root "$effective_repo_root" \
+    --provenance "$strict_provenance_file" \
+    --strict-source-set "$strict_provenance_strict_set" \
+    --max-age-seconds "$strict_provenance_max_age" \
+    --require-git-head "$strict_provenance_require_git" \
+    --sign-key-env "$strict_sign_key_env_name" \
+    --require-hmac "$strict_require_hmac" \
+    --out-json "$strict_tmp_provenance_json"
+  strict_provenance_rc=$?
+  set -e
+  if [ "$strict_provenance_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: baseline provenance gate failed (exit=$strict_provenance_rc)" >&2
+    exit "$strict_provenance_rc"
+  fi
+
+  strict_governance_require_met="${HONGZHI_GOVERNANCE_REQUIRE_MET_STATUS:-1}"
+  strict_governance_tail_window="${HONGZHI_GOVERNANCE_FACT_TAIL_WINDOW:-17}"
+  echo "[hongzhi][self-upgrade][strict] governance_consistency require_met=$strict_governance_require_met fact_tail_window=$strict_governance_tail_window"
+  set +e
+  "$PYTHON_BIN" "$GOVERNANCE_CONSISTENCY_SCRIPT" \
+    --repo-root "$effective_repo_root" \
+    --require-met-status "$strict_governance_require_met" \
+    --fact-tail-window "$strict_governance_tail_window" \
+    --out-json "$strict_tmp_consistency_json"
+  strict_governance_rc=$?
+  set -e
+  if [ "$strict_governance_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: governance consistency gate failed (exit=$strict_governance_rc)" >&2
+    exit "$strict_governance_rc"
+  fi
+
+  strict_tool_syntax_set="${HONGZHI_TOOL_SYNTAX_STRICT_SET:-1}"
+  echo "[hongzhi][self-upgrade][strict] tool_syntax strict_source_set=$strict_tool_syntax_set"
+  set +e
+  "$PYTHON_BIN" "$TOOL_SYNTAX_SCRIPT" \
+    --repo-root "$effective_repo_root" \
+    --strict-source-set "$strict_tool_syntax_set" \
+    --out-json "$strict_tmp_syntax_json"
+  strict_tool_syntax_rc=$?
+  set -e
+  if [ "$strict_tool_syntax_rc" -ne 0 ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: tool syntax gate failed (exit=$strict_tool_syntax_rc)" >&2
+    exit "$strict_tool_syntax_rc"
+  fi
+
+  strict_mutation_enforce_raw="${HONGZHI_MUTATION_GUARD_ENFORCE:-1}"
+  strict_mutation_enforce="$(parse_bool "$strict_mutation_enforce_raw" || true)"
+  if [ -z "$strict_mutation_enforce" ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: invalid HONGZHI_MUTATION_GUARD_ENFORCE=$strict_mutation_enforce_raw" >&2
+    exit 2
+  fi
+  if [ "$strict_mutation_enforce" -eq 1 ]; then
+    echo "[hongzhi][self-upgrade][strict] mutation_guard enforce=1"
+    set +e
+    "$PYTHON_BIN" "$MUTATION_GUARD_SCRIPT" --repo-root "$effective_repo_root" --out-json "$strict_tmp_mutation_json"
+    strict_mutation_rc=$?
+    set -e
+    if [ "$strict_mutation_rc" -ne 0 ]; then
+      cleanup_strict_temp
+      echo "[hongzhi][self-upgrade][strict] FAIL: mutation guard failed (exit=$strict_mutation_rc)" >&2
+      exit "$strict_mutation_rc"
+    fi
+  else
+    echo "[hongzhi][self-upgrade][strict] mutation_guard enforce=0 (skipped)"
+  fi
+
+  strict_perf_enforce_raw="${HONGZHI_PERFORMANCE_GUARD_ENFORCE:-1}"
+  strict_perf_enforce="$(parse_bool "$strict_perf_enforce_raw" || true)"
+  if [ -z "$strict_perf_enforce" ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: invalid HONGZHI_PERFORMANCE_GUARD_ENFORCE=$strict_perf_enforce_raw" >&2
+    exit 2
+  fi
+  if [ "$strict_perf_enforce" -eq 1 ]; then
+    strict_perf_selfcheck_max="${HONGZHI_PERF_MAX_SELFCHECK_SECONDS:-15}"
+    strict_perf_governance_max="${HONGZHI_PERF_MAX_GOVERNANCE_SECONDS:-10}"
+    strict_perf_syntax_max="${HONGZHI_PERF_MAX_SYNTAX_SECONDS:-25}"
+    strict_perf_trust_cov_max="${HONGZHI_PERF_MAX_TRUST_COVERAGE_SECONDS:-10}"
+    strict_perf_total_max="${HONGZHI_PERF_MAX_TOTAL_SECONDS:-70}"
+    strict_perf_trend_enforce="${HONGZHI_PERF_TREND_ENFORCE:-0}"
+    strict_perf_history_file="${HONGZHI_PERF_TREND_HISTORY_FILE:-prompt-dsl-system/tools/performance_history.jsonl}"
+    strict_perf_history_window="${HONGZHI_PERF_TREND_WINDOW:-30}"
+    strict_perf_trend_min_samples="${HONGZHI_PERF_TREND_MIN_SAMPLES:-5}"
+    strict_perf_trend_max_ratio="${HONGZHI_PERF_TREND_MAX_RATIO:-1.8}"
+    strict_perf_history_write="${HONGZHI_PERF_HISTORY_WRITE:-1}"
+    echo "[hongzhi][self-upgrade][strict] performance_guard enforce=1 max_total_seconds=$strict_perf_total_max trend_enforce=$strict_perf_trend_enforce"
+    set +e
+    "$PYTHON_BIN" "$PERFORMANCE_GUARD_SCRIPT" \
+      --repo-root "$effective_repo_root" \
+      --max-selfcheck-seconds "$strict_perf_selfcheck_max" \
+      --max-governance-seconds "$strict_perf_governance_max" \
+      --max-syntax-seconds "$strict_perf_syntax_max" \
+      --max-trust-coverage-seconds "$strict_perf_trust_cov_max" \
+      --max-total-seconds "$strict_perf_total_max" \
+      --trend-enforce "$strict_perf_trend_enforce" \
+      --history-file "$strict_perf_history_file" \
+      --history-window "$strict_perf_history_window" \
+      --trend-min-samples "$strict_perf_trend_min_samples" \
+      --trend-max-ratio "$strict_perf_trend_max_ratio" \
+      --history-write "$strict_perf_history_write" \
+      --out-json "$strict_tmp_perf_json"
+    strict_perf_rc=$?
+    set -e
+    if [ "$strict_perf_rc" -ne 0 ]; then
+      cleanup_strict_temp
+      echo "[hongzhi][self-upgrade][strict] FAIL: performance guard failed (exit=$strict_perf_rc)" >&2
+      exit "$strict_perf_rc"
+    fi
+  else
+    echo "[hongzhi][self-upgrade][strict] performance_guard enforce=0 (skipped)"
+  fi
+
+  strict_dual_approval_raw="${HONGZHI_BASELINE_DUAL_APPROVAL:-0}"
+  strict_dual_approval="$(parse_bool "$strict_dual_approval_raw" || true)"
+  if [ -z "$strict_dual_approval" ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: invalid HONGZHI_BASELINE_DUAL_APPROVAL=$strict_dual_approval_raw" >&2
+    exit 2
+  fi
+  if [ "$strict_dual_approval" -eq 1 ]; then
+    strict_approval_file="${HONGZHI_BASELINE_APPROVAL_FILE:-prompt-dsl-system/tools/baseline_dual_approval.json}"
+    if [ "${strict_approval_file#/}" = "$strict_approval_file" ]; then
+      strict_approval_file="$effective_repo_root/$strict_approval_file"
+    fi
+    strict_approval_file="$(normalize_path_allow_missing "$strict_approval_file")"
+    strict_approval_watch_files="${HONGZHI_BASELINE_APPROVAL_WATCH_FILES:-prompt-dsl-system/tools/kit_integrity_manifest.json,prompt-dsl-system/tools/pipeline_trust_whitelist.json}"
+    strict_approval_required="${HONGZHI_BASELINE_APPROVAL_REQUIRED_COUNT:-2}"
+    strict_approval_enforce_always="${HONGZHI_BASELINE_APPROVAL_ENFORCE_ALWAYS:-0}"
+    strict_approval_require_git="${HONGZHI_BASELINE_APPROVAL_REQUIRE_GIT:-0}"
+    echo "[hongzhi][self-upgrade][strict] dual_approval enabled watch_files=$strict_approval_watch_files required=$strict_approval_required approval_file=$strict_approval_file"
+    set +e
+    "$PYTHON_BIN" "$DUAL_APPROVAL_SCRIPT" \
+      --repo-root "$effective_repo_root" \
+      --watch-files "$strict_approval_watch_files" \
+      --approval-file "$strict_approval_file" \
+      --required-approvers "$strict_approval_required" \
+      --enforce-always "$strict_approval_enforce_always" \
+      --require-git "$strict_approval_require_git" \
+      --out-json "$strict_tmp_dual_json"
+    strict_dual_rc=$?
+    set -e
+    if [ "$strict_dual_rc" -ne 0 ]; then
+      cleanup_strict_temp
+      echo "[hongzhi][self-upgrade][strict] FAIL: dual approval gate failed (exit=$strict_dual_rc)" >&2
+      exit "$strict_dual_rc"
+    fi
+  fi
+
   set +e
   "$PYTHON_BIN" "$LINT_SCRIPT" --repo-root "$effective_repo_root" --fail-on-empty
   strict_lint_rc=$?
@@ -881,8 +1249,12 @@ if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 
 
   previous_validate_strict="${HONGZHI_VALIDATE_STRICT:-}"
   export HONGZHI_VALIDATE_STRICT=1
+  strict_validate_args=(--repo-root "$effective_repo_root")
+  if [ -n "$normalized_module_path" ]; then
+    strict_validate_args+=(--module-path "$normalized_module_path")
+  fi
   set +e
-  run_runner_once "validate" --repo-root "$effective_repo_root"
+  run_runner_once "validate" "${strict_validate_args[@]}"
   strict_validate_rc=$?
   set -e
   if [ -n "$previous_validate_strict" ]; then
@@ -912,6 +1284,12 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
   lint_rc=-1
   replay_rc=-1
   template_guard_rc=-1
+  governance_consistency_rc=-1
+  tool_syntax_rc=-1
+  trust_coverage_rc=-1
+  provenance_rc=-1
+  mutation_rc=-1
+  performance_rc=-1
   for arg in "${invoke_args[@]-}"; do
     if [ "$arg" = "--no-health-report" ]; then
       health_report_disabled=1
@@ -961,6 +1339,134 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
     fi
   fi
 
+  GOVERNANCE_CONSISTENCY_SCRIPT="${SCRIPT_DIR}/governance_consistency_guard.py"
+  if [ -f "$GOVERNANCE_CONSISTENCY_SCRIPT" ]; then
+    set +e
+    "$PYTHON_BIN" "$GOVERNANCE_CONSISTENCY_SCRIPT" \
+      --repo-root "$effective_repo_root" \
+      --require-met-status "${HONGZHI_GOVERNANCE_REQUIRE_MET_STATUS:-1}" \
+      --fact-tail-window "${HONGZHI_GOVERNANCE_FACT_TAIL_WINDOW:-17}"
+    governance_consistency_rc=$?
+    set -e
+    if [ "$governance_consistency_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] governance_consistency_guard FAIL (exit=$governance_consistency_rc)" >&2
+      runner_rc="$governance_consistency_rc"
+    fi
+  fi
+
+  TOOL_SYNTAX_SCRIPT="${SCRIPT_DIR}/tool_syntax_guard.py"
+  if [ -f "$TOOL_SYNTAX_SCRIPT" ]; then
+    set +e
+    "$PYTHON_BIN" "$TOOL_SYNTAX_SCRIPT" \
+      --repo-root "$effective_repo_root" \
+      --strict-source-set "${HONGZHI_TOOL_SYNTAX_STRICT_SET:-1}"
+    tool_syntax_rc=$?
+    set -e
+    if [ "$tool_syntax_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] tool_syntax_guard FAIL (exit=$tool_syntax_rc)" >&2
+      runner_rc="$tool_syntax_rc"
+    fi
+  fi
+
+  PIPELINE_TRUST_COVERAGE_SCRIPT="${SCRIPT_DIR}/pipeline_trust_coverage_guard.py"
+  if [ -f "$PIPELINE_TRUST_COVERAGE_SCRIPT" ]; then
+    validate_sign_key_env_name="${HONGZHI_BASELINE_SIGN_KEY_ENV:-HONGZHI_BASELINE_SIGN_KEY}"
+    if ! [[ "$validate_sign_key_env_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      validate_sign_key_env_name="HONGZHI_BASELINE_SIGN_KEY"
+    fi
+    set +e
+    "$PYTHON_BIN" "$PIPELINE_TRUST_COVERAGE_SCRIPT" \
+      --repo-root "$effective_repo_root" \
+      --whitelist "${HONGZHI_PIPELINE_TRUST_WHITELIST:-prompt-dsl-system/tools/pipeline_trust_whitelist.json}" \
+      --strict-source-set "${HONGZHI_PIPELINE_TRUST_COVERAGE_STRICT_SET:-1}" \
+      --require-active "${HONGZHI_PIPELINE_TRUST_COVERAGE_REQUIRE_ACTIVE:-1}" \
+      --sign-key-env "$validate_sign_key_env_name" \
+      --require-hmac "${HONGZHI_BASELINE_REQUIRE_HMAC:-auto}"
+    trust_coverage_rc=$?
+    set -e
+    if [ "$trust_coverage_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] pipeline_trust_coverage_guard FAIL (exit=$trust_coverage_rc)" >&2
+      runner_rc="$trust_coverage_rc"
+    fi
+  fi
+
+  BASELINE_PROVENANCE_SCRIPT="${SCRIPT_DIR}/baseline_provenance_guard.py"
+  if [ -f "$BASELINE_PROVENANCE_SCRIPT" ]; then
+    validate_sign_key_env_name="${HONGZHI_BASELINE_SIGN_KEY_ENV:-HONGZHI_BASELINE_SIGN_KEY}"
+    if ! [[ "$validate_sign_key_env_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      validate_sign_key_env_name="HONGZHI_BASELINE_SIGN_KEY"
+    fi
+    set +e
+    "$PYTHON_BIN" "$BASELINE_PROVENANCE_SCRIPT" verify \
+      --repo-root "$effective_repo_root" \
+      --provenance "${HONGZHI_BASELINE_PROVENANCE_FILE:-prompt-dsl-system/tools/baseline_provenance.json}" \
+      --strict-source-set "${HONGZHI_BASELINE_PROVENANCE_STRICT_SET:-1}" \
+      --max-age-seconds "${HONGZHI_BASELINE_PROVENANCE_MAX_AGE_SECONDS:-0}" \
+      --require-git-head "${HONGZHI_BASELINE_PROVENANCE_REQUIRE_GIT:-0}" \
+      --sign-key-env "$validate_sign_key_env_name" \
+      --require-hmac "${HONGZHI_BASELINE_REQUIRE_HMAC:-auto}"
+    provenance_rc=$?
+    set -e
+    if [ "$provenance_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] baseline_provenance_guard FAIL (exit=$provenance_rc)" >&2
+      runner_rc="$provenance_rc"
+    fi
+  fi
+
+  MUTATION_GUARD_SCRIPT="${SCRIPT_DIR}/gate_mutation_guard.py"
+  mutation_enforce_raw="${HONGZHI_MUTATION_GUARD_ENFORCE:-1}"
+  mutation_enforce="$(parse_bool "$mutation_enforce_raw" || true)"
+  if [ -z "$mutation_enforce" ]; then
+    mutation_rc=2
+    echo "[hongzhi][WARN] invalid HONGZHI_MUTATION_GUARD_ENFORCE=$mutation_enforce_raw" >&2
+    runner_rc=2
+  elif [ "$mutation_enforce" -eq 1 ] && [ -f "$MUTATION_GUARD_SCRIPT" ]; then
+    set +e
+    "$PYTHON_BIN" "$MUTATION_GUARD_SCRIPT" --repo-root "$effective_repo_root"
+    mutation_rc=$?
+    set -e
+    if [ "$mutation_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] gate_mutation_guard FAIL (exit=$mutation_rc)" >&2
+      runner_rc="$mutation_rc"
+    fi
+  fi
+
+  PERFORMANCE_GUARD_SCRIPT="${SCRIPT_DIR}/performance_budget_guard.py"
+  performance_enforce_raw="${HONGZHI_PERFORMANCE_GUARD_ENFORCE:-1}"
+  performance_enforce="$(parse_bool "$performance_enforce_raw" || true)"
+  if [ -z "$performance_enforce" ]; then
+    performance_rc=2
+    echo "[hongzhi][WARN] invalid HONGZHI_PERFORMANCE_GUARD_ENFORCE=$performance_enforce_raw" >&2
+    runner_rc=2
+  elif [ "$performance_enforce" -eq 1 ] && [ -f "$PERFORMANCE_GUARD_SCRIPT" ]; then
+    perf_trend_enforce="${HONGZHI_PERF_TREND_ENFORCE:-0}"
+    perf_history_file="${HONGZHI_PERF_TREND_HISTORY_FILE:-prompt-dsl-system/tools/performance_history.jsonl}"
+    perf_history_window="${HONGZHI_PERF_TREND_WINDOW:-30}"
+    perf_trend_min_samples="${HONGZHI_PERF_TREND_MIN_SAMPLES:-5}"
+    perf_trend_max_ratio="${HONGZHI_PERF_TREND_MAX_RATIO:-1.8}"
+    perf_history_write="${HONGZHI_PERF_HISTORY_WRITE:-1}"
+    set +e
+    "$PYTHON_BIN" "$PERFORMANCE_GUARD_SCRIPT" \
+      --repo-root "$effective_repo_root" \
+      --max-selfcheck-seconds "${HONGZHI_PERF_MAX_SELFCHECK_SECONDS:-15}" \
+      --max-governance-seconds "${HONGZHI_PERF_MAX_GOVERNANCE_SECONDS:-10}" \
+      --max-syntax-seconds "${HONGZHI_PERF_MAX_SYNTAX_SECONDS:-25}" \
+      --max-trust-coverage-seconds "${HONGZHI_PERF_MAX_TRUST_COVERAGE_SECONDS:-10}" \
+      --max-total-seconds "${HONGZHI_PERF_MAX_TOTAL_SECONDS:-70}" \
+      --trend-enforce "$perf_trend_enforce" \
+      --history-file "$perf_history_file" \
+      --history-window "$perf_history_window" \
+      --trend-min-samples "$perf_trend_min_samples" \
+      --trend-max-ratio "$perf_trend_max_ratio" \
+      --history-write "$perf_history_write"
+    performance_rc=$?
+    set -e
+    if [ "$performance_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] performance_budget_guard FAIL (exit=$performance_rc)" >&2
+      runner_rc="$performance_rc"
+    fi
+  fi
+
   # Contract sample replay (post-validate default gate)
   CONTRACT_REPLAY_SCRIPT="${SCRIPT_DIR}/contract_samples/replay_contract_samples.sh"
   if [ -f "$CONTRACT_REPLAY_SCRIPT" ]; then
@@ -1002,14 +1508,32 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
       lint_status="SKIP"
       replay_status="SKIP"
       template_status="SKIP"
+      governance_consistency_status="SKIP"
+      tool_syntax_status="SKIP"
+      trust_coverage_status="SKIP"
+      provenance_status="SKIP"
+      mutation_status="SKIP"
+      performance_status="SKIP"
       [ "$audit_rc" -gt 0 ] && audit_status="FAIL"
       [ "$lint_rc" -gt 0 ] && lint_status="FAIL"
       [ "$replay_rc" -gt 0 ] && replay_status="FAIL"
       [ "$template_guard_rc" -gt 0 ] && template_status="FAIL"
+      [ "$governance_consistency_rc" -gt 0 ] && governance_consistency_status="FAIL"
+      [ "$tool_syntax_rc" -gt 0 ] && tool_syntax_status="FAIL"
+      [ "$trust_coverage_rc" -gt 0 ] && trust_coverage_status="FAIL"
+      [ "$provenance_rc" -gt 0 ] && provenance_status="FAIL"
+      [ "$mutation_rc" -gt 0 ] && mutation_status="FAIL"
+      [ "$performance_rc" -gt 0 ] && performance_status="FAIL"
       [ "$audit_rc" -eq 0 ] && audit_status="PASS"
       [ "$lint_rc" -eq 0 ] && lint_status="PASS"
       [ "$replay_rc" -eq 0 ] && replay_status="PASS"
       [ "$template_guard_rc" -eq 0 ] && template_status="PASS"
+      [ "$governance_consistency_rc" -eq 0 ] && governance_consistency_status="PASS"
+      [ "$tool_syntax_rc" -eq 0 ] && tool_syntax_status="PASS"
+      [ "$trust_coverage_rc" -eq 0 ] && trust_coverage_status="PASS"
+      [ "$provenance_rc" -eq 0 ] && provenance_status="PASS"
+      [ "$mutation_rc" -eq 0 ] && mutation_status="PASS"
+      [ "$performance_rc" -eq 0 ] && performance_status="PASS"
 
       output_token_abs="$(resolve_output_token_json_path "$effective_repo_root" "${invoke_args[@]-}")"
       output_dir_abs="$(dirname "$output_token_abs")"
@@ -1023,6 +1547,12 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
         --report-md "$health_md_path" \
         --gate "skill_template_audit:${audit_status}:${audit_rc}" \
         --gate "pipeline_contract_lint:${lint_status}:${lint_rc}" \
+        --gate "governance_consistency_guard:${governance_consistency_status}:${governance_consistency_rc}" \
+        --gate "tool_syntax_guard:${tool_syntax_status}:${tool_syntax_rc}" \
+        --gate "pipeline_trust_coverage_guard:${trust_coverage_status}:${trust_coverage_rc}" \
+        --gate "baseline_provenance_guard:${provenance_status}:${provenance_rc}" \
+        --gate "gate_mutation_guard:${mutation_status}:${mutation_rc}" \
+        --gate "performance_budget_guard:${performance_status}:${performance_rc}" \
         --gate "contract_sample_replay:${replay_status}:${replay_rc}" \
         --gate "kit_template_guard:${template_status}:${template_guard_rc}"
       sync_rc=$?

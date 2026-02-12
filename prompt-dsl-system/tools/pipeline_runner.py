@@ -51,6 +51,10 @@ TRACE_INDEXER_REL_PATH = "prompt-dsl-system/tools/trace_indexer.py"
 TRACE_OPEN_REL_PATH = "prompt-dsl-system/tools/trace_open.py"
 TRACE_DIFF_REL_PATH = "prompt-dsl-system/tools/trace_diff.py"
 TRACE_BISECT_HELPER_REL_PATH = "prompt-dsl-system/tools/trace_bisect_helper.py"
+PIPELINE_TRUST_GUARD_REL_PATH = "prompt-dsl-system/tools/pipeline_trust_guard.py"
+PIPELINE_TRUST_COVERAGE_GUARD_REL_PATH = "prompt-dsl-system/tools/pipeline_trust_coverage_guard.py"
+BASELINE_PROVENANCE_GUARD_REL_PATH = "prompt-dsl-system/tools/baseline_provenance_guard.py"
+DUAL_APPROVAL_GUARD_REL_PATH = "prompt-dsl-system/tools/kit_dual_approval_guard.py"
 
 
 class ParseError(Exception):
@@ -885,6 +889,326 @@ def run_path_diff_guard(
         return False, messages, guard_report
 
     return True, messages, guard_report
+
+
+def run_pipeline_trust_guard(
+    repo_root: Path,
+    pipeline_path: Path,
+) -> Tuple[bool, List[str], int]:
+    messages: List[str] = []
+    trust_enabled = parse_cli_bool(
+        os.environ.get("HONGZHI_PIPELINE_TRUST_ENFORCE"),
+        default=True,
+    )
+    if not trust_enabled:
+        messages.append("Pipeline trust gate disabled by HONGZHI_PIPELINE_TRUST_ENFORCE=0")
+        return True, messages, 0
+
+    trust_script = (repo_root / PIPELINE_TRUST_GUARD_REL_PATH).resolve()
+    if not trust_script.is_file():
+        messages.append(f"Pipeline trust script not found: {trust_script}")
+        return False, messages, 2
+
+    whitelist_raw = str(
+        os.environ.get(
+            "HONGZHI_PIPELINE_TRUST_WHITELIST",
+            "prompt-dsl-system/tools/pipeline_trust_whitelist.json",
+        )
+    ).strip()
+    whitelist_path = Path(whitelist_raw).expanduser()
+    if not whitelist_path.is_absolute():
+        whitelist_path = (repo_root / whitelist_path).resolve()
+    else:
+        whitelist_path = whitelist_path.resolve()
+
+    strict_source_set = parse_cli_bool(
+        os.environ.get("HONGZHI_PIPELINE_TRUST_STRICT_SET"),
+        default=True,
+    )
+    require_active = parse_cli_bool(
+        os.environ.get("HONGZHI_PIPELINE_TRUST_REQUIRE_ACTIVE"),
+        default=True,
+    )
+    sign_key_env_name = str(
+        os.environ.get("HONGZHI_BASELINE_SIGN_KEY_ENV", "HONGZHI_BASELINE_SIGN_KEY")
+    ).strip() or "HONGZHI_BASELINE_SIGN_KEY"
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", sign_key_env_name):
+        messages.append(f"Invalid HONGZHI_BASELINE_SIGN_KEY_ENV: {sign_key_env_name}")
+        return False, messages, 2
+
+    sign_key_present = bool(str(os.environ.get(sign_key_env_name, "")).strip())
+    require_hmac_raw = str(os.environ.get("HONGZHI_BASELINE_REQUIRE_HMAC", "auto")).strip().lower()
+    if not require_hmac_raw or require_hmac_raw == "auto":
+        require_hmac = sign_key_present
+    elif require_hmac_raw in {"1", "true", "yes", "y", "on"}:
+        require_hmac = True
+    elif require_hmac_raw in {"0", "false", "no", "n", "off"}:
+        require_hmac = False
+    else:
+        messages.append(f"Invalid HONGZHI_BASELINE_REQUIRE_HMAC: {require_hmac_raw}")
+        return False, messages, 2
+    if require_hmac and not sign_key_present:
+        messages.append(
+            f"HMAC required but sign key env '{sign_key_env_name}' is empty"
+        )
+        return False, messages, 2
+
+    cmd = [
+        sys.executable,
+        str(trust_script),
+        "verify",
+        "--repo-root",
+        str(repo_root),
+        "--pipeline",
+        str(pipeline_path),
+        "--whitelist",
+        str(whitelist_path),
+        "--strict-source-set",
+        "true" if strict_source_set else "false",
+        "--require-active",
+        "true" if require_active else "false",
+        "--sign-key-env",
+        sign_key_env_name,
+        "--require-hmac",
+        "true" if require_hmac else "false",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.stdout.strip():
+        print(proc.stdout.strip())
+    if proc.stderr.strip():
+        print(proc.stderr.strip(), file=sys.stderr)
+
+    if proc.returncode != 0:
+        messages.append("Pipeline trust gate blocked run command")
+        messages.append(f"pipeline trust exit code: {proc.returncode}")
+        messages.append(f"whitelist: {whitelist_path}")
+        messages.append(f"pipeline: {pipeline_path}")
+        return False, messages, proc.returncode
+
+    return True, messages, 0
+
+
+def run_pipeline_trust_coverage_guard(repo_root: Path) -> Tuple[bool, List[str], int]:
+    messages: List[str] = []
+    coverage_enabled = parse_cli_bool(
+        os.environ.get("HONGZHI_PIPELINE_TRUST_COVERAGE_ENFORCE"),
+        default=True,
+    )
+    if not coverage_enabled:
+        messages.append("Pipeline trust coverage gate disabled by HONGZHI_PIPELINE_TRUST_COVERAGE_ENFORCE=0")
+        return True, messages, 0
+
+    coverage_script = (repo_root / PIPELINE_TRUST_COVERAGE_GUARD_REL_PATH).resolve()
+    if not coverage_script.is_file():
+        messages.append(f"Pipeline trust coverage script not found: {coverage_script}")
+        return False, messages, 2
+
+    whitelist_raw = str(
+        os.environ.get(
+            "HONGZHI_PIPELINE_TRUST_WHITELIST",
+            "prompt-dsl-system/tools/pipeline_trust_whitelist.json",
+        )
+    ).strip()
+    whitelist_path = Path(whitelist_raw).expanduser()
+    if not whitelist_path.is_absolute():
+        whitelist_path = (repo_root / whitelist_path).resolve()
+    else:
+        whitelist_path = whitelist_path.resolve()
+
+    strict_source_set = parse_cli_bool(
+        os.environ.get("HONGZHI_PIPELINE_TRUST_COVERAGE_STRICT_SET"),
+        default=True,
+    )
+    require_active = parse_cli_bool(
+        os.environ.get("HONGZHI_PIPELINE_TRUST_COVERAGE_REQUIRE_ACTIVE"),
+        default=True,
+    )
+    sign_key_env_name = str(
+        os.environ.get("HONGZHI_BASELINE_SIGN_KEY_ENV", "HONGZHI_BASELINE_SIGN_KEY")
+    ).strip() or "HONGZHI_BASELINE_SIGN_KEY"
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", sign_key_env_name):
+        messages.append(f"Invalid HONGZHI_BASELINE_SIGN_KEY_ENV: {sign_key_env_name}")
+        return False, messages, 2
+
+    cmd = [
+        sys.executable,
+        str(coverage_script),
+        "--repo-root",
+        str(repo_root),
+        "--whitelist",
+        str(whitelist_path),
+        "--strict-source-set",
+        "true" if strict_source_set else "false",
+        "--require-active",
+        "true" if require_active else "false",
+        "--sign-key-env",
+        sign_key_env_name,
+        "--require-hmac",
+        str(os.environ.get("HONGZHI_BASELINE_REQUIRE_HMAC", "auto")).strip() or "auto",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.stdout.strip():
+        print(proc.stdout.strip())
+    if proc.stderr.strip():
+        print(proc.stderr.strip(), file=sys.stderr)
+
+    if proc.returncode != 0:
+        messages.append("Pipeline trust coverage gate blocked run command")
+        messages.append(f"pipeline trust coverage exit code: {proc.returncode}")
+        messages.append(f"whitelist: {whitelist_path}")
+        return False, messages, proc.returncode
+
+    return True, messages, 0
+
+
+def run_baseline_provenance_guard(repo_root: Path) -> Tuple[bool, List[str], int]:
+    messages: List[str] = []
+    provenance_enabled = parse_cli_bool(
+        os.environ.get("HONGZHI_BASELINE_PROVENANCE_ENFORCE"),
+        default=True,
+    )
+    if not provenance_enabled:
+        messages.append("Baseline provenance gate disabled by HONGZHI_BASELINE_PROVENANCE_ENFORCE=0")
+        return True, messages, 0
+
+    provenance_script = (repo_root / BASELINE_PROVENANCE_GUARD_REL_PATH).resolve()
+    if not provenance_script.is_file():
+        messages.append(f"Baseline provenance script not found: {provenance_script}")
+        return False, messages, 2
+
+    provenance_raw = str(
+        os.environ.get(
+            "HONGZHI_BASELINE_PROVENANCE_FILE",
+            "prompt-dsl-system/tools/baseline_provenance.json",
+        )
+    ).strip()
+    provenance_path = Path(provenance_raw).expanduser()
+    if not provenance_path.is_absolute():
+        provenance_path = (repo_root / provenance_path).resolve()
+    else:
+        provenance_path = provenance_path.resolve()
+
+    strict_source_set = parse_cli_bool(
+        os.environ.get("HONGZHI_BASELINE_PROVENANCE_STRICT_SET"),
+        default=True,
+    )
+    max_age_seconds = str(os.environ.get("HONGZHI_BASELINE_PROVENANCE_MAX_AGE_SECONDS", "0")).strip() or "0"
+    require_git_head = parse_cli_bool(
+        os.environ.get("HONGZHI_BASELINE_PROVENANCE_REQUIRE_GIT"),
+        default=False,
+    )
+    sign_key_env_name = str(
+        os.environ.get("HONGZHI_BASELINE_SIGN_KEY_ENV", "HONGZHI_BASELINE_SIGN_KEY")
+    ).strip() or "HONGZHI_BASELINE_SIGN_KEY"
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", sign_key_env_name):
+        messages.append(f"Invalid HONGZHI_BASELINE_SIGN_KEY_ENV: {sign_key_env_name}")
+        return False, messages, 2
+
+    cmd = [
+        sys.executable,
+        str(provenance_script),
+        "verify",
+        "--repo-root",
+        str(repo_root),
+        "--provenance",
+        str(provenance_path),
+        "--strict-source-set",
+        "true" if strict_source_set else "false",
+        "--max-age-seconds",
+        max_age_seconds,
+        "--require-git-head",
+        "true" if require_git_head else "false",
+        "--sign-key-env",
+        sign_key_env_name,
+        "--require-hmac",
+        str(os.environ.get("HONGZHI_BASELINE_REQUIRE_HMAC", "auto")).strip() or "auto",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.stdout.strip():
+        print(proc.stdout.strip())
+    if proc.stderr.strip():
+        print(proc.stderr.strip(), file=sys.stderr)
+
+    if proc.returncode != 0:
+        messages.append("Baseline provenance gate blocked run command")
+        messages.append(f"baseline provenance exit code: {proc.returncode}")
+        messages.append(f"provenance: {provenance_path}")
+        return False, messages, proc.returncode
+
+    return True, messages, 0
+
+
+def run_dual_approval_guard(repo_root: Path) -> Tuple[bool, List[str], int]:
+    messages: List[str] = []
+    dual_enabled = parse_cli_bool(
+        os.environ.get("HONGZHI_BASELINE_DUAL_APPROVAL"),
+        default=False,
+    )
+    if not dual_enabled:
+        return True, messages, 0
+
+    dual_script = (repo_root / DUAL_APPROVAL_GUARD_REL_PATH).resolve()
+    if not dual_script.is_file():
+        messages.append(f"Dual approval script not found: {dual_script}")
+        return False, messages, 2
+
+    approval_file_raw = str(
+        os.environ.get(
+            "HONGZHI_BASELINE_APPROVAL_FILE",
+            "prompt-dsl-system/tools/baseline_dual_approval.json",
+        )
+    ).strip()
+    approval_file = Path(approval_file_raw).expanduser()
+    if not approval_file.is_absolute():
+        approval_file = (repo_root / approval_file).resolve()
+    else:
+        approval_file = approval_file.resolve()
+
+    watch_files = str(
+        os.environ.get(
+            "HONGZHI_BASELINE_APPROVAL_WATCH_FILES",
+            "prompt-dsl-system/tools/kit_integrity_manifest.json,prompt-dsl-system/tools/pipeline_trust_whitelist.json",
+        )
+    ).strip()
+    required_count = str(os.environ.get("HONGZHI_BASELINE_APPROVAL_REQUIRED_COUNT", "2")).strip() or "2"
+    enforce_always = parse_cli_bool(
+        os.environ.get("HONGZHI_BASELINE_APPROVAL_ENFORCE_ALWAYS"),
+        default=False,
+    )
+    require_git = parse_cli_bool(
+        os.environ.get("HONGZHI_BASELINE_APPROVAL_REQUIRE_GIT"),
+        default=False,
+    )
+
+    cmd = [
+        sys.executable,
+        str(dual_script),
+        "--repo-root",
+        str(repo_root),
+        "--watch-files",
+        watch_files,
+        "--approval-file",
+        str(approval_file),
+        "--required-approvers",
+        required_count,
+        "--enforce-always",
+        "true" if enforce_always else "false",
+        "--require-git",
+        "true" if require_git else "false",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.stdout.strip():
+        print(proc.stdout.strip())
+    if proc.stderr.strip():
+        print(proc.stderr.strip(), file=sys.stderr)
+
+    if proc.returncode != 0:
+        messages.append("Dual approval gate blocked run command")
+        messages.append(f"dual approval exit code: {proc.returncode}")
+        messages.append(f"approval_file: {approval_file}")
+        return False, messages, proc.returncode
+
+    return True, messages, 0
 
 
 def ensure_output_under_tools(output_path: Path, tools_dir: Path) -> None:
@@ -5172,6 +5496,26 @@ def cmd_run(args: argparse.Namespace) -> int:
     if not pipeline_path.exists():
         print(f"[ERROR] Pipeline file not found: {pipeline_path}", file=sys.stderr)
         return 1
+    trust_ok, trust_messages, trust_rc = run_pipeline_trust_guard(repo_root, pipeline_path)
+    if not trust_ok:
+        for msg in trust_messages:
+            print(f"[run][error] {msg}", file=sys.stderr)
+        return trust_rc if trust_rc > 0 else 2
+    trust_coverage_ok, trust_coverage_messages, trust_coverage_rc = run_pipeline_trust_coverage_guard(repo_root)
+    if not trust_coverage_ok:
+        for msg in trust_coverage_messages:
+            print(f"[run][error] {msg}", file=sys.stderr)
+        return trust_coverage_rc if trust_coverage_rc > 0 else 2
+    provenance_ok, provenance_messages, provenance_rc = run_baseline_provenance_guard(repo_root)
+    if not provenance_ok:
+        for msg in provenance_messages:
+            print(f"[run][error] {msg}", file=sys.stderr)
+        return provenance_rc if provenance_rc > 0 else 2
+    dual_ok, dual_messages, dual_rc = run_dual_approval_guard(repo_root)
+    if not dual_ok:
+        for msg in dual_messages:
+            print(f"[run][error] {msg}", file=sys.stderr)
+        return dual_rc if dual_rc > 0 else 2
 
     context_id = args.context_id or f"ctx-{uuid4().hex[:12]}"
     trace_id = args.trace_id or f"trace-{uuid4().hex}"

@@ -1,6 +1,6 @@
 # Golden Path Regression Report
 
-Generated: 2026-02-11T13:55:15Z
+Generated: 2026-02-12T08:28:10Z
 Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit
 
 ## Results
@@ -113,22 +113,72 @@ Repo Root: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-
 | 103 | Phase33:deterministic_modules_order | PASS |
 | 104 | Phase33:mismatch_reason_enum_and_suggestion | PASS |
 | 105 | Phase33:status_index_never_probe_writable | PASS |
-| 106 | Phase34:contract_schema_exists_and_valid_json | PASS |
-| 107 | Phase34:contract_validator_smoke | PASS |
-| 108 | Phase34:contract_validator_on_discover_stdout | PASS |
-| 109 | Phase34:contract_validator_on_gov_block_stdout | PASS |
-| 110 | Phase34:contract_validator_on_exit25_mismatch_stdout | PASS |
-| 111 | Phase34:contract_schema_additive_guard | PASS |
-| 112 | Phase35:governance_skills_deployed | PASS |
-| 113 | Phase35:machine_lines_include_company_scope | PASS |
-| 114 | Phase35:company_scope_gate_default_off | PASS |
-| 115 | Phase35:company_scope_mismatch_block_exit26 | PASS |
-| 116 | Phase35:company_scope_mismatch_zero_write | PASS |
-| 117 | Phase35:company_scope_match_required_allows | PASS |
-| 118 | Phase8:guard_strict_no_vcs_fails | PASS |
+| 106 | Phase34:contract_schema_v1_valid_json | PASS |
+| 107 | Phase34:contract_schema_v2_valid_json | PASS |
+| 108 | Phase34:contract_validator_smoke | PASS |
+| 109 | Phase34:contract_validator_on_discover_stdout | PASS |
+| 110 | Phase34:contract_validator_on_gov_block_stdout | PASS |
+| 111 | Phase34:contract_validator_on_exit25_mismatch_stdout | PASS |
+| 112 | Phase34:contract_schema_v2_additive_guard_vs_v1 | PASS |
+| 113 | Phase35:governance_skills_deployed | PASS |
+| 114 | Phase35:machine_lines_include_company_scope | PASS |
+| 115 | Phase35:company_scope_gate_default_off | PASS |
+| 116 | Phase35:company_scope_mismatch_block_exit26 | PASS |
+| 117 | Phase35:company_scope_mismatch_zero_write | PASS |
+| 118 | Phase35:company_scope_match_required_allows | PASS |
+| 119 | Phase36:self_upgrade_strict_preflight_on_temp_repo | PASS |
+| 120 | Phase36:contract_sample_replay_v2 | PASS |
+| 121 | Phase36:a3_kit_self_upgrade_templates_exist | PASS |
+| 122 | Phase37:validate_runs_contract_sample_replay | PASS |
+| 123 | Phase37:validate_runs_template_guard | PASS |
+| 124 | Phase38:health_report_json_has_post_validate_gates | PASS |
+| 125 | Phase38:health_report_md_has_post_validate_section | PASS |
+| 126 | Phase39:runbook_generated_on_post_gate_fail | PASS |
+| 127 | Phase39:runbook_post_gate_fail_first_block | PASS |
+| 128 | Phase40:selfcheck_gate_blocks_low_quality_report | PASS |
+| 129 | Phase40:selfcheck_gate_accepts_high_quality_report | PASS |
+| 130 | Phase41:selfcheck_gate_blocks_missing_required_dimensions | PASS |
+| 131 | Phase41:selfcheck_gate_blocks_dimension_count_mismatch | PASS |
+| 132 | Phase42:selfcheck_freshness_blocks_stale_report | PASS |
+| 133 | Phase42:selfcheck_freshness_accepts_fresh_report | PASS |
+| 134 | Phase43:kit_integrity_accepts_manifest_baseline | PASS |
+| 135 | Phase43:kit_integrity_detects_hash_mismatch | PASS |
+| 136 | Phase44:pipeline_trust_accepts_whitelist_baseline | PASS |
+| 137 | Phase44:pipeline_trust_detects_hash_mismatch | PASS |
+| 138 | Phase44:pipeline_runner_blocks_untrusted_pipeline | PASS |
+| 139 | Phase45:kit_integrity_detects_signature_mismatch | PASS |
+| 140 | Phase45:pipeline_trust_detects_signature_mismatch | PASS |
+| 141 | Phase46:dual_approval_blocks_changed_baseline_without_approval | PASS |
+| 142 | Phase46:dual_approval_accepts_matching_two_approvers | PASS |
+| 143 | Phase47:ci_workflow_exists | PASS |
+| 144 | Phase47:ci_workflow_enforces_validate_and_golden | PASS |
+| 145 | Phase48:hmac_strict_smoke_pass | PASS |
+| 146 | Phase48:hmac_strict_smoke_report_contract | PASS |
+| 147 | Phase49:ci_workflow_enforces_baseline_dual_approval_proof | PASS |
+| 148 | Phase49:ci_workflow_enforces_hmac_and_fuzz_gates | PASS |
+| 149 | Phase49:ci_workflow_enforces_governance_syntax_trust_coverage_gates | PASS |
+| 150 | Phase49:ci_workflow_enforces_provenance_mutation_performance_gates | PASS |
+| 151 | Phase50:fuzz_gate_pass | PASS |
+| 152 | Phase50:fuzz_gate_report_contract | PASS |
+| 153 | Phase51:governance_consistency_guard_pass | PASS |
+| 154 | Phase51:governance_consistency_report_contract | PASS |
+| 155 | Phase52:tool_syntax_guard_pass | PASS |
+| 156 | Phase52:tool_syntax_report_contract | PASS |
+| 157 | Phase53:pipeline_trust_coverage_guard_pass | PASS |
+| 158 | Phase53:pipeline_trust_coverage_report_contract | PASS |
+| 159 | Phase53:pipeline_runner_blocks_non_selected_pipeline_hash_drift | PASS |
+| 160 | Phase54:baseline_provenance_guard_pass | PASS |
+| 161 | Phase54:baseline_provenance_detects_hash_mismatch | PASS |
+| 162 | Phase55:mutation_guard_pass | PASS |
+| 163 | Phase55:mutation_guard_report_contract | PASS |
+| 164 | Phase55:mutation_guard_concurrent_runs_pass | PASS |
+| 165 | Phase56:performance_guard_pass | PASS |
+| 166 | Phase56:performance_guard_report_contract | PASS |
+| 167 | Phase56:performance_trend_regression_block | PASS |
+| 168 | Phase8:guard_strict_no_vcs_fails | PASS |
 
 ## Summary
 
-**118 / 118** checks passed.
+**168 / 168** checks passed.
 
 **OVERALL: PASS**

@@ -1,0 +1,82 @@
+{
+  "tool": "pipeline_trust_guard",
+  "whitelist_version": "1.1.0",
+  "generated_at": "2026-02-12T06:12:16+00:00",
+  "repo_root": ".",
+  "pipeline_glob": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_*.md",
+  "entries": [
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bpmn_state_audit_testgen.md",
+      "sha256": "33efc6ef1455b8e8569598d4906c21610aa2a2c5fc34715b99a237cb482b576f",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bugfix_min_scope_with_tree.md",
+      "sha256": "3ea4ca9493afef887ce629734140266ff399539d8dfc15f8d4e5d723eb7ffe3c",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_db_delivery_batch_and_runbook.md",
+      "sha256": "1ac93c17a40fb4d747dd89e8afd0124d825cf8dc4f9a9877cf97736141e258d6",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md",
+      "sha256": "dfe5acc1c8c5719a2654ec5c424fcba3499b61a81ef83dbc448fe4ba6786ae6f",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_module_migration.md",
+      "sha256": "4d72653d438635fef7e4daa9f0204ec07f95bd7723a121ec09deb0d8a538597f",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_ownercommittee_audit_fix.md",
+      "sha256": "675074c12b643d3095ac894c6f8d53b361d243c7c5b599becd2ba376b53e8581",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_plugin_discover.md",
+      "sha256": "0e9389e904e6eabb8d6455eeb40d17f2c753ca97785319afe94d564aaca141e5",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_project_bootstrap.md",
+      "sha256": "5d3105718dbde24ca36e38ebf8cc628b231992ac0604dab94584d9e0b5a80934",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_project_stack_bootstrap.md",
+      "sha256": "0662e9b5aae3485a9c437bf6491dbf4be3b7b34f2853a34bcfc51e6e5724045f",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_requirement_to_prototype.md",
+      "sha256": "7910974d8f5afb81496cd07b9fb4e2f6fae9dd5a94135f700d448e025a6a562f",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_skill_creator.md",
+      "sha256": "9e9ab0af65c4caaf37d1a42f59930e6d9b28e3892d8a0982ef643be96c91069a",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_skill_promote.md",
+      "sha256": "b8de5b3824e613c26ed9643fe23958c0b4e9ede41981a22e141dd610e38ccc21",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md",
+      "sha256": "6ae69b3e787eb19f62c86df5006cb8f5d47ca34686051f7f712d48e534df1ce3",
+      "status": "active"
+    }
+  ],
+  "summary": {
+    "pipeline_count": 13
+  },
+  "signature": {
+    "scheme": "sha256",
+    "content_sha256": "c3a0b06c37b797dcd1b435b53f297c41a2b610640519666b34cff922bc97c4cd",
+    "signed_at": "2026-02-12T06:12:16+00:00"
+  }
+}

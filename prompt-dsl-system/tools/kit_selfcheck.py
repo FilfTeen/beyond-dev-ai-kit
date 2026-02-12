@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -26,6 +27,7 @@ def quote_machine_value(value: str) -> str:
 
 def build_machine_json(path_value: str, report: dict) -> str:
     summary = report.get("summary", {}) if isinstance(report, dict) else {}
+    repo_snapshot = report.get("repo_snapshot", {}) if isinstance(report, dict) else {}
     payload = {
         "path": str(path_value),
         "command": "selfcheck",
@@ -35,6 +37,9 @@ def build_machine_json(path_value: str, report: dict) -> str:
         "overall_score": float(summary.get("overall_score", 0.0)),
         "overall_level": str(summary.get("overall_level", "low")),
         "dimension_count": int(summary.get("dimension_count", 0)),
+        "git_head": str(repo_snapshot.get("git_head", "")),
+        "git_head_available": bool(repo_snapshot.get("git_head_available", False)),
+        "git_dirty": bool(repo_snapshot.get("git_dirty", False)),
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return encoded.replace("'", "\\u0027")
@@ -96,6 +101,33 @@ def count_registry_skills(repo_root: Path) -> int:
     return len(data)
 
 
+def _run_git(repo_root: Path, args: List[str]) -> Tuple[bool, str]:
+    cmd = ["git", "-C", str(repo_root)] + args
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+    except OSError:
+        return False, ""
+    if proc.returncode != 0:
+        return False, ""
+    return True, str(proc.stdout or "").strip()
+
+
+def collect_repo_snapshot(repo_root: Path) -> dict:
+    head_ok, head = _run_git(repo_root, ["rev-parse", "--verify", "HEAD"])
+    branch_ok, branch = _run_git(repo_root, ["rev-parse", "--abbrev-ref", "HEAD"])
+    status_ok, status = _run_git(repo_root, ["status", "--porcelain"])
+    status_lines = [line for line in status.splitlines() if line.strip()] if status_ok else []
+
+    return {
+        "git_head": head if head_ok else "",
+        "git_head_available": bool(head_ok and head),
+        "git_branch": branch if branch_ok else "",
+        "git_dirty": bool(status_lines) if status_ok else False,
+        "git_status_entries": len(status_lines),
+        "git_status_available": bool(status_ok),
+    }
+
+
 def run_selfcheck(repo_root: Path) -> dict:
     dimensions: Dict[str, dict] = {}
 
@@ -120,6 +152,8 @@ def run_selfcheck(repo_root: Path) -> dict:
             "prompt-dsl-system/tools/pipeline_contract_lint.py",
             "prompt-dsl-system/tools/skill_template_audit.py",
             "prompt-dsl-system/tools/golden_path_regression.sh",
+            "prompt-dsl-system/tools/baseline_provenance_guard.py",
+            "prompt-dsl-system/tools/gate_mutation_guard.py",
             "prompt-dsl-system/00_conventions/ROLLBACK_INSTRUCTIONS.md",
         ],
         "efficiency": [
@@ -128,6 +162,7 @@ def run_selfcheck(repo_root: Path) -> dict:
             "prompt-dsl-system/tools/auto_module_discover.py",
             "prompt-dsl-system/tools/cross_project_structure_diff.py",
             "prompt-dsl-system/tools/calibration_engine.py",
+            "prompt-dsl-system/tools/performance_budget_guard.py",
         ],
         "extensibility": [
             "prompt-dsl-system/05_skill_registry/templates/skill_template/skill.yaml.template",
@@ -142,6 +177,8 @@ def run_selfcheck(repo_root: Path) -> dict:
             "prompt-dsl-system/tools/hongzhi_plugin.py",
             "prompt-dsl-system/tools/PLUGIN_RUNNER.md",
             "prompt-dsl-system/tools/policy.yaml",
+            "prompt-dsl-system/tools/pipeline_trust_coverage_guard.py",
+            "prompt-dsl-system/tools/baseline_provenance_guard.py",
         ],
         "kit_mainline_focus": [
             "prompt-dsl-system/00_conventions/HONGZHI_COMPANY_CONSTITUTION.md",
@@ -209,6 +246,7 @@ def run_selfcheck(repo_root: Path) -> dict:
         "tool_version": TOOL_VERSION,
         "generated_at": now_iso(),
         "repo_root": str(repo_root),
+        "repo_snapshot": collect_repo_snapshot(repo_root),
         "summary": {
             "overall_score": round(overall_score, 3),
             "overall_level": overall_level,
@@ -230,6 +268,15 @@ def render_markdown(report: dict) -> str:
     lines.append("")
     lines.append(f"- generated_at: `{report.get('generated_at', '-')}`")
     lines.append(f"- repo_root: `{report.get('repo_root', '-')}`")
+    repo_snapshot = report.get("repo_snapshot", {})
+    if isinstance(repo_snapshot, dict):
+        lines.append(f"- git_head: `{repo_snapshot.get('git_head', '-')}`")
+        lines.append(f"- git_branch: `{repo_snapshot.get('git_branch', '-')}`")
+        lines.append(f"- git_dirty: `{repo_snapshot.get('git_dirty', False)}`")
+    else:
+        lines.append("- git_head: `-`")
+        lines.append("- git_branch: `-`")
+        lines.append("- git_dirty: `-`")
     lines.append(f"- overall_score: `{summary.get('overall_score', 0)}`")
     lines.append(f"- overall_level: `{summary.get('overall_level', '-')}`")
     lines.append("")

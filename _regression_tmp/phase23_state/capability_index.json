@@ -1,19 +1,19 @@
 {
   "version": "1.0.0",
-  "updated_at": "2026-02-11T13:54:44Z",
+  "updated_at": "2026-02-12T08:27:30Z",
   "projects": {
     "fe14de08caf3": {
       "repo_fingerprint": "fe14de08caf3",
-      "created_at": "2026-02-11T13:54:44Z",
+      "created_at": "2026-02-12T08:27:30Z",
       "latest": {
-        "run_id": "20260211_135444706037Z",
-        "timestamp": "2026-02-11T13:54:44Z",
-        "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z",
+        "run_id": "20260212_082730476439Z",
+        "timestamp": "2026-02-12T08:27:30Z",
+        "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260212_082730476439Z",
         "command": "discover",
         "metrics": {
           "module_candidates": 1,
           "endpoints_total": 4,
-          "scan_time_s": 0.012,
+          "scan_time_s": 0.013,
           "limits_hit": false,
           "hint_applied": false,
           "hints_emitted": false,
@@ -25,14 +25,14 @@
       },
       "runs": [
         {
-          "run_id": "20260211_135444706037Z",
-          "timestamp": "2026-02-11T13:54:44Z",
-          "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z",
+          "run_id": "20260212_082730476439Z",
+          "timestamp": "2026-02-12T08:27:30Z",
+          "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260212_082730476439Z",
           "command": "discover",
           "metrics": {
             "module_candidates": 1,
             "endpoints_total": 4,
-            "scan_time_s": 0.012,
+            "scan_time_s": 0.013,
             "limits_hit": false,
             "hint_applied": false,
             "hints_emitted": false,
@@ -59,14 +59,14 @@
         "head": "none"
       },
       "last_success": {
-        "run_id": "20260211_135444706037Z",
-        "timestamp": "2026-02-11T13:54:44Z",
-        "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z",
+        "run_id": "20260212_082730476439Z",
+        "timestamp": "2026-02-12T08:27:30Z",
+        "workspace": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260212_082730476439Z",
         "command": "discover",
         "metrics": {
           "module_candidates": 1,
           "endpoints_total": 4,
-          "scan_time_s": 0.012,
+          "scan_time_s": 0.013,
           "limits_hit": false,
           "hint_applied": false,
           "hints_emitted": false,
@@ -108,8 +108,8 @@
           "cache_key": "cb0708391c04860de49570d9",
           "cache_hit_rate": 0.0,
           "cache_source": "miss",
-          "cache_path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z/scan_cache/cb0708391c04860de49570d9.json",
-          "path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260211_135444706037Z/discover/scan_graph.json",
+          "cache_path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260212_082730476439Z/scan_cache/cb0708391c04860de49570d9.json",
+          "path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/_regression_tmp/phase23_ws/fe14de08caf3/20260212_082730476439Z/discover/scan_graph.json",
           "java_files_indexed": 3,
           "bytes_read": 806,
           "limits_hit": false,
@@ -120,7 +120,7 @@
             "java_scanned": 3,
             "template_scanned": 1,
             "bytes_read": 806,
-            "scan_time_s": 0.0021,
+            "scan_time_s": 0.0019,
             "cache_hit_files": 0,
             "cache_miss_files": 4,
             "cache_hit_rate": 0.0,
@@ -150,7 +150,7 @@
         },
         "endpoints_notice": 4,
         "endpoints_total": 4,
-        "scan_time_s": 0.012,
+        "scan_time_s": 0.013,
         "layout": "single-module-java",
         "layout_details": {
           "adapter_used": "layout_adapters_v1",

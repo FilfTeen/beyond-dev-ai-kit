@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-11T01:38:09+00:00",
+  "generated_at": "2026-02-12T08:20:06+00:00",
   "repo_root": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit",
   "history_path": "/Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit/prompt-dsl-system/tools/trace_history.jsonl",
   "window": 6,
@@ -15,12 +15,12 @@
   "recommendation": [
     "No anti-loop risk detected. Continue with validate/run."
   ],
-  "history_size": 23,
+  "history_size": 25,
   "considered_size": 0,
-  "release_scope_size": 3,
+  "release_scope_size": 0,
   "recent_size": 0,
-  "context_id": "ctx-07b98a5c8350",
-  "trace_id": "trace-26cbf701c6894a00ad17cbae11ea5262",
-  "pipeline_path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_module_migration.md",
-  "effective_module_path": "prompt-dsl-system"
+  "context_id": "ctx-a4e3fd25fe91",
+  "trace_id": "trace-2bdc9916ec76415e940992a2e7961769",
+  "pipeline_path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md",
+  "effective_module_path": "."
 }

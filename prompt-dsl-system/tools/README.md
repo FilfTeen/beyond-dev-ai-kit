@@ -48,6 +48,12 @@
 ```
 
 `validate` 默认后置闸门（core validate PASS 后自动执行）：
+- `governance_consistency_guard.py`
+- `tool_syntax_guard.py`
+- `pipeline_trust_coverage_guard.py`
+- `baseline_provenance_guard.py`
+- `gate_mutation_guard.py`
+- `performance_budget_guard.py`
 - `contract_samples/replay_contract_samples.sh`
 - `kit_self_upgrade_template_guard.py`
 - 并将结果写入 `health_report` 独立 section：`post_validate_gates`（JSON + Markdown）
@@ -266,6 +272,11 @@
   --min-overall-score 0.85 \
   --min-overall-level high \
   --max-low-dimensions 0
+
+/usr/bin/python3 prompt-dsl-system/tools/kit_selfcheck_freshness_gate.py \
+  --report-json prompt-dsl-system/tools/kit_selfcheck_report.json \
+  --repo-root . \
+  --max-age-seconds 900
 ```
 
 ## Self Upgrade（统一入口）
@@ -290,15 +301,66 @@
 严格预检链路：
 1. `selfcheck` + machine contract validation
 2. `kit_selfcheck_gate.py` 质量+维度契约门禁（`overall_score/overall_level/low_dimensions/required_dimensions/dimension_count`）
-3. `pipeline_contract_lint.py --fail-on-empty`
-4. `skill_template_audit.py --scope all --fail-on-empty`
-5. `validate` with `HONGZHI_VALIDATE_STRICT=1`
+3. `kit_selfcheck_freshness_gate.py` 新鲜度 + repo/head 一致性门禁
+4. `kit_integrity_guard.py verify` 关键资产完整性门禁
+5. `pipeline_trust_guard.py verify` pipeline 白名单信任门禁
+6. `pipeline_trust_coverage_guard.py` 全量 pipeline 白名单覆盖门禁
+7. `baseline_provenance_guard.py verify` 基线溯源证明门禁
+8. `governance_consistency_guard.py` 治理文档一致性门禁
+9. `tool_syntax_guard.py` 工具语法门禁
+10. `gate_mutation_guard.py` 门禁抗变异门禁
+11. `performance_budget_guard.py` 门禁性能预算门禁
+12. `kit_dual_approval_guard.py` 基线双人审批门禁（可选，`HONGZHI_BASELINE_DUAL_APPROVAL=1` 时启用）
+13. `pipeline_contract_lint.py --fail-on-empty`
+14. `skill_template_audit.py --scope all --fail-on-empty`
+15. `validate` with `HONGZHI_VALIDATE_STRICT=1`
 
 严格门禁阈值（可通过 env 覆盖）：
 - `HONGZHI_SELFCHECK_MIN_SCORE`（默认 `0.85`）
 - `HONGZHI_SELFCHECK_MIN_LEVEL`（默认 `high`）
 - `HONGZHI_SELFCHECK_MAX_LOW_DIMS`（默认 `0`）
 - `HONGZHI_SELFCHECK_REQUIRED_DIMS`（可选，逗号分隔；默认内置 7 个核心维度）
+- `HONGZHI_SELFCHECK_MAX_AGE_SECONDS`（默认 `900`）
+- `HONGZHI_SELFCHECK_REQUIRE_GIT_HEAD`（默认 `0`）
+- `HONGZHI_KIT_INTEGRITY_MANIFEST`（默认 `prompt-dsl-system/tools/kit_integrity_manifest.json`）
+- `HONGZHI_KIT_INTEGRITY_STRICT_SET`（默认 `1`）
+- `HONGZHI_PIPELINE_TRUST_WHITELIST`（默认 `prompt-dsl-system/tools/pipeline_trust_whitelist.json`）
+- `HONGZHI_PIPELINE_TRUST_STRICT_SET`（默认 `1`）
+- `HONGZHI_PIPELINE_TRUST_REQUIRE_ACTIVE`（默认 `1`）
+- `HONGZHI_PIPELINE_TRUST_ENFORCE`（runner 默认 `1`）
+- `HONGZHI_PIPELINE_TRUST_COVERAGE_ENFORCE`（runner 默认 `1`）
+- `HONGZHI_PIPELINE_TRUST_COVERAGE_STRICT_SET`（默认 `1`）
+- `HONGZHI_PIPELINE_TRUST_COVERAGE_REQUIRE_ACTIVE`（默认 `1`）
+- `HONGZHI_BASELINE_PROVENANCE_ENFORCE`（runner 默认 `1`）
+- `HONGZHI_BASELINE_PROVENANCE_FILE`（默认 `prompt-dsl-system/tools/baseline_provenance.json`）
+- `HONGZHI_BASELINE_PROVENANCE_STRICT_SET`（默认 `1`）
+- `HONGZHI_BASELINE_PROVENANCE_MAX_AGE_SECONDS`（默认 `0`，`0` 表示不做年龄上限）
+- `HONGZHI_BASELINE_PROVENANCE_REQUIRE_GIT`（默认 `0`）
+- `HONGZHI_GOVERNANCE_REQUIRE_MET_STATUS`（默认 `1`）
+- `HONGZHI_GOVERNANCE_FACT_TAIL_WINDOW`（默认 `17`）
+- `HONGZHI_TOOL_SYNTAX_STRICT_SET`（默认 `1`）
+- `HONGZHI_MUTATION_GUARD_ENFORCE`（默认 `1`）
+- `HONGZHI_PERFORMANCE_GUARD_ENFORCE`（默认 `1`）
+- `HONGZHI_PERF_MAX_SELFCHECK_SECONDS`（默认 `15`）
+- `HONGZHI_PERF_MAX_GOVERNANCE_SECONDS`（默认 `10`）
+- `HONGZHI_PERF_MAX_SYNTAX_SECONDS`（默认 `25`）
+- `HONGZHI_PERF_MAX_TRUST_COVERAGE_SECONDS`（默认 `10`）
+- `HONGZHI_PERF_MAX_TOTAL_SECONDS`（默认 `70`）
+- `HONGZHI_PERF_TREND_ENFORCE`（默认 `0`；为 `1` 时启用趋势退化阻断）
+- `HONGZHI_PERF_TREND_HISTORY_FILE`（默认 `prompt-dsl-system/tools/performance_history.jsonl`）
+- `HONGZHI_PERF_TREND_WINDOW`（默认 `30`）
+- `HONGZHI_PERF_TREND_MIN_SAMPLES`（默认 `5`）
+- `HONGZHI_PERF_TREND_MAX_RATIO`（默认 `1.8`）
+- `HONGZHI_PERF_HISTORY_WRITE`（默认 `1`）
+- `HONGZHI_BASELINE_SIGN_KEY_ENV`（默认 `HONGZHI_BASELINE_SIGN_KEY`，可指定签名密钥变量名）
+- `HONGZHI_BASELINE_SIGN_KEY`（可选，开启 HMAC 签名时使用）
+- `HONGZHI_BASELINE_REQUIRE_HMAC`（默认 `auto`：若签名密钥存在则自动要求 HMAC；可显式设 `0/1`）
+- `HONGZHI_BASELINE_DUAL_APPROVAL`（默认 `0`，为 `1` 时启用双审批门禁）
+- `HONGZHI_BASELINE_APPROVAL_FILE`（默认 `prompt-dsl-system/tools/baseline_dual_approval.json`）
+- `HONGZHI_BASELINE_APPROVAL_WATCH_FILES`（默认 integrity/trust 两个基线文件）
+- `HONGZHI_BASELINE_APPROVAL_REQUIRED_COUNT`（默认 `2`）
+- `HONGZHI_BASELINE_APPROVAL_ENFORCE_ALWAYS`（默认 `0`）
+- `HONGZHI_BASELINE_APPROVAL_REQUIRE_GIT`（默认 `0`）
 
 ## Machine Contract Validation（KIT_CAPS / HONGZHI_*）
 
@@ -337,6 +399,203 @@ bash prompt-dsl-system/tools/contract_samples/replay_contract_samples.sh --repo-
 
 ```bash
 /usr/bin/python3 prompt-dsl-system/tools/kit_self_upgrade_template_guard.py --repo-root .
+```
+
+## Kit Integrity Manifest（关键资产完整性）
+
+生成/刷新 baseline manifest：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/kit_integrity_guard.py build \
+  --repo-root . \
+  --manifest prompt-dsl-system/tools/kit_integrity_manifest.json
+
+# optional: HMAC signature mode
+HONGZHI_BASELINE_SIGN_KEY='<secret>' \
+/usr/bin/python3 prompt-dsl-system/tools/kit_integrity_guard.py build \
+  --repo-root . \
+  --manifest prompt-dsl-system/tools/kit_integrity_manifest.json
+```
+
+校验 baseline manifest：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/kit_integrity_guard.py verify \
+  --repo-root . \
+  --manifest prompt-dsl-system/tools/kit_integrity_manifest.json \
+  --strict-source-set true
+
+# optional: require HMAC signature
+HONGZHI_BASELINE_REQUIRE_HMAC=1 \
+HONGZHI_BASELINE_SIGN_KEY='<secret>' \
+/usr/bin/python3 prompt-dsl-system/tools/kit_integrity_guard.py verify \
+  --repo-root . \
+  --manifest prompt-dsl-system/tools/kit_integrity_manifest.json \
+  --strict-source-set true
+```
+
+## Pipeline Trust Whitelist（pipeline 信任白名单）
+
+生成/刷新 whitelist：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/pipeline_trust_guard.py build \
+  --repo-root . \
+  --whitelist prompt-dsl-system/tools/pipeline_trust_whitelist.json
+```
+
+校验 pipeline：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/pipeline_trust_guard.py verify \
+  --repo-root . \
+  --pipeline prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md \
+  --whitelist prompt-dsl-system/tools/pipeline_trust_whitelist.json \
+  --strict-source-set true
+```
+
+## Dual Approval Gate（基线双审批）
+
+双审批模板：
+
+```bash
+cp prompt-dsl-system/tools/baseline_dual_approval.template.json \
+  prompt-dsl-system/tools/baseline_dual_approval.json
+```
+
+单独校验（启用模式）：
+
+```bash
+HONGZHI_BASELINE_DUAL_APPROVAL=1 \
+/usr/bin/python3 prompt-dsl-system/tools/kit_dual_approval_guard.py \
+  --repo-root . \
+  --approval-file prompt-dsl-system/tools/baseline_dual_approval.json \
+  --required-approvers 2 \
+  --watch-files prompt-dsl-system/tools/kit_integrity_manifest.json,prompt-dsl-system/tools/pipeline_trust_whitelist.json
+```
+
+## CI Mandatory Gates（CI 强制门禁）
+
+CI 基线工作流：
+
+- `.github/workflows/kit_guardrails.yml`
+- includes:
+  - baseline diff dual-approval proof (only when baseline files changed)
+  - HMAC strict smoke gate
+  - parser/contract fuzz gate
+  - governance consistency guard
+  - tool syntax guard
+  - pipeline trust full-coverage guard
+  - baseline provenance guard
+  - mutation resilience guard
+  - performance budget guard
+  - validate + golden regression
+
+本地等价门禁命令：
+
+```bash
+./prompt-dsl-system/tools/run.sh validate -r .
+bash prompt-dsl-system/tools/golden_path_regression.sh --repo-root .
+# optional: isolate regression artifacts into a dedicated temp dir
+bash prompt-dsl-system/tools/golden_path_regression.sh --repo-root . --tmp-dir _regression_tmp_local
+# optional: keep report and clean tmp artifacts after run
+bash prompt-dsl-system/tools/golden_path_regression.sh \
+  --repo-root . \
+  --tmp-dir _regression_tmp_local \
+  --report-out prompt-dsl-system/tools/regression_report.latest.md \
+  --clean-tmp
+# optional: run a shard only (for CI matrix)
+bash prompt-dsl-system/tools/golden_path_regression.sh \
+  --repo-root . \
+  --shard-group mid \
+  --tmp-dir _regression_tmp_mid \
+  --clean-tmp
+```
+
+可通过环境变量固定报告时间戳（便于稳定 diff）：
+
+```bash
+HONGZHI_GOLDEN_REPORT_TIMESTAMP=2026-01-01T00:00:00Z \
+bash prompt-dsl-system/tools/golden_path_regression.sh --repo-root .
+```
+
+说明：回归脚本已启用中断清理保护（`EXIT/INT/TERM`），异常退出时会自动恢复 `skills.json` 并清理注入的回归 skill 目录。
+
+## HMAC Strict Smoke（HMAC 严格烟测）
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/hmac_strict_smoke.py --repo-root .
+```
+
+可指定密钥变量名和值：
+
+```bash
+HONGZHI_BASELINE_SIGN_KEY='your-secret-key' \
+/usr/bin/python3 prompt-dsl-system/tools/hmac_strict_smoke.py \
+  --repo-root . \
+  --key-env HONGZHI_BASELINE_SIGN_KEY
+```
+
+## Fuzz Gate（解析稳健性门禁）
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/fuzz_contract_pipeline_gate.py \
+  --repo-root . \
+  --iterations 400 \
+  --seed 20260212
+```
+
+## Governance Consistency Guard（治理文档一致性门禁）
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/governance_consistency_guard.py \
+  --repo-root . \
+  --require-met-status true \
+  --fact-tail-window 17
+```
+
+## Tool Syntax Guard（工具语法门禁）
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/tool_syntax_guard.py --repo-root .
+```
+
+## Pipeline Trust Coverage Guard（全量信任覆盖门禁）
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/pipeline_trust_coverage_guard.py \
+  --repo-root . \
+  --whitelist prompt-dsl-system/tools/pipeline_trust_whitelist.json
+```
+
+## Baseline Provenance Guard（基线溯源证明门禁）
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/baseline_provenance_guard.py verify \
+  --repo-root . \
+  --provenance prompt-dsl-system/tools/baseline_provenance.json \
+  --strict-source-set true
+```
+
+## Mutation Resilience Guard（门禁抗变异门禁）
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/gate_mutation_guard.py --repo-root .
+```
+
+## Performance Budget Guard（门禁性能预算门禁）
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/performance_budget_guard.py --repo-root .
+
+# optional: enforce trend regression gate against history baseline
+/usr/bin/python3 prompt-dsl-system/tools/performance_budget_guard.py \
+  --repo-root . \
+  --trend-enforce true \
+  --history-file prompt-dsl-system/tools/performance_history.jsonl \
+  --history-window 30 \
+  --trend-min-samples 5 \
+  --trend-max-ratio 1.8
 ```
 
 ## 预检即方案：debug-guard

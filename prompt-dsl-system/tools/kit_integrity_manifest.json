@@ -1,0 +1,276 @@
+{
+  "tool": "kit_integrity_guard",
+  "manifest_version": "1.1.0",
+  "generated_at": "2026-02-12T08:54:31+00:00",
+  "repo_root": ".",
+  "tracked": {
+    "paths": [
+      "prompt-dsl-system/tools/run.sh",
+      "prompt-dsl-system/tools/golden_path_regression.sh",
+      "prompt-dsl-system/tools/pipeline_runner.py",
+      "prompt-dsl-system/tools/kit_selfcheck.py",
+      "prompt-dsl-system/tools/kit_selfcheck_gate.py",
+      "prompt-dsl-system/tools/kit_selfcheck_freshness_gate.py",
+      "prompt-dsl-system/tools/kit_integrity_guard.py",
+      "prompt-dsl-system/tools/pipeline_trust_guard.py",
+      "prompt-dsl-system/tools/pipeline_trust_coverage_guard.py",
+      "prompt-dsl-system/tools/baseline_provenance_guard.py",
+      "prompt-dsl-system/tools/governance_consistency_guard.py",
+      "prompt-dsl-system/tools/tool_syntax_guard.py",
+      "prompt-dsl-system/tools/gate_mutation_guard.py",
+      "prompt-dsl-system/tools/performance_budget_guard.py",
+      "prompt-dsl-system/tools/hmac_strict_smoke.py",
+      "prompt-dsl-system/tools/fuzz_contract_pipeline_gate.py",
+      "prompt-dsl-system/tools/BASELINE_KEY_GOVERNANCE.md",
+      "prompt-dsl-system/tools/baseline_provenance.json",
+      "prompt-dsl-system/tools/pipeline_trust_whitelist.json",
+      "prompt-dsl-system/tools/kit_dual_approval_guard.py",
+      "prompt-dsl-system/tools/baseline_dual_approval.template.json",
+      "prompt-dsl-system/tools/contract_validator.py",
+      "prompt-dsl-system/tools/contract_schema_v1.json",
+      "prompt-dsl-system/tools/contract_schema_v2.json",
+      "prompt-dsl-system/tools/kit_self_upgrade_template_guard.py",
+      ".github/workflows/kit_guardrails.yml"
+    ],
+    "globs": [
+      "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_*.md",
+      "prompt-dsl-system/tools/artifacts/templates/kit_self_upgrade/*.template.md",
+      "prompt-dsl-system/tools/contract_samples/*.log"
+    ]
+  },
+  "entries": [
+    {
+      "path": ".github/workflows/kit_guardrails.yml",
+      "sha256": "5542f4e84c8414d0e7ce76830b05a6b0e7e5e2082579c7660552ada1821776d4",
+      "size": 3898
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bpmn_state_audit_testgen.md",
+      "sha256": "33efc6ef1455b8e8569598d4906c21610aa2a2c5fc34715b99a237cb482b576f",
+      "size": 4735
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bugfix_min_scope_with_tree.md",
+      "sha256": "3ea4ca9493afef887ce629734140266ff399539d8dfc15f8d4e5d723eb7ffe3c",
+      "size": 4987
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_db_delivery_batch_and_runbook.md",
+      "sha256": "1ac93c17a40fb4d747dd89e8afd0124d825cf8dc4f9a9877cf97736141e258d6",
+      "size": 3849
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md",
+      "sha256": "dfe5acc1c8c5719a2654ec5c424fcba3499b61a81ef83dbc448fe4ba6786ae6f",
+      "size": 5812
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_module_migration.md",
+      "sha256": "4d72653d438635fef7e4daa9f0204ec07f95bd7723a121ec09deb0d8a538597f",
+      "size": 15464
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_ownercommittee_audit_fix.md",
+      "sha256": "675074c12b643d3095ac894c6f8d53b361d243c7c5b599becd2ba376b53e8581",
+      "size": 5815
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_plugin_discover.md",
+      "sha256": "0e9389e904e6eabb8d6455eeb40d17f2c753ca97785319afe94d564aaca141e5",
+      "size": 4581
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_project_bootstrap.md",
+      "sha256": "5d3105718dbde24ca36e38ebf8cc628b231992ac0604dab94584d9e0b5a80934",
+      "size": 13655
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_project_stack_bootstrap.md",
+      "sha256": "0662e9b5aae3485a9c437bf6491dbf4be3b7b34f2853a34bcfc51e6e5724045f",
+      "size": 6294
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_requirement_to_prototype.md",
+      "sha256": "7910974d8f5afb81496cd07b9fb4e2f6fae9dd5a94135f700d448e025a6a562f",
+      "size": 6273
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_skill_creator.md",
+      "sha256": "9e9ab0af65c4caaf37d1a42f59930e6d9b28e3892d8a0982ef643be96c91069a",
+      "size": 11593
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_skill_promote.md",
+      "sha256": "b8de5b3824e613c26ed9643fe23958c0b4e9ede41981a22e141dd610e38ccc21",
+      "size": 6224
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md",
+      "sha256": "6ae69b3e787eb19f62c86df5006cb8f5d47ca34686051f7f712d48e534df1ce3",
+      "size": 5138
+    },
+    {
+      "path": "prompt-dsl-system/tools/BASELINE_KEY_GOVERNANCE.md",
+      "sha256": "80b6300a8fb9dc6d60bae21895b62bdd5a3e28d9e3984b70b564f50adf34cee9",
+      "size": 1602
+    },
+    {
+      "path": "prompt-dsl-system/tools/artifacts/templates/kit_self_upgrade/A3_change_ledger.template.md",
+      "sha256": "68394e8ef4e1a53f1d3e0f7319066c10c6d2a14f9a9e6f0e0df9e4890f0f9c0a",
+      "size": 978
+    },
+    {
+      "path": "prompt-dsl-system/tools/artifacts/templates/kit_self_upgrade/A3_cleanup_report.template.md",
+      "sha256": "fcb722c296be0745966138fdc413382305b74ebcac8830c3b4930869b3113282",
+      "size": 432
+    },
+    {
+      "path": "prompt-dsl-system/tools/artifacts/templates/kit_self_upgrade/A3_rollback_plan.template.md",
+      "sha256": "9a80ca3e8f65e8d219549c1a56124e1b19a2ed1b2ecb2895cd3496dd2643f170",
+      "size": 849
+    },
+    {
+      "path": "prompt-dsl-system/tools/baseline_dual_approval.template.json",
+      "sha256": "8e75d8b5dd7b3085f4fdcb1c01185d40025f9331a4c1dd92c3057f538460a670",
+      "size": 257
+    },
+    {
+      "path": "prompt-dsl-system/tools/baseline_provenance.json",
+      "sha256": "4b72e5af02f2033719dc160a0c29f49fbb336675c2db56b0fa654faacc9a625d",
+      "size": 1772
+    },
+    {
+      "path": "prompt-dsl-system/tools/baseline_provenance_guard.py",
+      "sha256": "ca9b0dd20a7626df181545525324119b47449f6a956466ff7f80e592b936b919",
+      "size": 18319
+    },
+    {
+      "path": "prompt-dsl-system/tools/contract_samples/sample_hongzhi_caps_v2.log",
+      "sha256": "d0b8845d7fb9f85c5e57d820e15b8cddedd74b192d2f3ed0877b387651bb821a",
+      "size": 501
+    },
+    {
+      "path": "prompt-dsl-system/tools/contract_samples/sample_hongzhi_gov_block_v2.log",
+      "sha256": "c1435f22c055a3956c0d5e851e11a373b8f2fe5a467b8d1882ede8cb7bedf95f",
+      "size": 473
+    },
+    {
+      "path": "prompt-dsl-system/tools/contract_samples/sample_kit_caps_v2.log",
+      "sha256": "0b9e5ed5227b5c56e9bc235608a07f4a10d2d4343eb739819e560bfbb461de44",
+      "size": 316
+    },
+    {
+      "path": "prompt-dsl-system/tools/contract_schema_v1.json",
+      "sha256": "8471b820aad1ed2e411b4a73c14d2c2b1615a18480a4a4eafde1c78ca937228a",
+      "size": 6761
+    },
+    {
+      "path": "prompt-dsl-system/tools/contract_schema_v2.json",
+      "sha256": "775b3976fa567f0163c02acef2fe45e4eb2d5c3211d00f43dc81d61f8e9a4222",
+      "size": 7077
+    },
+    {
+      "path": "prompt-dsl-system/tools/contract_validator.py",
+      "sha256": "13e5cdba1e2de3c97cc28095ba3d2f3d888620997ae68900df95ff69883404f2",
+      "size": 10614
+    },
+    {
+      "path": "prompt-dsl-system/tools/fuzz_contract_pipeline_gate.py",
+      "sha256": "7d46ab4359e090f7f8bc03780388cf0e73625b4ce08cdb0b22cef96e3b2fce2c",
+      "size": 9489
+    },
+    {
+      "path": "prompt-dsl-system/tools/gate_mutation_guard.py",
+      "sha256": "d09a1747cf34ed36d145594957f809f2bca55ca20a365a44ad1928362a54fb8d",
+      "size": 9509
+    },
+    {
+      "path": "prompt-dsl-system/tools/golden_path_regression.sh",
+      "sha256": "38c286d9388969121a80e504b9775442be5bcbe4f02cba715daef274264386d2",
+      "size": 170044
+    },
+    {
+      "path": "prompt-dsl-system/tools/governance_consistency_guard.py",
+      "sha256": "45d9953c5f3053cc50b2c948da8ba190cda733530e2a7c5c40a99ec42a23d37d",
+      "size": 11552
+    },
+    {
+      "path": "prompt-dsl-system/tools/hmac_strict_smoke.py",
+      "sha256": "c80b3018b21c2ff0f77f23f25951c76cce85069ad6d405cfd33555cf3c9b882f",
+      "size": 8273
+    },
+    {
+      "path": "prompt-dsl-system/tools/kit_dual_approval_guard.py",
+      "sha256": "ec950913d5d4827715c51aa12ab920af1cb49588b903f1030a82f6caceb82631",
+      "size": 10293
+    },
+    {
+      "path": "prompt-dsl-system/tools/kit_integrity_guard.py",
+      "sha256": "67dbb1c07b1d388c82c5570a9d9990dec81fd9e41fb264fe42d3fe57144be460",
+      "size": 17690
+    },
+    {
+      "path": "prompt-dsl-system/tools/kit_self_upgrade_template_guard.py",
+      "sha256": "565bdd11603d9c3af0669a2f93b89450994c709cd74b8bbc1fa15ac7bbddafc8",
+      "size": 2491
+    },
+    {
+      "path": "prompt-dsl-system/tools/kit_selfcheck.py",
+      "sha256": "7e54eb20b6a5385653201bfd9e6a8cd2f261f1381c138bd7af2bc213143f46ba",
+      "size": 15026
+    },
+    {
+      "path": "prompt-dsl-system/tools/kit_selfcheck_freshness_gate.py",
+      "sha256": "926329942e829f18966810de5faf7bc524c9d6eda0b2701d9256efd2191e8f09",
+      "size": 9119
+    },
+    {
+      "path": "prompt-dsl-system/tools/kit_selfcheck_gate.py",
+      "sha256": "26f746a08b0dd2de7db992a60321112dfc897106274b76e7f1d0de5e0aa9bcd0",
+      "size": 9378
+    },
+    {
+      "path": "prompt-dsl-system/tools/performance_budget_guard.py",
+      "sha256": "ab0d791514c5e53a79bfd116eb1fd75a026141a537b1340e7226614018dcdb34",
+      "size": 15203
+    },
+    {
+      "path": "prompt-dsl-system/tools/pipeline_runner.py",
+      "sha256": "76e35ca5e7a567be94c9accbc256e328c6457672eaa00410d92d0b95a656293d",
+      "size": 256049
+    },
+    {
+      "path": "prompt-dsl-system/tools/pipeline_trust_coverage_guard.py",
+      "sha256": "19cdc0817d46d71a0f0abfcadf0247be08de4e8023c43951e8fb3d3f75682f43",
+      "size": 13537
+    },
+    {
+      "path": "prompt-dsl-system/tools/pipeline_trust_guard.py",
+      "sha256": "105b9bf9f3041cdf35ba10bd370d87bf8cbb1c01d9666168019e8449abebbf40",
+      "size": 17194
+    },
+    {
+      "path": "prompt-dsl-system/tools/pipeline_trust_whitelist.json",
+      "sha256": "f1b92bfa24c25024768830b386008eed86c4cfe79efc7be83cf4771df73b4187",
+      "size": 3308
+    },
+    {
+      "path": "prompt-dsl-system/tools/run.sh",
+      "sha256": "da843d40b077d7d42cfd0dcc97ba3ca491205de2f837a5127f427a8a88203cbc",
+      "size": 60757
+    },
+    {
+      "path": "prompt-dsl-system/tools/tool_syntax_guard.py",
+      "sha256": "a7e198c2f518a6ecb0cecab95f4064a7cc4aa951e5349363f5d5fa982a6b4e5e",
+      "size": 7563
+    }
+  ],
+  "summary": {
+    "file_count": 45
+  },
+  "signature": {
+    "scheme": "sha256",
+    "content_sha256": "bb8cdf60258d895febabb01e4cea6b967b0d10747789a522c062f8fe76e882dc",
+    "signed_at": "2026-02-12T08:54:31+00:00"
+  }
+}
