@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import random
+import string
 import subprocess
 import sys
 import tempfile
@@ -142,6 +144,64 @@ class IntentRouterTest(unittest.TestCase):
             self.assertIn("workspace_out_of_scope_changes", blockers)
             scope_check = routed.get("workspace_scope_check", {})
             self.assertGreaterEqual(int(scope_check.get("out_of_scope_count", 0)), 1)
+
+    def test_property_invariants_randomized(self) -> None:
+        repo_root = TOOLS_DIR.parent.parent
+        rng = random.Random(20260213)
+        pipelines = [
+            "pipeline_ownercommittee_audit_fix.md",
+            "pipeline_skill_creator.md",
+            "pipeline_kit_self_upgrade.md",
+        ]
+        keywords = [
+            "修复",
+            "改进",
+            "模块",
+            "ownercommittee",
+            "self-upgrade",
+            "validate",
+            "自升级",
+            "治理",
+            "registry",
+            "baseline",
+            "sql",
+            "oracle",
+            "dm8",
+            "bug",
+        ]
+
+        for idx in range(800):
+            mode = idx % 8
+            noise = "".join(rng.choice(string.ascii_letters + string.digits) for _ in range(rng.randint(12, 48)))
+            if mode == 0:
+                goal = f"请执行 {rng.choice(pipelines)} 并给出计划 {noise}"
+            elif mode == 1:
+                goal = f"执行 beyond-dev-ai-kit 自升级并走严格前置校验 {noise}"
+            elif mode == 2:
+                goal = f"修复 ownercommittee 模块状态流转问题，最小改动 {noise}"
+            elif mode == 3:
+                goal = f"module_path='/tmp/mod_{idx}' 做完整性验证和查漏补缺 {noise}"
+            elif mode == 4:
+                goal = f"module_path=\"/tmp/mod_{idx}\" 修复接口错误 {noise}"
+            elif mode == 5:
+                goal = f"请处理 /tmp/mod_{idx}。并验证 {noise}"
+            elif mode == 6:
+                goal = f"请处理 ./module_{idx}); 并验证 {noise}"
+            else:
+                goal = " ".join(rng.choice(keywords) for _ in range(rng.randint(8, 20))) + f" {noise}"
+
+            with self.subTest(i=idx):
+                routed = choose_action(goal, repo_root)
+                selected = routed["selected"]
+                self.assertIn(selected.get("action_kind"), {"pipeline", "command"})
+                self.assertTrue(str(selected.get("target", "")).strip())
+                self.assertGreaterEqual(float(selected.get("confidence", 0.0)), 0.0)
+                self.assertLessEqual(float(selected.get("confidence", 0.0)), 1.0)
+
+                # Explicit pipeline mention must dominate command keyword noise.
+                if "pipeline_" in goal:
+                    expected = goal.split("pipeline_", 1)[1].split(".md", 1)[0]
+                    self.assertIn(f"pipeline_{expected}.md", str(selected.get("target", "")))
 
 
 if __name__ == "__main__":

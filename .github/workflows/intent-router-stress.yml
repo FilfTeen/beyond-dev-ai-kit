@@ -1,0 +1,58 @@
+name: intent-router-stress
+
+on:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 3 * * 0'
+
+jobs:
+  pressure:
+    if: github.event_name != 'pull_request' || matrix.profile == 'quick'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [quick, stress]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Pressure Profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.profile }}" = "quick" ]; then
+            SINGLE=4000
+            CONCURRENT=6000
+            WORKERS=24
+            P99=10
+          else
+            SINGLE=12000
+            CONCURRENT=18000
+            WORKERS=64
+            P99=12
+          fi
+          /usr/bin/python3 prompt-dsl-system/tools/intent_router_pressure.py \
+            --repo-root . \
+            --single-calls "$SINGLE" \
+            --concurrent-calls "$CONCURRENT" \
+            --concurrency "$WORKERS" \
+            --max-p99-ms "$P99" \
+            --out-json "/tmp/intent_router_pressure_${{ matrix.profile }}.json"
+
+      - name: Upload Pressure Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intent-router-pressure-${{ matrix.profile }}
+          path: /tmp/intent_router_pressure_${{ matrix.profile }}.json
+          if-no-files-found: warn

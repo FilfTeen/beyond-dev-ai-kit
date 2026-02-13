@@ -122,6 +122,17 @@
 /usr/bin/python3 -m unittest -v prompt-dsl-system/tools/intent_router_test.py
 ```
 
+路由压力测试（高并发 + 长输入 + 显式优先级不变量）：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/intent_router_pressure.py \
+  --repo-root . \
+  --single-calls 6000 \
+  --concurrent-calls 8000 \
+  --concurrency 32 \
+  --max-p99-ms 8
+```
+
 ## Policy Pack（统一策略包）
 策略文件：
 - 默认策略：`prompt-dsl-system/tools/policy.yaml`（人类可编辑）

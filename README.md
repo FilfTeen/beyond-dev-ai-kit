@@ -55,6 +55,12 @@ If execute is blocked by low confidence or ambiguity, clarify goal first or use 
 ./prompt-dsl-system/tools/run.sh intent -r . --goal "..." --execute --force-execute
 ```
 
+Intent router pressure test (deterministic, CI-friendly):
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/intent_router_pressure.py --repo-root . --single-calls 6000 --concurrent-calls 8000 --concurrency 32
+```
+
 ## Stack KB Bootstrap
 
 Build per-project technical stack knowledge base (declared + discovered):
