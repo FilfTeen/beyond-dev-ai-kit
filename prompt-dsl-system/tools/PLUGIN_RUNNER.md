@@ -1,6 +1,6 @@
 # PLUGIN_RUNNER.md — Hongzhi AI-Kit Plugin Runner
 
-Version: 4.0.0 (R29 Company Scope Gate + Phase35)
+Version: 1.1.0 (R29 Company Scope Gate + Phase35)
 
 ## Install
 
@@ -259,19 +259,19 @@ Validator output contract:
 - success: `CONTRACT_OK=1 ...` and exit `0`
 - failure: `CONTRACT_OK=0 CONTRACT_ERR=<code> CONTRACT_MSG=\"...\"` and exit `2`
 
-2. status machine line:
+1. status machine line:
 
 ```text
 HONGZHI_STATUS package_version=<...> plugin_version=<...> contract_version=<...> enabled=<0|1> global_state_root="<abs_path>"
 HONGZHI_STATUS ... company_scope="<hongzhi-work-dev>" company_scope_required=<0|1> ...
 ```
 
-3. workspace append-only summary journal:
+1. workspace append-only summary journal:
 
 - `<workspace>/<fingerprint>/capabilities.jsonl`
 - each line includes: `timestamp`, `command`, `repo_fp`, `run_id`, `exit_code`, `warnings_count`, `capabilities_path`
 
-4. capability files on successful run:
+1. capability files on successful run:
 
 - `<workspace>/<fingerprint>/<run_id>/capabilities.json`
 - `<global_state_root>/capability_index.json`
@@ -347,6 +347,7 @@ HONGZHI_INDEX <abs_path_to_federated_index.json> path="<abs_path_to_federated_in
 ```
 
 Block/status lines also expose additive `json='...'` with the same encoding function:
+
 - `HONGZHI_STATUS`
 - `HONGZHI_GOV_BLOCK`
 - `HONGZHI_INDEX_BLOCK`
@@ -440,6 +441,7 @@ Backfill flow:
   - `HONGZHI_CAPS` / `HONGZHI_INDEX`: additive `mismatch_reason`, `mismatch_detail`, `mismatch_suggestion`
 
 `mismatch_reason` enum:
+
 - `schema_version_mismatch`
 - `producer_version_mismatch`
 - `fingerprint_mismatch`

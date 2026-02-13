@@ -4,7 +4,7 @@ from __future__ import annotations
 
 """
 Hongzhi AI-Kit Plugin Runner
-Version: 4.0.0 (R17 Packaging + Agent Contract v4)
+Version: 1.1.0 (R17 Packaging + Agent Contract v4)
 
 Role:
   1. Standardization: unified entry point for all dsl-tools.
@@ -65,8 +65,8 @@ from scan_graph import (
 #  Configuration & Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PLUGIN_VERSION = "4.0.0"
-CONTRACT_VERSION = "4.0.0"
+PLUGIN_VERSION = "1.1.0"
+CONTRACT_VERSION = "1.1.0"
 SUMMARY_VERSION = "3.0"
 GOVERNANCE_ENV = "HONGZHI_PLUGIN_ENABLE"
 GOVERNANCE_EXIT_CODE = 10

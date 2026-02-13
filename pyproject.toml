@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hongzhi-ai-kit"
-version = "4.0.0"
+version = "1.1.0"
 description = "Hongzhi AI Kit plugin runner (governed, read-only by default)."
 readme = "prompt-dsl-system/tools/PLUGIN_RUNNER.md"
 requires-python = ">=3.9"

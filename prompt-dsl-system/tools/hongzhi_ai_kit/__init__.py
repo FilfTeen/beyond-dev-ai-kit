@@ -1,2 +1,2 @@
 """Hongzhi AI Kit — Plugin Runner Package."""
-__version__ = "4.0.0"
+__version__ = "1.1.0"
