@@ -61,10 +61,6 @@ python3 -m pip install -e .
   --max-p99-ms 8
 ```
 
-兼容入口（保留）：
-- `prompt-dsl-system/tools/intent_router_test.py`
-- `prompt-dsl-system/tools/intent_router_pressure.py`
-
 ## 项目技术栈知识库扫描
 
 ```bash

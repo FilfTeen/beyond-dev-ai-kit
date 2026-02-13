@@ -3188,6 +3188,8 @@ if [ -f "$RUN_WRAPPER" ] && [ -d "$REPO_ROOT/prompt-dsl-system" ]; then
     git init -q >/dev/null 2>&1 || true
     git config user.email "regression@example.com" >/dev/null 2>&1 || true
     git config user.name "Regression Bot" >/dev/null 2>&1 || true
+    git add -A >/dev/null 2>&1 || true
+    git commit -q -m "regression bootstrap phase36" >/dev/null 2>&1 || true
   )
 
   set +e
@@ -3248,6 +3250,8 @@ if [ -f "$RUN_WRAPPER" ] && [ -d "$REPO_ROOT/prompt-dsl-system" ]; then
     git init -q >/dev/null 2>&1 || true
     git config user.email "regression@example.com" >/dev/null 2>&1 || true
     git config user.name "Regression Bot" >/dev/null 2>&1 || true
+    git add -A >/dev/null 2>&1 || true
+    git commit -q -m "regression bootstrap phase37" >/dev/null 2>&1 || true
   )
 
   set +e
