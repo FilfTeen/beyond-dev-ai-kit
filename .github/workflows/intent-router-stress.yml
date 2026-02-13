@@ -8,7 +8,6 @@ on:
 
 jobs:
   pressure:
-    if: github.event_name != 'pull_request' || matrix.profile == 'quick'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -30,6 +29,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ matrix.profile }}" = "stress" ]; then
+            echo "skip stress profile on pull_request"
+            exit 0
+          fi
           if [ "${{ matrix.profile }}" = "quick" ]; then
             SINGLE=4000
             CONCURRENT=6000
