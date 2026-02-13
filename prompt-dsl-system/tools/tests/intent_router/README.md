@@ -15,6 +15,4 @@ Canonical location for intent routing verification.
 /usr/bin/python3 prompt-dsl-system/tools/tests/intent_router/intent_router_pressure.py --repo-root . --single-calls 6000 --concurrent-calls 8000 --concurrency 32 --max-p99-ms 8
 ```
 
-Compatibility wrappers are kept at:
-- `prompt-dsl-system/tools/intent_router_test.py`
-- `prompt-dsl-system/tools/intent_router_pressure.py`
+This suite is the only supported entry for intent-router regression/pressure tests.

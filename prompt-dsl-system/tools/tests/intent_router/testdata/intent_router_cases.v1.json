@@ -39,6 +39,12 @@
     "min_confidence": 0.5
   },
   {
+    "goal": "module_path='/tmp/demo_mod' 修复接口错误并回归验证",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_bugfix_min_scope_with_tree.md",
+    "min_confidence": 0.45
+  },
+  {
     "goal": "跑一下套件质量自检评分",
     "expect_action_kind": "command",
     "expect_target_suffix": "selfcheck",

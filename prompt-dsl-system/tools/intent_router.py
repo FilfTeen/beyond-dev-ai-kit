@@ -144,6 +144,26 @@ def term_hit(term: str, norm_text: str, token_set: set[str]) -> bool:
     return term_norm in token_set or term_norm in norm_text
 
 
+def has_change_signal(norm_text: str, token_set: set[str]) -> bool:
+    return any(
+        term_hit(term, norm_text, token_set)
+        for term in (
+            "修复",
+            "改进",
+            "优化",
+            "新增",
+            "实现",
+            "开发",
+            "重构",
+            "迁移",
+            "fix",
+            "bugfix",
+            "refactor",
+            "implement",
+        )
+    )
+
+
 def infer_module_path(goal_raw: str) -> Optional[str]:
     def sanitize_candidate(raw_candidate: str) -> str:
         candidate = raw_candidate.strip()
@@ -229,6 +249,7 @@ def score_command(goal_norm: str) -> Tuple[Optional[CommandRule], int, List[str]
         term_hit(term, goal_norm, token_set)
         for term in ("self upgrade", "self-upgrade", "自升级", "升级", "upgrade")
     )
+    change_signal = has_change_signal(goal_norm, token_set)
 
     best_rule: Optional[CommandRule] = None
     best_score = -10**9
@@ -256,6 +277,10 @@ def score_command(goal_norm: str) -> Tuple[Optional[CommandRule], int, List[str]
             score += 3
         if rule.key == "validate" and has_upgrade_signal:
             score -= 3
+        # For goals that include concrete change intent (fix/develop/refactor),
+        # prefer adaptive pipeline routing over command-only validate.
+        if rule.key == "validate" and change_signal:
+            score -= 4
 
         if score > best_score or (score == best_score and len(hit_terms) > len(best_hits)):
             best_rule = rule
@@ -267,6 +292,7 @@ def score_command(goal_norm: str) -> Tuple[Optional[CommandRule], int, List[str]
 
 def rank_pipelines(goal_norm: str, profiles: Sequence[PipelineProfile]) -> List[RankedPipeline]:
     token_set = build_token_set(goal_norm)
+    change_signal = has_change_signal(goal_norm, token_set)
     ranked: List[RankedPipeline] = []
 
     for profile in profiles:
@@ -281,6 +307,11 @@ def rank_pipelines(goal_norm: str, profiles: Sequence[PipelineProfile]) -> List[
         # Reward exact pipeline stem mention.
         if profile.name.lower() in goal_norm:
             score += 10
+
+        # Stabilize generic route for change/fix development intents.
+        if change_signal and profile.is_generic:
+            score += 3
+            matched.append("change_signal")
 
         # Penalize specialized pipelines when intent is not explicit.
         if not profile.is_generic:

@@ -133,10 +133,6 @@
   --max-p99-ms 8
 ```
 
-兼容入口仍保留：
-- `prompt-dsl-system/tools/intent_router_test.py`
-- `prompt-dsl-system/tools/intent_router_pressure.py`
-
 ## Policy Pack（统一策略包）
 策略文件：
 - 默认策略：`prompt-dsl-system/tools/policy.yaml`（人类可编辑）
