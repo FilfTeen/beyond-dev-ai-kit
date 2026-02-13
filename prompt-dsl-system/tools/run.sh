@@ -319,7 +319,7 @@ if [ -z "$repo_root" ]; then
 fi
 
 if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 <list|validate|run|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
+  echo "Usage: $0 <list|validate|run|intent|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
   exit 2
 fi
 
@@ -328,10 +328,10 @@ requested_subcommand="$subcommand"
 shift
 
 case "$subcommand" in
-  list|validate|run|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade) ;;
+  list|validate|run|intent|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade) ;;
   *)
     echo "[ERROR] Unsupported subcommand: $subcommand" >&2
-    echo "Usage: $0 <list|validate|run|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
+    echo "Usage: $0 <list|validate|run|intent|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
     exit 2
     ;;
 esac
@@ -769,6 +769,19 @@ if [ "$subcommand" = "selfcheck" ]; then
   selfcheck_rc=$?
   set -e
   exit "$selfcheck_rc"
+fi
+
+if [ "$subcommand" = "intent" ]; then
+  INTENT_ROUTER_SCRIPT="${SCRIPT_DIR}/intent_router.py"
+  if [ ! -f "$INTENT_ROUTER_SCRIPT" ]; then
+    echo "[ERROR] intent_router.py not found: $INTENT_ROUTER_SCRIPT" >&2
+    exit 2
+  fi
+  set +e
+  "$PYTHON_BIN" "$INTENT_ROUTER_SCRIPT" "${invoke_args[@]-}"
+  intent_rc=$?
+  set -e
+  exit "$intent_rc"
 fi
 
 if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 1 ]; then

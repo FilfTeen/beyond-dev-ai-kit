@@ -16,6 +16,45 @@ python3 -m pip install -e .
 - `hzkit --help`
 - `hz --help`
 
+## Natural Language Pipeline Routing
+
+Route Chinese/English natural-language goals to the best-fit pipeline:
+
+```bash
+./prompt-dsl-system/tools/run.sh intent -r . --goal "修复 ownercommittee 模块状态流转问题，最小改动"
+```
+
+`intent` now supports both pipeline routing and command routing (`validate`/`selfcheck`/`self-upgrade`/`list`), and returns:
+- `selected.action_kind`
+- `selected.target`
+- `selected.default_module_path` (only for governance/meta pipelines)
+- `module_path_source` (`cli|goal|selected_default|missing`)
+- `can_auto_execute`
+- `routing_time_ms`
+
+Routing behavior (generic-first):
+- The router scans available pipelines and reports top candidates.
+- By default it falls back to the generic adaptive pipeline.
+- Specialized pipelines are only selected automatically when explicitly named by the user.
+- Explicit pipeline mention has higher priority than command keyword matches.
+- Business pipelines do not auto-fill `-m`; governance/meta pipelines can default to `prompt-dsl-system`.
+
+Route and execute directly (when module path is known):
+
+```bash
+./prompt-dsl-system/tools/run.sh intent \
+  -r . \
+  --module-path /abs/path/to/module \
+  --goal "将 Oracle SQL 迁移到 DM8，并输出回滚方案" \
+  --execute
+```
+
+If execute is blocked by low confidence or ambiguity, clarify goal first or use explicit override:
+
+```bash
+./prompt-dsl-system/tools/run.sh intent -r . --goal "..." --execute --force-execute
+```
+
 ## Stack KB Bootstrap
 
 Build per-project technical stack knowledge base (declared + discovered):

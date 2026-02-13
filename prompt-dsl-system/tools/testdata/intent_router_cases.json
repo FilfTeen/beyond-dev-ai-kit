@@ -1,0 +1,59 @@
+[
+  {
+    "goal": "修复 ownercommittee 模块状态流转问题，最小改动",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_bugfix_min_scope_with_tree.md",
+    "min_confidence": 0.45
+  },
+  {
+    "goal": "创建一个新的治理 skill 并更新 registry 和 baseline",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_bugfix_min_scope_with_tree.md",
+    "min_confidence": 0.45
+  },
+  {
+    "goal": "请执行 pipeline_ownercommittee_audit_fix.md 并给出计划",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_ownercommittee_audit_fix.md",
+    "min_confidence": 0.8,
+    "expect_default_module_path": null
+  },
+  {
+    "goal": "请执行 pipeline_skill_creator.md 并给出计划",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_skill_creator.md",
+    "min_confidence": 0.8,
+    "expect_default_module_path": "prompt-dsl-system"
+  },
+  {
+    "goal": "请执行 pipeline_kit_self_upgrade.md 并做严格校验",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_kit_self_upgrade.md",
+    "min_confidence": 0.8,
+    "expect_default_module_path": "prompt-dsl-system"
+  },
+  {
+    "goal": "对 beyond-dev-ai-kit 做完整性验证和查漏补缺",
+    "expect_action_kind": "command",
+    "expect_target_suffix": "validate",
+    "min_confidence": 0.5
+  },
+  {
+    "goal": "跑一下套件质量自检评分",
+    "expect_action_kind": "command",
+    "expect_target_suffix": "selfcheck",
+    "min_confidence": 0.5
+  },
+  {
+    "goal": "执行 beyond-dev-ai-kit 自升级并走严格前置校验",
+    "expect_action_kind": "command",
+    "expect_target_suffix": "self-upgrade",
+    "min_confidence": 0.5
+  },
+  {
+    "goal": "列出当前 skills registry",
+    "expect_action_kind": "command",
+    "expect_target_suffix": "list",
+    "min_confidence": 0.5
+  }
+]

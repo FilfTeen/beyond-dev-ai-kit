@@ -20,6 +20,7 @@ REQUIRE_HMAC_ENV = "HONGZHI_BASELINE_REQUIRE_HMAC"
 
 DEFAULT_TRACKED_PATHS = [
     "prompt-dsl-system/tools/run.sh",
+    "prompt-dsl-system/tools/intent_router.py",
     "prompt-dsl-system/tools/golden_path_regression.sh",
     "prompt-dsl-system/tools/pipeline_runner.py",
     "prompt-dsl-system/tools/kit_selfcheck.py",

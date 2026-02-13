@@ -29,6 +29,7 @@
 ```bash
 ./prompt-dsl-system/tools/run.sh list -r .
 ./prompt-dsl-system/tools/run.sh validate -r .
+./prompt-dsl-system/tools/run.sh intent -r . --goal "修复 notice 模块接口 bug，最小范围改动"
 ./prompt-dsl-system/tools/run.sh selfcheck -r .
 ./prompt-dsl-system/tools/run.sh self-upgrade -r .
 ./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade
@@ -68,10 +69,58 @@
 
 说明：
 - `run` 子命令默认强制要求 `-m/--module-path`（公司边界要求），避免跨模块误改。
+- `intent` 子命令用于自然语言路由：将目标文本映射到最合适 pipeline，并返回可执行命令。
+- `intent` 支持两类目标：`action_kind=pipeline|command`（command 包含 `validate/selfcheck/self-upgrade/list`）。
+- `intent --execute` 会在路由成功且 `module_path` 可用时直接调用 `run`。
+- 默认执行保护：`confidence` 不足或 `ambiguous=true` 时会阻断执行并提示澄清（可用 `--force-execute` 覆盖）。
+- 路由策略为 generic-first：默认回落到通用 pipeline；只有用户显式指定 pipeline 时才直达专用 pipeline。
+- 显式 pipeline 名称/路径优先级高于命令关键词匹配（防止误路由到 `validate/self-upgrade`）。
+- `selected.default_module_path` 仅用于治理/元数据 pipeline（通常是 `prompt-dsl-system`）；业务 pipeline 必须显式提供业务 `module_path`。
 - `validate` 的 `module-path` 可选；未提供时，guard 将只允许 `prompt-dsl-system/**` 变更。
 - 可临时放宽 `run` 强制：`HONGZHI_ALLOW_RUN_WITHOUT_MODULE_PATH=1`（会打印风险警告）。
 - `--module-path` 支持绝对路径或相对 `--repo-root`；`run.sh` 会先校验目录存在并规范化路径。
 - Guard 优先级：`cli (--module-path) > pipeline > derived > none`。
+
+## Intent Router（自然语言到 Pipeline）
+
+最小命令：
+
+```bash
+./prompt-dsl-system/tools/run.sh intent -r . --goal "创建一个新的治理 skill 并更新 registry"
+```
+
+返回 JSON 关键字段：
+
+- `selected.action_kind`: `pipeline` 或 `command`
+- `selected.target`: 选中的 pipeline 路径或子命令
+- `selected.default_module_path`: 若为治理 pipeline，给出默认 module path
+- `module_path_source`: `cli|goal|selected_default|missing`
+- `run_command`: 推荐执行命令
+- `execution_ready`: 是否可直接执行（缺 `module_path` 时为 `false`）
+- `can_auto_execute`: 是否满足自动执行门槛
+- `routing_time_ms`: 路由耗时
+
+直接执行：
+
+```bash
+./prompt-dsl-system/tools/run.sh intent \
+  -r . \
+  --module-path /abs/path/to/module \
+  --goal "修复模块 bug 并输出回滚计划" \
+  --execute
+```
+
+强制执行（仅在你确认路由无误时使用）：
+
+```bash
+./prompt-dsl-system/tools/run.sh intent -r . --goal "..." --execute --force-execute
+```
+
+路由回归测试：
+
+```bash
+/usr/bin/python3 -m unittest -v prompt-dsl-system/tools/intent_router_test.py
+```
 
 ## Policy Pack（统一策略包）
 策略文件：

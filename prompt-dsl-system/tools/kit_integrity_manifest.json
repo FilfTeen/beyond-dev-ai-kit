@@ -1,11 +1,12 @@
 {
   "tool": "kit_integrity_guard",
   "manifest_version": "1.1.0",
-  "generated_at": "2026-02-12T09:45:43+00:00",
+  "generated_at": "2026-02-13T01:51:48+00:00",
   "repo_root": ".",
   "tracked": {
     "paths": [
       "prompt-dsl-system/tools/run.sh",
+      "prompt-dsl-system/tools/intent_router.py",
       "prompt-dsl-system/tools/golden_path_regression.sh",
       "prompt-dsl-system/tools/pipeline_runner.py",
       "prompt-dsl-system/tools/kit_selfcheck.py",
@@ -200,14 +201,19 @@
       "size": 8273
     },
     {
+      "path": "prompt-dsl-system/tools/intent_router.py",
+      "sha256": "d24befc7ebc97efe44b33107771741bc47b84ee3e72ca0f0bf4341b5d1fd3ae0",
+      "size": 21177
+    },
+    {
       "path": "prompt-dsl-system/tools/kit_dual_approval_guard.py",
       "sha256": "ec950913d5d4827715c51aa12ab920af1cb49588b903f1030a82f6caceb82631",
       "size": 10293
     },
     {
       "path": "prompt-dsl-system/tools/kit_integrity_guard.py",
-      "sha256": "67dbb1c07b1d388c82c5570a9d9990dec81fd9e41fb264fe42d3fe57144be460",
-      "size": 17690
+      "sha256": "7ce1eb7a4d9f04a7dde3650931229a9d4b5764afb92fdfe40738965656bcbd0e",
+      "size": 17738
     },
     {
       "path": "prompt-dsl-system/tools/kit_self_upgrade_template_guard.py",
@@ -256,8 +262,8 @@
     },
     {
       "path": "prompt-dsl-system/tools/run.sh",
-      "sha256": "da843d40b077d7d42cfd0dcc97ba3ca491205de2f837a5127f427a8a88203cbc",
-      "size": 60757
+      "sha256": "63e5620fc8ba1e368624056361a462514476974f0eea4855895e54cc6a8fd17c",
+      "size": 61123
     },
     {
       "path": "prompt-dsl-system/tools/tool_syntax_guard.py",
@@ -266,11 +272,11 @@
     }
   ],
   "summary": {
-    "file_count": 45
+    "file_count": 46
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "161f9d39e3ec493b70ec612960a54495f17e4c8fb68ce72b2ec3b0b5957885e2",
-    "signed_at": "2026-02-12T09:45:43+00:00"
+    "content_sha256": "7e250eaf21d6e50a9138ce8537e5120d3477c7826e9d80b14ac56c60f5f31885",
+    "signed_at": "2026-02-13T01:51:48+00:00"
   }
 }
