@@ -1,0 +1,10 @@
+{
+  "approved": true,
+  "change_fingerprint": "990578d089df30b6cc4aa6434019f56170c184288a57a16d0ecb28aea38de85c",
+  "approvers": [
+    "dwight",
+    "codex"
+  ],
+  "approved_at": "2026-02-13T03:09:00Z",
+  "note": "Dual approval for v1 trust/integrity baseline update"
+}
