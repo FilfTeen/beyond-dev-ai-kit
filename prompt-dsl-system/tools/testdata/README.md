@@ -5,6 +5,7 @@ This directory contains stable fixtures used by toolkit regression and smoke che
 - `structure_cases/`: module-structure fixtures used by `golden_path_regression.sh` and scanner/plugin smoke phases.
 - `verify_cases/`: follow-up verifier pass/warn/fail samples.
 - `verify_followup/`: follow-up patch/scan verification samples.
+- Intent-router dedicated fixtures moved to `prompt-dsl-system/tools/tests/intent_router/testdata/`.
 
 Notes:
 

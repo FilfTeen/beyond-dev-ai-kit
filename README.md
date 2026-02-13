@@ -2,6 +2,12 @@
 
 Repository for `prompt-dsl-system` governance pipelines and the `hongzhi-ai-kit` plugin runner package.
 
+Language:
+- English: `README.md`
+- 中文: `README.zh-CN.md`
+- Agent rules (EN): `AGENTS.md`
+- Agent rules (中文): `AGENTS.zh-CN.md`
+
 ## Install (editable)
 
 ```bash
@@ -58,7 +64,7 @@ If execute is blocked by low confidence or ambiguity, clarify goal first or use 
 Intent router pressure test (deterministic, CI-friendly):
 
 ```bash
-/usr/bin/python3 prompt-dsl-system/tools/intent_router_pressure.py --repo-root . --single-calls 6000 --concurrent-calls 8000 --concurrency 32
+/usr/bin/python3 prompt-dsl-system/tools/tests/intent_router/intent_router_pressure.py --repo-root . --single-calls 6000 --concurrent-calls 8000 --concurrency 32
 ```
 
 ## Stack KB Bootstrap
