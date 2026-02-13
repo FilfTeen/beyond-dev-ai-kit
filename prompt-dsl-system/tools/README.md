@@ -119,19 +119,23 @@
 路由回归测试：
 
 ```bash
-/usr/bin/python3 -m unittest -v prompt-dsl-system/tools/intent_router_test.py
+/usr/bin/python3 -m unittest -v prompt-dsl-system/tools/tests/intent_router/test_intent_router.py
 ```
 
 路由压力测试（高并发 + 长输入 + 显式优先级不变量）：
 
 ```bash
-/usr/bin/python3 prompt-dsl-system/tools/intent_router_pressure.py \
+/usr/bin/python3 prompt-dsl-system/tools/tests/intent_router/intent_router_pressure.py \
   --repo-root . \
   --single-calls 6000 \
   --concurrent-calls 8000 \
   --concurrency 32 \
   --max-p99-ms 8
 ```
+
+兼容入口仍保留：
+- `prompt-dsl-system/tools/intent_router_test.py`
+- `prompt-dsl-system/tools/intent_router_pressure.py`
 
 ## Policy Pack（统一策略包）
 策略文件：
@@ -178,7 +182,8 @@
 - `prompt-dsl-system/tools/RISK_GATE_TOKEN.json`：高风险 ACK 结构化令牌（供 `--ack-latest/--ack-file` 使用）。
 - `prompt-dsl-system/tools/risk_gate_report.json`：risk gate 结构化审计报告。
 - `prompt-dsl-system/tools/snapshots/snapshot_*/`：apply 前自动快照（status/diff/inputs/manifest）。
-- `prompt-dsl-system/tools/testdata/`：版本化回归样例（`structure_cases/verify_cases/verify_followup`）。
+- `prompt-dsl-system/tools/testdata/`：通用回归样例（`structure_cases/verify_cases/verify_followup`）。
+- `prompt-dsl-system/tools/tests/intent_router/testdata/`：intent 路由专项样例（`intent_router_cases.v1.json`）。
 - `_regression_tmp*/`：回归运行期临时目录（gitignored，禁止作为版本化资产提交）。
 
 ## Health Report（validate 自动生成）

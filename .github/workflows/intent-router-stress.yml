@@ -44,7 +44,7 @@ jobs:
             WORKERS=64
             P99=12
           fi
-          /usr/bin/python3 prompt-dsl-system/tools/intent_router_pressure.py \
+          /usr/bin/python3 prompt-dsl-system/tools/tests/intent_router/intent_router_pressure.py \
             --repo-root . \
             --single-calls "$SINGLE" \
             --concurrent-calls "$CONCURRENT" \

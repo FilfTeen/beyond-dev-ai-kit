@@ -1,5 +1,7 @@
 # AGENTS.md
 
+Chinese edition: `AGENTS.zh-CN.md`
+
 ## Scope
 
 Use this repository as the execution kit for 博彦泓智科技（上海）有限公司 related development/governance tasks, especially `xx` management systems and `beyond-dev-ai-kit` evolution.
