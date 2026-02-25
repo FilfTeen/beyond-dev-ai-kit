@@ -1,10 +1,10 @@
 {
   "tool": "baseline_provenance_guard",
   "provenance_version": "1.0.0",
-  "generated_at": "2026-02-25T10:05:19+00:00",
+  "generated_at": "2026-02-25T10:20:16+00:00",
   "repo_root": ".",
   "repo_snapshot": {
-    "git_head": "084d43d66d5174b24077706fef372b8f969d2641",
+    "git_head": "c0aca36f1717c57d6a0e551ce4401f86974f59b8",
     "git_head_available": true
   },
   "tracked": {
@@ -39,7 +39,7 @@
     },
     {
       "path": "prompt-dsl-system/tools/pipeline_trust_whitelist.json",
-      "sha256": "42bad3ad2efeac642070b87372fc0e8e567880ca02a23d1cb0ae7cd23774f8dd",
+      "sha256": "8e96e965e75da199a4b0090507c69da28226e02aae913dbfc9504ecad224d238",
       "size": 3728
     }
   ],
@@ -48,7 +48,7 @@
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "f137cf1e9c95e76d6c9a2e29947ea21ee2464f89b36d116372a2024e521143b3",
-    "signed_at": "2026-02-25T10:05:19+00:00"
+    "content_sha256": "cbc3f33ca029f783ed1a264a016608988f260c6805d47f4ad9362cea959ac576",
+    "signed_at": "2026-02-25T10:20:16+00:00"
   }
 }

@@ -17,6 +17,8 @@ EXIT_VERIFY_FAIL = 29
 MANIFEST_VERSION = "1.1.0"
 SIGN_KEY_ENV_DEFAULT = "HONGZHI_BASELINE_SIGN_KEY"
 REQUIRE_HMAC_ENV = "HONGZHI_BASELINE_REQUIRE_HMAC"
+DEFAULT_METADATA_TIMESTAMP = "1970-01-01T00:00:00+00:00"
+METADATA_TIMESTAMP_ENV = "HONGZHI_BASELINE_METADATA_TIMESTAMP"
 
 DEFAULT_TRACKED_PATHS = [
     "prompt-dsl-system/tools/run.sh",
@@ -59,6 +61,11 @@ DEFAULT_TRACKED_GLOBS = [
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def metadata_iso() -> str:
+    value = str(os.environ.get(METADATA_TIMESTAMP_ENV, DEFAULT_METADATA_TIMESTAMP)).strip()
+    return value or DEFAULT_METADATA_TIMESTAMP
 
 
 def parse_bool(value: Any, default: bool = False) -> bool:
@@ -124,7 +131,7 @@ def build_signature(payload: Dict[str, Any], sign_key: str) -> Dict[str, Any]:
     signature: Dict[str, Any] = {
         "scheme": "sha256",
         "content_sha256": content_sha,
-        "signed_at": now_iso(),
+        "signed_at": metadata_iso(),
     }
     if sign_key:
         key_bytes = sign_key.encode("utf-8")
@@ -251,7 +258,7 @@ def build_manifest(repo_root: Path, sign_key: str) -> Dict[str, Any]:
     manifest: Dict[str, Any] = {
         "tool": "kit_integrity_guard",
         "manifest_version": MANIFEST_VERSION,
-        "generated_at": now_iso(),
+        "generated_at": metadata_iso(),
         "repo_root": ".",
         "tracked": {
             "paths": DEFAULT_TRACKED_PATHS,

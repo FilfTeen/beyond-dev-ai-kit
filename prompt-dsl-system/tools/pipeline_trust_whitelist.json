@@ -1,7 +1,7 @@
 {
   "tool": "pipeline_trust_guard",
   "whitelist_version": "1.1.0",
-  "generated_at": "2026-02-25T10:05:19+00:00",
+  "generated_at": "1970-01-01T00:00:00+00:00",
   "repo_root": ".",
   "pipeline_glob": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_*.md",
   "entries": [
@@ -86,7 +86,7 @@
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "dba43a745fb66d4241a9ac9281d98613c45d8bcdde75c382f24dbaeb1325fbd2",
-    "signed_at": "2026-02-25T10:05:19+00:00"
+    "content_sha256": "6392394702b9b03ea8c32a52b7d9f162363cd0f7071fb8ece9ee59d459f7e672",
+    "signed_at": "1970-01-01T00:00:00+00:00"
   }
 }

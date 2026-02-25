@@ -1,7 +1,7 @@
 {
   "tool": "kit_integrity_guard",
   "manifest_version": "1.1.0",
-  "generated_at": "2026-02-25T10:05:19+00:00",
+  "generated_at": "1970-01-01T00:00:00+00:00",
   "repo_root": ".",
   "tracked": {
     "paths": [
@@ -154,7 +154,7 @@
     },
     {
       "path": "prompt-dsl-system/tools/baseline_provenance.json",
-      "sha256": "af123ae8702f4378d05c911cb5a66bbd651ca59bdfb094fa1e84b11f1b6100a6",
+      "sha256": "42bc1fcc94e994b89a9dbf01b4693c0b6995b19a48cdda7cff2654379708e114",
       "size": 1772
     },
     {
@@ -229,8 +229,8 @@
     },
     {
       "path": "prompt-dsl-system/tools/kit_integrity_guard.py",
-      "sha256": "1c84dc46d40c3f1375f70eae020571cb4db05ed4198d47fb1105bb3cfbd37c76",
-      "size": 17845
+      "sha256": "06bb34694372047ebf2b8f0c1a7005db5b00ca90236c276e08c444fc61955f10",
+      "size": 18143
     },
     {
       "path": "prompt-dsl-system/tools/kit_self_upgrade_template_guard.py",
@@ -274,12 +274,12 @@
     },
     {
       "path": "prompt-dsl-system/tools/pipeline_trust_guard.py",
-      "sha256": "105b9bf9f3041cdf35ba10bd370d87bf8cbb1c01d9666168019e8449abebbf40",
-      "size": 17194
+      "sha256": "faafc9dc7dd70d5acbbd8f62fe426dec51bf0e6817755ecde977f5471f760cb7",
+      "size": 17492
     },
     {
       "path": "prompt-dsl-system/tools/pipeline_trust_whitelist.json",
-      "sha256": "42bad3ad2efeac642070b87372fc0e8e567880ca02a23d1cb0ae7cd23774f8dd",
+      "sha256": "8e96e965e75da199a4b0090507c69da28226e02aae913dbfc9504ecad224d238",
       "size": 3728
     },
     {
@@ -289,8 +289,8 @@
     },
     {
       "path": "prompt-dsl-system/tools/tool_syntax_guard.py",
-      "sha256": "0e52f509f61e16458745b6acb64ca7265fdbb912a4bf64939f068456509102bd",
-      "size": 13556
+      "sha256": "01840474bdedd4afd6fad3e26d51053db46cc7045ae83a7ace0fc324930bf9cc",
+      "size": 13507
     }
   ],
   "summary": {
@@ -298,7 +298,7 @@
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "8cc924b68248ed03cc07d9ad7b400c51f068fcc3508f6ce14e2c0d67a121588b",
-    "signed_at": "2026-02-25T10:05:19+00:00"
+    "content_sha256": "d7226e8c2d8fb88b0b6250f6a83ff117899fffc4d01b5df70021fe8b6377477f",
+    "signed_at": "1970-01-01T00:00:00+00:00"
   }
 }
