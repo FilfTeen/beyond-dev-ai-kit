@@ -190,3 +190,27 @@ SQL方言差异
 - 本规范细化了 `HONGZHI_COMPANY_CONSTITUTION.md` Rule 10/11 的执行标准
 - `skill_hongzhi_universal_ops.yaml` 中 `sql_policy.prefer_portable_sql` 和 `sql_policy.dual_sql_when_needed` 是本规范的运行时参数化表达
 - 所有 SQL 类 pipeline（如 `pipeline_sql_oracle_to_dm8.md`）的产出物应遵守本规范的目录结构
+
+---
+
+## 5. DM8（达梦）兼容性说明
+
+### 5.1 定位
+
+DM8 是国产化替代场景下的迁移目标数据库。由于 DM8 高度兼容 Oracle 语法（包括 `ROWNUM`、`SEQUENCE`、`SYSDATE`、`MERGE INTO`、`NUMBER`/`VARCHAR2` 等类型），**在绝大多数场景下，Oracle SQL 可直接运行在 DM8 上**。
+
+### 5.2 与本规范的关系
+
+| 场景 | 策略 |
+|---|---|
+| Oracle SQL → DM8 | 通常无需改动，直接复用 Oracle 版本 |
+| 存在 DM8 不兼容的 Oracle 特性 | 使用 `pipeline_sql_oracle_to_dm8.md` 执行迁移转换 |
+| 新建 SQL 需同时支持 DM8 | 遵循本规范 §1–§3 的通用 SQL 优先策略即可覆盖 |
+
+### 5.3 已知 DM8 差异点
+
+- `CONNECT BY` 递归查询：DM8 支持但部分嵌套场景行为略有差异，建议使用 `WITH RECURSIVE`
+- `DBMS_*` 系统包：DM8 仅部分兼容，涉及时需单独验证
+- 字符集/排序规则：部署时需确认 DM8 实例的字符集配置与 Oracle 一致
+
+详细迁移指导参见 `pipeline_sql_oracle_to_dm8.md`。

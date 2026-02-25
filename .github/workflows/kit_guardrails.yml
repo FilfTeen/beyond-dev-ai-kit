@@ -60,6 +60,9 @@ jobs:
             --enforce-always true \
             --require-git true
 
+      - name: Baseline Rebuild (strict order)
+        run: bash prompt-dsl-system/tools/baseline_rebuild_all.sh --repo-root .
+
       - name: HMAC Strict Smoke
         run: /usr/bin/python3 prompt-dsl-system/tools/hmac_strict_smoke.py --repo-root .
 
@@ -84,8 +87,20 @@ jobs:
       - name: Performance Budget Guard
         run: /usr/bin/python3 prompt-dsl-system/tools/performance_budget_guard.py --repo-root .
 
+      - name: Docs Facts Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/docs_facts_guard.py --repo-root .
+
+      - name: Deployed Skill Reference Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/deployed_skill_ref_guard.py --repo-root .
+
+      - name: Runtime Outputs Tracking Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/runtime_outputs_tracking_guard.py --repo-root .
+
       - name: Validate
         run: ./prompt-dsl-system/tools/run.sh validate -r .
+
+      - name: Double Run Consistency Guard
+        run: /usr/bin/python3 prompt-dsl-system/tools/double_run_consistency_guard.py --repo-root .
 
   golden-regression-shards:
     runs-on: ubuntu-latest

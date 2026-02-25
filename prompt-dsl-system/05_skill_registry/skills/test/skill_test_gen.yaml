@@ -1,0 +1,121 @@
+name: "skill_test_gen"
+description: "Automated test case generation for Java8/Spring Boot modules. Generates unit tests (JUnit4/Mockito), integration tests, and boundary test scenarios based on existing service/controller/mapper code."
+version: "1.0.0"
+domain: "test"
+tags:
+  - "test"
+  - "junit"
+  - "quality"
+  - "java"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to the module under test."
+  - name: "test_scope"
+    type: "string"
+    required: false
+    enum: ["unit", "integration", "boundary", "full"]
+    description: "Test generation scope. Default: unit."
+  - name: "target_classes"
+    type: "array"
+    required: false
+    items: string
+    description: "Specific classes to generate tests for."
+  - name: "coverage_target"
+    type: "string"
+    required: false
+    description: "Target coverage percentage (e.g. 80%). Default: best-effort."
+
+mode: "test"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "minimal"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+decision_policy:
+  dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"]
+  choose_best_route_with_tradeoff: true
+
+prompt_template: |
+  You are a test engineer for Hongzhi company Java8/Spring Boot modules.
+
+  Test generation rules:
+  1. Framework: JUnit4 + Mockito (project std)
+  2. Test class naming: {ClassName}Test.java
+  3. Location: src/test/java mirroring src/main/java package structure
+  4. Coverage priorities:
+     - Happy path (normal flow)
+     - Boundary cases (null, empty, max-length)
+     - Error cases (exceptions, invalid state)
+     - Permission/role checks
+  5. Mock strategy:
+     - Mock all downstream dependencies (Mapper, external services)
+     - Use real objects for domain entities/VOs
+  6. SQL-related tests:
+     - Test MyBatis mapper XML queries with embedded H2 if feasible
+     - Otherwise mock Mapper calls
+  7. Assertion rules:
+     - Use assertThat for readability
+     - Verify method call counts on mocks
+     - Assert both return value and side effects
+  8. Never:
+     - Generate tests that depend on external DB connections
+     - Hard-code environment-specific values
+     - Skip null-check boundary tests for public APIs
+
+  Module: {{module_path}}
+  Scope: {{test_scope}}
+  Target classes: {{target_classes}}
+  Coverage target: {{coverage_target}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/notice"
+      test_scope: "unit"
+      target_classes: ["NoticeServiceImpl"]
+    output:
+      summary: "Generated 12 unit tests for NoticeServiceImpl: 4 happy-path, 4 boundary, 4 error."
+      artifacts:
+        - "A1_NoticeServiceImplTest.java"
+        - "A2_test_coverage_report.md"
+      risks:
+        - level: "low"
+          why: "Mocked Mapper may diverge from real MyBatis behavior"
+          impact: "False-positive test pass"
+          mitigation: "Add integration test in next cycle"
+          rollback: "Remove generated test file"
+      next_actions:
+        - "Run mvn test to verify generated tests compile and pass"
+        - "Add integration tests for critical flows"

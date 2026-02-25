@@ -60,11 +60,11 @@ parameters:
 
 ## Step 2 - Oracle->DM8 转换
 ```yaml
-skill: skill_hongzhi_universal_ops
+skill: skill_sql_dual_stack_delivery
 parameters:
   mode: "sql"
   module_path: "{{allowed_module_root}}"
-  objective: "{{objective}}；refs_hint: skill_sql_convert_oracle_to_dm8；执行可移植优先转换。"
+  objective: "{{objective}}；refs_hint: skill_sql_dual_stack_delivery；执行可移植优先转换。"
   constraints:
     - "portable SQL first"
     - "when not portable, produce oracle/mysql dual sql"
@@ -83,6 +83,7 @@ parameters:
   decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
   sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
   target_db: "dm8"
+  sql_dir: "sql/"
   context_id: "{{context_id}}"
   trace_id: "{{trace_id}}"
   input_artifact_refs: ["A1", "A2"]
@@ -90,11 +91,11 @@ parameters:
 
 ## Step 3 - 索引与迁移策略
 ```yaml
-skill: skill_hongzhi_universal_ops
+skill: skill_performance_analysis
 parameters:
-  mode: "sql"
+  mode: "code"
   module_path: "{{allowed_module_root}}"
-  objective: "{{objective}}；refs_hint: index review + migration plan；输出索引建议与迁移批次。"
+  objective: "{{objective}}；refs_hint: skill_performance_analysis(sql focus)；输出索引建议、慢 SQL 风险与迁移批次。"
   constraints:
     - "minimal-invasive changes"
   acceptance:
@@ -111,6 +112,7 @@ parameters:
   self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
   decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
   sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+  analysis_focus: "sql"
   target_db: "dm8"
   context_id: "{{context_id}}"
   trace_id: "{{trace_id}}"

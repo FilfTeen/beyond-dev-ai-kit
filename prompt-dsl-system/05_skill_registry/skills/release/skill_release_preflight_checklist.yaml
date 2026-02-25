@@ -1,0 +1,108 @@
+name: "skill_release_preflight_checklist"
+description: "Pre-release checklist for module deployment. Validates SQL execution order, menu configuration, permission setup, documentation completeness, and deployment readiness."
+version: "1.0.0"
+domain: "release"
+tags:
+  - "release"
+  - "checklist"
+  - "deployment"
+  - "verification"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to the module being released."
+  - name: "release_type"
+    type: "string"
+    required: false
+    enum: ["new_module", "patch", "migration"]
+    description: "Type of release. Default: patch."
+
+mode: "release"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "minimal"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+prompt_template: |
+  You are a release engineer for Hongzhi company property management systems.
+
+  Pre-release checklist:
+  1. SQL readiness:
+     - All SQL scripts exist (portable + dialect-specific)
+     - Execution order documented in README.md
+     - No syntax errors in scripts
+     - Rollback scripts available
+  2. Menu configuration:
+     - SYS_MENU_INFO entries prepared
+     - Menu hierarchy (parent/child) verified
+     - URL paths match Controller endpoints
+  3. Permission setup:
+     - Role-based access entries defined
+     - API authorization rules documented
+  4. Backend verification:
+     - Controllers have proper request mappings
+     - Service layer compile-clean
+     - Mapper XML valid
+  5. Frontend verification:
+     - HTML pages reference correct API endpoints
+     - Static assets (JS/CSS) bundled
+     - No hardcoded development URLs
+  6. Documentation:
+     - Module README.md updated
+     - API documentation current
+     - Change ledger complete
+  7. Deployment artifacts:
+     - All files listed in deployment manifest
+     - No temporary/debug files included
+     - Version numbers consistent
+
+  Module: {{module_path}}
+  Release type: {{release_type}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/notice"
+      release_type: "new_module"
+    output:
+      summary: "Release preflight: 7/7 checks pass, deployment ready."
+      artifacts:
+        - "A1_preflight_report.md"
+        - "A2_deployment_manifest.md"
+        - "A3_rollback_plan.md"
+      risks: []
+      next_actions:
+        - "Execute SQL scripts in documented order"
+        - "Configure menu entries"
+        - "Deploy backend and frontend files"

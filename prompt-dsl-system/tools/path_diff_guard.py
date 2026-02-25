@@ -58,6 +58,14 @@ ALLOWED_TOP_LEVEL_PACKAGING_FILES = {
     ".gitignore",
 }
 
+# Governance/module docs that are allowed when module_path is prompt-dsl-system.
+ALLOWED_TOP_LEVEL_GOVERNANCE_FILES = {
+    "AGENTS.md",
+    "AGENTS.zh-CN.md",
+    "README.md",
+    "README.zh-CN.md",
+}
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -430,6 +438,11 @@ def evaluate_changes(
 
         if module_rel is not None:
             if is_allowed_by_module(rel_norm, module_rel):
+                allowed = True
+            elif (
+                module_rel == "prompt-dsl-system"
+                and rel_norm in ALLOWED_TOP_LEVEL_GOVERNANCE_FILES
+            ):
                 allowed = True
         elif rel_norm in ALLOWED_TOP_LEVEL_PACKAGING_FILES:
             allowed = True

@@ -89,7 +89,10 @@ def should_ignore(rel_path: str) -> bool:
 
 
 def candidate_log_files(repo_root: Path) -> List[Path]:
+    # Prefer the new history index first, then fall back to legacy changelog paths.
     files = [
+        repo_root / "prompt-dsl-system/tools/history/changelog/INDEX.md",
+        repo_root / "prompt-dsl-system/tools/history/README.md",
         repo_root / "prompt-dsl-system/05_skill_registry/CHANGELOG_CONSTITUTION_UPGRADE.md",
         repo_root / "prompt-dsl-system/05_skill_registry/CONSOLIDATION_CHANGELOG.md",
         repo_root / "prompt-dsl-system/05_skill_registry/REDUNDANCY_REPORT.md",

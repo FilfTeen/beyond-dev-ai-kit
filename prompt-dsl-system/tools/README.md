@@ -33,6 +33,7 @@
 ./prompt-dsl-system/tools/run.sh selfcheck -r .
 ./prompt-dsl-system/tools/run.sh self-upgrade -r .
 ./prompt-dsl-system/tools/run.sh self-upgrade -r . --strict-self-upgrade
+./prompt-dsl-system/tools/run.sh agent-audit -r . --single-calls 12000 --concurrent-calls 16000 --concurrency 48 --max-p99-ms 12
 ./prompt-dsl-system/tools/run.sh run -r . -m <MODULE_PATH> --pipeline prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md
 ./prompt-dsl-system/tools/run.sh resolve-move-conflicts -r . -m <MODULE_PATH> --strategy rename_suffix
 ./prompt-dsl-system/tools/run.sh scan-followup -r . --moves prompt-dsl-system/tools/move_report.json
@@ -57,7 +58,25 @@
 - `performance_budget_guard.py`
 - `contract_samples/replay_contract_samples.sh`
 - `kit_self_upgrade_template_guard.py`
+- `delivery_closure_guard.py`
+- `docs_facts_guard.py`
+- `deployed_skill_ref_guard.py`
+- `runtime_outputs_tracking_guard.py`
+- `cpp_naming_guard.py`
 - 并将结果写入 `health_report` 独立 section：`post_validate_gates`（JSON + Markdown）
+
+`delivery_closure_guard` 阻断策略：
+- 默认仅告警（不阻断 `validate` 退出码），避免影响标准回归链路。
+- 严格模式时自动阻断：`HONGZHI_VALIDATE_STRICT=1`。
+- 可显式控制：`HONGZHI_DELIVERY_CLOSURE_ENFORCE=1|0`（显式值优先于 strict 默认）。
+
+`docs_facts_guard` / `deployed_skill_ref_guard` 阻断策略：
+- 默认阻断（`HONGZHI_DOCS_FACTS_GUARD_ENFORCE=1`、`HONGZHI_DEPLOYED_SKILL_REF_ENFORCE=1`）。
+- 可显式关闭：`HONGZHI_DOCS_FACTS_GUARD_ENFORCE=0` 或 `HONGZHI_DEPLOYED_SKILL_REF_ENFORCE=0`（用于紧急排障，不建议常态化关闭）。
+
+`runtime_outputs_tracking_guard` 阻断策略：
+- 默认阻断（`HONGZHI_RUNTIME_OUTPUTS_GUARD_ENFORCE=1`）。
+- 可显式关闭：`HONGZHI_RUNTIME_OUTPUTS_GUARD_ENFORCE=0`（仅限紧急排障，不建议常态关闭）。
 
 公司标准（推荐）：
 
@@ -70,13 +89,15 @@
 说明：
 - `run` 子命令默认强制要求 `-m/--module-path`（公司边界要求），避免跨模块误改。
 - `intent` 子命令用于自然语言路由：将目标文本映射到最合适 pipeline，并返回可执行命令。
-- `intent` 支持两类目标：`action_kind=pipeline|command`（command 包含 `validate/selfcheck/self-upgrade/list`）。
+- `intent` 支持两类目标：`action_kind=pipeline|command`（command 包含 `validate/selfcheck/self-upgrade/agent-audit/list`）。
 - `intent --execute` 会在路由成功且 `module_path` 可用时直接调用 `run`。
 - 默认执行保护：`confidence` 不足或 `ambiguous=true` 时会阻断执行并提示澄清（可用 `--force-execute` 覆盖）。
-- 路由策略为 generic-first：默认回落到通用 pipeline；只有用户显式指定 pipeline 时才直达专用 pipeline。
+- 路由策略为 generic-first：默认回落到通用 pipeline；`test/security` 中文意图会自动命中专用 pipeline，`beyond-dev-ai-kit` 自演进意图优先命中 `pipeline_kit_self_upgrade.md`。
 - 显式 pipeline 名称/路径优先级高于命令关键词匹配（防止误路由到 `validate/self-upgrade`）。
+- `agent-audit` 子命令用于输出 agent 主动能力覆盖度 + 并发高压能效报告，支持阈值门禁退出码（`52`）。
 - `selected.default_module_path` 仅用于治理/元数据 pipeline（通常是 `prompt-dsl-system`）；业务 pipeline 必须显式提供业务 `module_path`。
 - `validate` 的 `module-path` 可选；未提供时，guard 将只允许 `prompt-dsl-system/**` 变更。
+- 当 `module-path=prompt-dsl-system` 时，guard 额外允许顶层治理文档：`AGENTS.md`、`AGENTS.zh-CN.md`、`README.md`、`README.zh-CN.md`。
 - 可临时放宽 `run` 强制：`HONGZHI_ALLOW_RUN_WITHOUT_MODULE_PATH=1`（会打印风险警告）。
 - `--module-path` 支持绝对路径或相对 `--repo-root`；`run.sh` 会先校验目录存在并规范化路径。
 - Guard 优先级：`cli (--module-path) > pipeline > derived > none`。
@@ -131,6 +152,11 @@
   --concurrent-calls 8000 \
   --concurrency 32 \
   --max-p99-ms 8
+
+/usr/bin/python3 prompt-dsl-system/tools/skill_promotion_matrix.py --repo-root .
+/usr/bin/python3 prompt-dsl-system/tools/fact_baseline_refresh.py --repo-root .
+/usr/bin/python3 prompt-dsl-system/tools/delivery_closure_guard.py --repo-root .
+/usr/bin/python3 prompt-dsl-system/tools/cpp_naming_guard.py --repo-root . --mode changed
 ```
 
 ## Policy Pack（统一策略包）
@@ -160,6 +186,9 @@
 ```
 
 ## 输出文件
+> 运行产物策略：以下运行期文件默认是 runtime outputs（已 gitignore），不应作为版本化资产提交。
+> 历史资料请归档到 `prompt-dsl-system/tools/history/**`。
+
 - `prompt-dsl-system/tools/run_plan.yaml`：`run` 子命令生成的执行计划。
 - `prompt-dsl-system/tools/validate_report.json`：`validate` 子命令生成的结构化校验报告。
 - `prompt-dsl-system/tools/policy_effective.json`：`validate` 刷新的最终生效策略（合并后）。
@@ -177,6 +206,12 @@
 - `prompt-dsl-system/tools/RISK_GATE_TOKEN.txt`：高风险 ACK 一次性令牌文件。
 - `prompt-dsl-system/tools/RISK_GATE_TOKEN.json`：高风险 ACK 结构化令牌（供 `--ack-latest/--ack-file` 使用）。
 - `prompt-dsl-system/tools/risk_gate_report.json`：risk gate 结构化审计报告。
+- `prompt-dsl-system/tools/skill_promotion_matrix.json` / `skill_promotion_matrix.md`：staging skill 晋级准备度矩阵报告。
+- `prompt-dsl-system/tools/delivery_closure_report.json`：收尾闭环门禁报告（文档/模板/噪音检查）。
+- `prompt-dsl-system/tools/docs_facts_report.json`：README/FACT 关键事实计数一致性报告。
+- `prompt-dsl-system/tools/deployed_skill_ref_report.json`：deployed skill 是否被 pipeline 引用的覆盖报告。
+- `prompt-dsl-system/tools/cpp_naming_report.json`：C++ 对齐命名门禁报告（Java 布尔/常量命名规则）。
+- `prompt-dsl-system/tools/history/**`：历史变更文档与静态运行计划归档目录（版本化保留）。
 - `prompt-dsl-system/tools/snapshots/snapshot_*/`：apply 前自动快照（status/diff/inputs/manifest）。
 - `prompt-dsl-system/tools/testdata/`：通用回归样例（`structure_cases/verify_cases/verify_followup`）。
 - `prompt-dsl-system/tools/tests/intent_router/testdata/`：intent 路由专项样例（`intent_router_cases.v1.json`）。
@@ -342,6 +377,19 @@
   --max-age-seconds 900
 ```
 
+Agent 主动能力覆盖 + 高压能效审计（建议在 kit 升级前后执行并对比）：
+
+```bash
+/usr/bin/python3 prompt-dsl-system/tools/agent_capability_audit.py \
+  --repo-root . \
+  --single-calls 12000 \
+  --concurrent-calls 16000 \
+  --concurrency 48 \
+  --max-p99-ms 12 \
+  --out-json prompt-dsl-system/tools/agent_capability_audit.json \
+  --out-md prompt-dsl-system/tools/agent_capability_audit.md
+```
+
 ## Self Upgrade（统一入口）
 
 运行套件自升级 pipeline 的统一命令：
@@ -382,7 +430,7 @@
 - `HONGZHI_SELFCHECK_MIN_SCORE`（默认 `0.85`）
 - `HONGZHI_SELFCHECK_MIN_LEVEL`（默认 `high`）
 - `HONGZHI_SELFCHECK_MAX_LOW_DIMS`（默认 `0`）
-- `HONGZHI_SELFCHECK_REQUIRED_DIMS`（可选，逗号分隔；默认内置 7 个核心维度）
+- `HONGZHI_SELFCHECK_REQUIRED_DIMS`（可选，逗号分隔；默认内置 8 个核心维度，含 `agent_active_ops`）
 - `HONGZHI_SELFCHECK_MAX_AGE_SECONDS`（默认 `900`）
 - `HONGZHI_SELFCHECK_REQUIRE_GIT_HEAD`（默认 `0`）
 - `HONGZHI_KIT_INTEGRITY_MANIFEST`（默认 `prompt-dsl-system/tools/kit_integrity_manifest.json`）
@@ -415,6 +463,14 @@
 - `HONGZHI_PERF_TREND_MIN_SAMPLES`（默认 `5`）
 - `HONGZHI_PERF_TREND_MAX_RATIO`（默认 `1.8`）
 - `HONGZHI_PERF_HISTORY_WRITE`（默认 `1`）
+- `HONGZHI_AGENT_AUDIT_ENFORCE`（默认 `1`，严格自升级中启用 agent 能力审计门禁）
+- `HONGZHI_AGENT_AUDIT_MIN_SCORE`（默认 `0.85`）
+- `HONGZHI_AGENT_AUDIT_MIN_LEVEL`（默认 `high`）
+- `HONGZHI_AGENT_AUDIT_REQUIRE_PRESSURE_PASS`（默认 `1`）
+- `HONGZHI_AGENT_AUDIT_SINGLE_CALLS`（默认 `6000`）
+- `HONGZHI_AGENT_AUDIT_CONCURRENT_CALLS`（默认 `8000`）
+- `HONGZHI_AGENT_AUDIT_CONCURRENCY`（默认 `32`）
+- `HONGZHI_AGENT_AUDIT_MAX_P99_MS`（默认 `12`）
 - `HONGZHI_BASELINE_SIGN_KEY_ENV`（默认 `HONGZHI_BASELINE_SIGN_KEY`，可指定签名密钥变量名）
 - `HONGZHI_BASELINE_SIGN_KEY`（可选，开启 HMAC 签名时使用）
 - `HONGZHI_BASELINE_REQUIRE_HMAC`（默认 `auto`：若签名密钥存在则自动要求 HMAC；可显式设 `0/1`）

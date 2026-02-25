@@ -1,28 +1,28 @@
 {
   "tool": "pipeline_trust_guard",
   "whitelist_version": "1.1.0",
-  "generated_at": "2026-02-12T06:12:16+00:00",
+  "generated_at": "1970-01-01T00:00:00+00:00",
   "repo_root": ".",
   "pipeline_glob": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_*.md",
   "entries": [
     {
       "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bpmn_state_audit_testgen.md",
-      "sha256": "33efc6ef1455b8e8569598d4906c21610aa2a2c5fc34715b99a237cb482b576f",
+      "sha256": "ee4e26eb254c3903a77d80c98a66994227f144347226d346e9b53cd2ec63c64d",
       "status": "active"
     },
     {
       "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bugfix_min_scope_with_tree.md",
-      "sha256": "3ea4ca9493afef887ce629734140266ff399539d8dfc15f8d4e5d723eb7ffe3c",
+      "sha256": "1d852547419762f0f66f6e77ec1ecf57371c9f8ce080787413f258fb36dc2dcd",
       "status": "active"
     },
     {
       "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_db_delivery_batch_and_runbook.md",
-      "sha256": "1ac93c17a40fb4d747dd89e8afd0124d825cf8dc4f9a9877cf97736141e258d6",
+      "sha256": "07a83e5c91f95707dfb60abdb19349f0ce86dc03e85d561ef2441746cb203eac",
       "status": "active"
     },
     {
       "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md",
-      "sha256": "dfe5acc1c8c5719a2654ec5c424fcba3499b61a81ef83dbc448fe4ba6786ae6f",
+      "sha256": "fa01e517c1b97e6e3e09b3c8b2a5b72b08af29284078b408f2d74f8c86cddd25",
       "status": "active"
     },
     {
@@ -32,7 +32,7 @@
     },
     {
       "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_ownercommittee_audit_fix.md",
-      "sha256": "675074c12b643d3095ac894c6f8d53b361d243c7c5b599becd2ba376b53e8581",
+      "sha256": "7b0b395e7027e94462a945dd284c7edc18f2c498562958942bf87f758747cfd8",
       "status": "active"
     },
     {
@@ -52,7 +52,12 @@
     },
     {
       "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_requirement_to_prototype.md",
-      "sha256": "7910974d8f5afb81496cd07b9fb4e2f6fae9dd5a94135f700d448e025a6a562f",
+      "sha256": "a6200debc9883ab523b866ff6e87c64cdd087e229dae0c0d93eae6cf6c70b6d4",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_security_audit.md",
+      "sha256": "0fcc49171605c321dd93e08523d729cd4d5f2575bb03796c0d370aefaf62bd5c",
       "status": "active"
     },
     {
@@ -67,16 +72,21 @@
     },
     {
       "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_sql_oracle_to_dm8.md",
-      "sha256": "6ae69b3e787eb19f62c86df5006cb8f5d47ca34686051f7f712d48e534df1ce3",
+      "sha256": "883c27df03135150db237dbbeb23e74b710878e071ed1b2ec73649d3640a7dbd",
+      "status": "active"
+    },
+    {
+      "path": "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_test_gen.md",
+      "sha256": "f8bc81a1d79c37f3dbb2f173f99416a6de25bc8c389c56c75bdade988c32e3d1",
       "status": "active"
     }
   ],
   "summary": {
-    "pipeline_count": 13
+    "pipeline_count": 15
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "c3a0b06c37b797dcd1b435b53f297c41a2b610640519666b34cff922bc97c4cd",
-    "signed_at": "2026-02-12T06:12:16+00:00"
+    "content_sha256": "6392394702b9b03ea8c32a52b7d9f162363cd0f7071fb8ece9ee59d459f7e672",
+    "signed_at": "1970-01-01T00:00:00+00:00"
   }
 }

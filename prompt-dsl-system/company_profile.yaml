@@ -1,6 +1,8 @@
 company:
-  name: "hongzhi-work-dev"
+  name: "博彦泓智科技（上海）有限公司"
+  name_en: "Beyondsoft Hongzhi Technology (Shanghai) Co., Ltd."
   scope: "beyond-dev-ai-kit"
+  business: "物业管理系统开发 (Spring Boot + uni-app)"
 db_execution:
   default_schema_strategy: "login-default"
   preferred_dm_tool: "disql"

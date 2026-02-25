@@ -4,7 +4,7 @@ from __future__ import annotations
 
 """
 Hongzhi AI-Kit Plugin Runner
-Version: 4.0.0 (R17 Packaging + Agent Contract v4)
+Version: 1.3.0 (runtime hygiene + history archive + guardrail hardening)
 
 Role:
   1. Standardization: unified entry point for all dsl-tools.
@@ -65,8 +65,8 @@ from scan_graph import (
 #  Configuration & Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PLUGIN_VERSION = "4.0.0"
-CONTRACT_VERSION = "4.0.0"
+PLUGIN_VERSION = PACKAGE_VERSION if PACKAGE_VERSION != "unknown" else "1.3.0"
+CONTRACT_VERSION = "1.3.0"
 SUMMARY_VERSION = "3.0"
 GOVERNANCE_ENV = "HONGZHI_PLUGIN_ENABLE"
 GOVERNANCE_EXIT_CODE = 10
@@ -105,13 +105,7 @@ MACHINE_JSON_ENABLED_RUNTIME = True
 COMPANY_SCOPE_RUNTIME = COMPANY_SCOPE_DEFAULT
 COMPANY_SCOPE_REQUIRED_RUNTIME = False
 
-SNAPSHOT_EXCLUDES = {
-    ".git", ".idea", ".DS_Store", "target", "build", "node_modules",
-    "__pycache__", ".gradle", ".mvn", "dist", "out"
-}
-SNAPSHOT_EXT_EXCLUDES = {
-    ".class", ".jar", ".war", ".ear", ".zip", ".tar.gz", ".pyc"
-}
+# SNAPSHOT_EXCLUDES and SNAPSHOT_EXT_EXCLUDES imported from hongzhi_ai_kit.snapshot
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -896,12 +890,6 @@ def detect_vcs_info(repo_root: Path) -> Dict[str, str]:
     return vcs
 
 
-def compute_cache_hit_rate(cache_hit: int, cache_miss: int) -> float:
-    total = cache_hit + cache_miss
-    if total <= 0:
-        return 0.0
-    return round(cache_hit / total, 4)
-
 
 def normalize_rel(path_value: str, parent_dir: Path) -> str:
     try:
@@ -1609,65 +1597,16 @@ def resolve_workspace(fingerprint, run_id, override_root=None, read_only: bool =
         sys.exit(1)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  Snapshot-based read-only contract
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def take_snapshot(repo_root, max_files=None):
-    """Lightweight snapshot: {relpath: (size, mtime_ns)} for files under repo_root."""
-    snap = {}
-    count = 0
-    for root, dirs, files in os.walk(str(repo_root)):
-        dirs[:] = [d for d in dirs if d not in SNAPSHOT_EXCLUDES]
-        for f in files:
-            ext = os.path.splitext(f)[1].lower()
-            if ext in SNAPSHOT_EXT_EXCLUDES:
-                continue
-            fp = os.path.join(root, f)
-            try:
-                st = os.stat(fp)
-                rel = os.path.relpath(fp, str(repo_root))
-                snap[rel] = (st.st_size, st.st_mtime_ns)
-            except OSError:
-                pass
-            count += 1
-            if max_files and count >= max_files:
-                return snap  # early stop
-    return snap
-
-
-def diff_snapshots(before, after):
-    """Compare two snapshots, return dict of created/deleted/modified files."""
-    created = []
-    deleted = []
-    modified = []
-    for rel in after:
-        if rel not in before:
-            created.append(rel)
-        elif after[rel] != before[rel]:
-            modified.append(rel)
-    for rel in before:
-        if rel not in after:
-            deleted.append(rel)
-    return {"created": created, "deleted": deleted, "modified": modified}
-
-
-def enforce_read_only(delta, write_ok):
-    """If write_ok is False and delta is non-empty, FAIL with exit code 3."""
-    total = len(delta["created"]) + len(delta["deleted"]) + len(delta["modified"])
-    if total == 0:
-        return True
-    if write_ok:
-        print(f"[plugin] NOTE: {total} file(s) changed in project repo (--write-ok active)",
-              file=sys.stderr)
-        return True
-    print(f"[plugin] FAIL: read-only contract violated — {total} file(s) changed in project repo:",
-          file=sys.stderr)
-    for cat in ("created", "deleted", "modified"):
-        for f in delta[cat][:5]:
-            print(f"  [{cat}] {f}", file=sys.stderr)
-    sys.exit(3)
-
+# ---------------------------------------------------------------------------
+#  Re-exports from extracted snapshot module (backward compatibility)
+# ---------------------------------------------------------------------------
+from hongzhi_ai_kit.snapshot import (  # noqa: F401
+    take_snapshot,
+    diff_snapshots,
+    enforce_read_only,
+    SNAPSHOT_EXCLUDES,
+    SNAPSHOT_EXT_EXCLUDES,
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Capabilities output

@@ -1,0 +1,99 @@
+name: "skill_docs_i18n"
+description: "Documentation internationalization skill. Translates technical documents between Chinese and English while preserving code blocks, links, and technical terms."
+version: "1.0.0"
+domain: "docs"
+tags:
+  - "docs"
+  - "i18n"
+  - "translation"
+  - "chinese"
+  - "english"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "source_file"
+    type: "string"
+    required: true
+    description: "Path to the document to translate."
+  - name: "target_language"
+    type: "string"
+    required: true
+    enum: ["zh-CN", "en"]
+    description: "Target language code."
+  - name: "output_suffix"
+    type: "string"
+    required: false
+    description: "Suffix for output file (e.g. .zh-CN). Default: derived from target_language."
+
+mode: "docs"
+boundary_policy:
+  allowed_module_root: "."
+  max_change_scope: "minimal"
+
+fact_policy:
+  require_scan_before_change: false
+  unknown_requires_user: false
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+decision_policy:
+  dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"]
+  choose_best_route_with_tradeoff: true
+
+prompt_template: |
+  You are a technical document translator for Hongzhi company.
+
+  Translation rules:
+  1. Preserve all code blocks (```, indented blocks) — do NOT translate code
+  2. Preserve all URLs, file paths, and command examples exactly
+  3. Preserve all variable names, function names, and technical identifiers
+  4. Translate prose / comments / descriptions naturally
+  5. Maintain markdown formatting (headers, lists, tables, links)
+  6. For technical terms with no standard translation, keep English with Chinese annotation:
+     e.g. "pipeline (流水线)"
+  7. Output file naming:
+     - English source → Chinese: add .zh-CN suffix before extension
+     - Chinese source → English: remove .zh-CN suffix or add if no suffix
+  8. Header translation:
+     - Keep '# Title' structure, translate title text
+  9. Table preservation:
+     - Translate cell content, keep column alignment
+
+  Source: {{source_file}}
+  Target language: {{target_language}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      source_file: "README.md"
+      target_language: "zh-CN"
+    output:
+      summary: "Translated README.md to README.zh-CN.md: 202 lines, 15 code blocks preserved."
+      artifacts:
+        - "A1_README.zh-CN.md"
+      risks:
+        - level: "low"
+          why: "3 domain-specific terms may need review"
+          impact: "Minor translation quality"
+          mitigation: "Human review of flagged terms"
+          rollback: "Delete generated file"
+      next_actions:
+        - "Review translated document for domain accuracy"

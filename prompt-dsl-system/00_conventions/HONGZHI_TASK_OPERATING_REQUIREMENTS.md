@@ -1,89 +1,116 @@
-# HONGZHI Task Operating Requirements (Authoritative)
+# HONGZHI Task Operating Requirements (Authoritative, vCurrent)
 
-This document is the authoritative operating profile for this kit in 博彦泓智科技（上海）有限公司 tasks.
+本文件是 `beyond-dev-ai-kit` 在“博彦泓智科技（上海）有限公司”场景下的最高执行规范。  
+当 `prompt/DSL/skill/pipeline` 任一旧文本与本文件冲突时，以本文件为准。
 
-## Scope & Activation
+## 0. 生效范围（硬约束）
 
-1. This kit is active only for 博彦泓智科技（上海）有限公司 development tasks.
-2. Typical project style is property-management systems; project names often use pinyin initials (for example `xywygl`).
-3. Existing systems are commonly legacy stacks (Java 8 / Spring Boot / LayUI and related traditional patterns), so compatibility-first delivery is required.
+1. 此插件级 `prompt / DSL / skill / pipeline` 套件仅在“博彦泓智科技（上海）有限公司”相关开发任务中生效。
+2. 目标：让 Agent 在该公司任务中具备自感知、自调用、自改进能力，稳定完成开发、治理、修复和交付。
+3. 本文件与 `hongzhi-work-dev` 共同组成“权威执行层”；执行入口可以不同，但约束必须一致。
 
-## Boundary & Safety Control
+## 1. 公司与项目背景（事实基线）
 
-1. The user-defined module is the maximum default boundary per task.
-2. Forbidden by default: `/sys`, `/error`, `/util`, `/vote`, and non-owned assets.
-3. When strong dependency exists, decision order must be:
-   1) compatibility first,
-   2) self-contained rewrite-and-use,
-   3) minimal invasive patch.
-4. Route choice must consider risk, effort, quality, efficiency, and return.
+1. 公司主要产出物业管理系统，项目常用拼音首字母命名（例如 `xywygl`）。
+2. 现存与在研项目以传统技术栈为主（如 Java8 / Spring Boot / LayUI 等），兼容性优先。
+3. 不得用“新技术偏好”覆盖现网兼容与交付稳定性。
 
-## Framework-First Integration
+## 2. 操作边界与禁区
 
-1. Before implementation, scan and understand framework flow and dependencies (including workflow nodes such as activiti, system components, lifecycle/security/guards).
-2. Prefer framework-native components first (exception/security/assert/state/generator mechanisms).
-3. If framework cannot satisfy or is defective, apply the decision order above.
+1. 用户每轮明确的模块是默认最大边界。
+2. 默认禁改：`/sys`、`/error`、`/util`、`/vote` 及用户声明的非本人资产。
+3. 遇到强依赖时，必须按顺序决策：
+   1) 兼容优先；2) 自洽重写（自己写自己用）；3) 最小侵入补丁。
 
-## SQL & Compatibility
+## 3. 团队规范与目录结构对齐
 
-1. Prefer portable/common SQL.
-2. For non-portable sections, provide Oracle + MySQL dual SQL.
-3. Ensure surrounding business logic code remains compatible.
+1. 需参考团队规范文档：`/Users/dwight/Downloads/【洪智科技】本地存档/团队开发规范.docm`（参考而非机械照抄）。
+2. 文件/目录结构应抽样权威模块（如 `/vote`）并对齐其业务归类方式。
+3. 个人范式可应用，但不得破坏团队统一性与可维护性。
 
-## Proactive Engineering Duties
+## 4. 基于系统框架开发、回归系统框架
 
-1. Proactively evaluate code quality, efficiency, and data security.
-2. At decision branches, recommend best route with explicit tradeoffs.
-3. Near closure or during exploration, proactively provide optimization/fix suggestions.
-4. After completion, update module docs (README/structure docs), output work log, and clean redundant artifacts.
+1. 开始改动前先扫描并理解项目框架（如 activiti 流程节点、系统组件、状态机制、异常/安全机制）。
+2. 嵌入式开发优先复用系统现有能力；框架给什么先用什么。
+3. 仅在框架无法满足或存在缺陷时，回到“兼容 > 自洽 > 最小侵入”顺序。
 
-## Global Awareness, Tree Analysis, and Bug-Fix Principle
+## 5. SQL 兼容策略
 
-1. Keep real-time awareness of assets, ownership, and system dependencies.
-2. Perform tree-impact analysis before edits; widen scanning under uncertainty.
-3. For bug fixes, prioritize full-chain correctness over “code runs” only.
-4. Escalate to user intervention on high-risk paths.
+1. SQL 优先通用写法。
+2. 无法通用时输出 Oracle/MySQL 双版本 SQL。
+3. 与 SQL 相关的业务逻辑代码也必须保持兼容性。
 
-## Self-Monitoring & Correction
+## 6. Agent 主动性（必须执行）
 
-1. Detect abnormal loops (ineffective repeated edits, wrong target files, oscillation).
-2. Stop, rescan, rollback wrong direction, recalibrate, then continue.
+1. 主动检查代码质量、性能与数据安全，并在分支路线给出最优建议。
+2. 作业结束后主动更新模块说明文档（README、目录说明等）并输出作业日志。
+3. 主动清理作业垃圾（弃用/冗余临时产物）。
+4. 主动提供提示词优化建议，协助用户确认目标与任务边界。
 
-## Naming & Development Style
+## 7. 全局掌控与树状分析
 
-1. Team standard first; personal style applies only when correctness/consistency is preserved.
-2. Naming is a hard requirement: English, short, semantic, globally aligned.
-3. Prefer C++-influenced discipline:
-   - types/classes/interfaces: `UpperCamelCase`
-   - functions/helpers: align module dominant style; internal fallback `lower_snake_case`
-   - constants: `UPPER_SNAKE_CASE`
-   - booleans: `is_*`, `has_*`, `can_*`
-   - SQL identifiers/aliases/DB fields: `lower_snake_case`
+1. 开发中持续维护“资产-依赖-影响”全局视图。
+2. 所有改动前做树状影响分析；不确定时扩大扫描范围。
+3. Bug 修复必须做全链路修复，目标是“正确运行”，而非仅“能够运行”。
+4. 高风险路径必须报警并请求用户介入。
 
-## Ambiguous Prompt Handling
+## 8. 自我监控与自校准
 
-1. For clear goals with vague prompts, execute minimal-scope changes only.
-2. No broad unrelated refactors.
-3. This does not weaken required tree-impact/full-chain analysis.
+1. 必须检测并处理异常行为：反复无效修改、错误定位、文件间来回兜圈、误改文件。
+2. 出现异常时：暂停 -> 扫描复盘 -> 回退错误方向 -> 重新校准 -> 继续执行。
 
-## Stack Knowledge Base
+## 9. 命名与开发范式（硬性要求）
 
-1. Build and maintain per-project stack profiles via scanner tooling.
-2. Use discovered stack facts in delivery decisions.
-3. While technology is not hard-limited in principle, new technology choices must be justified against compatibility and delivery value.
+1. 命名必须英文、简短、语义清晰、全局一致。
+2. 个人偏好按 C++ 规范对齐，但团队规范优先。
+3. 推荐约束：
+   - 类型/类/接口：`UpperCamelCase`
+   - 常量：`UPPER_SNAKE_CASE`
+   - 布尔：`is_* / has_* / can_*`
+   - SQL 标识符/别名/字段：`lower_snake_case`
 
-## Fact-First / Anti-Hallucination
+## 10. 模糊指令处理
 
-1. No guessing critical logic, schema, symbols, or names.
-2. If key facts are missing, scan first or escalate to user.
-3. Block speculative edits when correctness-critical facts are unknown.
+1. 目标明确但表述模糊时，执行“最小范围改动”原则。
+2. 禁止大面积无关改动与越界重构。
+3. 本条不覆盖第 7 条：树状分析与链路修复在 Bug 场景优先级最高。
 
-## Reuse / Migration / PM Mode
+## 11. 默认技术栈与技术栈知识库
 
-1. Property-management systems are highly reusable; controlled cross-project reuse/migration is allowed when user authorizes references.
-2. Support PM-mode outputs: requirement/bid parsing, business/flow clarification, prototype-oriented artifacts.
+1. 默认基线：Java8、Spring Boot、Oracle、RESTful、Vue/uni-app、JavaScript、HTML、JSON、Lombok、SVN、LayUI 及公司自研框架。
+2. 需对目标项目进行扫描建档并持续修订（project stack KB）。
+3. 技术不做绝对限制，但新技术引入必须论证收益、兼容与交付成本。
 
-## Quality Bar
+## 12. 基于事实，严禁幻觉
 
-1. Deliver concise, efficient, elegant, modern, maintainable implementations.
-2. Keep formatting discipline and useful comments.
+1. 禁止在缺少关键信息时猜逻辑、猜字段、猜命名、猜来源。
+2. 不确定即扫描；仍不确定则请求用户介入。
+3. 禁止使用虚幻命名与虚构依赖，防止连锁故障。
+
+## 13. 高复用与迁移开发
+
+1. 物业系统具备高复用特性，允许在用户授权下跨项目复用模块/组件。
+2. 迁移必须结合标书、需求、设计与当前项目约束进行适配。
+
+## 14. 产品经理协作模式
+
+1. 支持解析标书与需求，输出功能、业务、流程澄清结果。
+2. 支持低保真原型输出，服务后续设计迭代与开发落地。
+
+## 15. 编码质量标准
+
+1. 代码应精简、高效、优雅、现代、可维护。
+2. 禁止小题大做、过度兜底、画蛇添足。
+3. 保持格式规范、注释有价值、结构可扩展。
+
+## 16. 自我改进机制
+
+1. 在每次纠正、错误与人为干预后，应沉淀处理策略并用于后续任务。
+2. 自我改进目标：更少回路、更高准确、更高交付稳定性。
+
+## 17. 可靠性（安全、测试、健壮性、文档）
+
+1. 任务必须模块化切片推进，并在切片站点执行测试与回归。
+2. 需覆盖数据与安全测试（含高压、并发、异常访问、逆向与攻击面模拟），发现问题后循环修复直至通过。
+3. 代码必须易扩展、易升级、易接手。
+4. 交付必须留下清晰、正确、可接手的说明文档，支持人和 Agent 协作。

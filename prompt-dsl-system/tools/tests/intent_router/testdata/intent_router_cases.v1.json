@@ -6,6 +6,20 @@
     "min_confidence": 0.45
   },
   {
+    "goal": "基于最新创建提示词改进 beyond-dev-ai-kit 的 prompt/DSL/skill/pipeline 套件并落地",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_kit_self_upgrade.md",
+    "min_confidence": 0.7,
+    "expect_default_module_path": "prompt-dsl-system"
+  },
+  {
+    "goal": "beyond-dev-ai-kit 以 agent 使用、主动感知、主动调用为核心，验证覆盖度完整性并做并发高压测试后升级",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_kit_self_upgrade.md",
+    "min_confidence": 0.7,
+    "expect_default_module_path": "prompt-dsl-system"
+  },
+  {
     "goal": "创建一个新的治理 skill 并更新 registry 和 baseline",
     "expect_action_kind": "pipeline",
     "expect_target_suffix": "pipeline_bugfix_min_scope_with_tree.md",
@@ -33,6 +47,18 @@
     "expect_default_module_path": "prompt-dsl-system"
   },
   {
+    "goal": "为 notice 模块生成单元测试并输出覆盖率报告",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_test_gen.md",
+    "min_confidence": 0.6
+  },
+  {
+    "goal": "对 ownercommittee 模块做安全审计并输出风险报告",
+    "expect_action_kind": "pipeline",
+    "expect_target_suffix": "pipeline_security_audit.md",
+    "min_confidence": 0.6
+  },
+  {
     "goal": "对 beyond-dev-ai-kit 做完整性验证和查漏补缺",
     "expect_action_kind": "command",
     "expect_target_suffix": "validate",
@@ -54,6 +80,12 @@
     "goal": "执行 beyond-dev-ai-kit 自升级并走严格前置校验",
     "expect_action_kind": "command",
     "expect_target_suffix": "self-upgrade",
+    "min_confidence": 0.5
+  },
+  {
+    "goal": "跑一下 beyond-dev-ai-kit 的 agent 主动能力审计",
+    "expect_action_kind": "command",
+    "expect_target_suffix": "agent-audit",
     "min_confidence": 0.5
   },
   {

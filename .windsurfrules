@@ -1,0 +1,36 @@
+# Windsurf Project Rules — beyond-dev-ai-kit
+# Windsurf reads this file automatically from the project root.
+
+## Scope
+
+This repository is **beyond-dev-ai-kit** — a governed prompt/DSL/skill/pipeline toolkit
+scoped to 博彦泓智科技（上海）有限公司 (Beyondsoft Hongzhi Technology).
+
+## Mandatory First Step
+
+Before ANY task, read and follow `AGENTS.md` at the repository root.
+It contains the auto-intent-routing protocol and boundary rules.
+
+## Intent Routing
+
+When the user gives a natural-language request without an explicit pipeline:
+1. Route: `./prompt-dsl-system/tools/run.sh intent -r . --goal "<request>"`
+2. Read JSON output for `selected.target` and `run_command`.
+3. Execute when `execution_ready=true` and `can_auto_execute=true`.
+4. If `module_path` is missing, ask the user (never guess).
+
+## Key Rules
+
+- Authority: `prompt-dsl-system/00_conventions/HONGZHI_TASK_OPERATING_REQUIREMENTS.md`
+- Constitution: 50 governance rules in `HONGZHI_COMPANY_CONSTITUTION.md`
+- Governance/meta pipelines: `-m prompt-dsl-system`
+- Business pipelines: require explicit `module_path`
+- Forbidden paths: `/sys`, `/error`, `/util`, `/vote`
+- Always validate: `./prompt-dsl-system/tools/run.sh validate -r .`
+
+## Tech Stack
+
+- Plugin: Python 3.9+, stdlib-only
+- Target projects: Java 8 / Spring Boot / MyBatis / Layui / uni-app
+- Database: Universal SQL first; Oracle + MySQL dual-stack fallback (see SQL_COMPAT_STRATEGY.md)
+- Naming: CPP_STYLE_NAMING.md

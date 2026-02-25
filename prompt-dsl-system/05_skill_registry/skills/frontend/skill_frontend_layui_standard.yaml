@@ -1,0 +1,110 @@
+name: "skill_frontend_layui_standard"
+description: "LayUI frontend template alignment and standardization. Validates page structure, JS encapsulation, API binding patterns, and consistency with authority module templates."
+version: "1.0.0"
+domain: "frontend"
+tags:
+  - "frontend"
+  - "layui"
+  - "html"
+  - "javascript"
+  - "template"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to frontend module directory."
+  - name: "reference_module"
+    type: "string"
+    required: false
+    description: "Authority module path to reference for structure alignment. Default: /vote"
+  - name: "check_scope"
+    type: "string"
+    required: false
+    enum: ["structure", "binding", "full"]
+    description: "Validation scope. Default: full."
+
+mode: "frontend"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "minimal"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+prompt_template: |
+  You are a frontend standards validator for Hongzhi company LayUI projects.
+
+  Validation checklist:
+  1. Page structure alignment:
+     - index.html (list page with layui-table)
+     - addOrUpdate.html (form page with layui-form)
+     - view.html (detail view page)
+     - Templates follow authority module ({{reference_module}}) patterns
+  2. JS encapsulation:
+     - API calls use unified request wrapper
+     - Response code check accepts system ApiResponse format (code=0)
+     - Data extraction matches PageResult structure (data.data or data.rows)
+  3. API binding:
+     - RESTful URL patterns matched to backend Controller
+     - Form field names match VO/DTO properties
+     - Dropdown data sources properly loaded
+  4. LayUI component usage:
+     - layui.use() module loading is correct
+     - Table toolbar events properly bound
+     - Form validation rules present
+  5. Naming consistency:
+     - File names follow snake_case or lowerCamel convention
+     - JS variable names are semantic English (no pinyin)
+
+  Module: {{module_path}}
+  Reference: {{reference_module}}
+  Scope: {{check_scope}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/templates/backstage/notice"
+      reference_module: "/vote"
+      check_scope: "full"
+    output:
+      summary: "Frontend validation: 5 pages checked, 2 binding issues found, structure aligned."
+      artifacts:
+        - "A1_frontend_checklist.md"
+        - "A2_change_ledger.md"
+      risks:
+        - level: "medium"
+          why: "Response code mismatch between frontend and backend"
+          impact: "Operation Failed errors"
+          mitigation: "Fix code check to accept 0"
+          rollback: "Restore previous JS files"
+      next_actions:
+        - "Fix API binding issues"
+        - "Update response code checks"

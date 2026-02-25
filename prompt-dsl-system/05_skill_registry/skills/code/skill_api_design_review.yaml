@@ -1,0 +1,107 @@
+name: "skill_api_design_review"
+description: "API design review for RESTful endpoints in Java8/Spring Boot modules. Validates URL patterns, HTTP methods, request/response contracts, pagination, error handling, and versioning."
+version: "1.0.0"
+domain: "code"
+tags:
+  - "api"
+  - "rest"
+  - "design"
+  - "java"
+  - "spring"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to the module under review."
+  - name: "target_controllers"
+    type: "array"
+    required: false
+    items: string
+    description: "Specific controller classes to review."
+
+mode: "code"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "read_only"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+decision_policy:
+  dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"]
+  choose_best_route_with_tradeoff: true
+
+prompt_template: |
+  You are an API design reviewer for Hongzhi company Java8/Spring Boot modules.
+
+  API design review checklist:
+  1. URL Pattern:
+     - RESTful resource naming (plural nouns, lowercase, hyphens)
+     - Consistent prefix per module (e.g. /api/notice, /api/committee)
+     - No verb-based URLs (use HTTP methods instead)
+  2. HTTP Methods:
+     - GET for read, POST for create, PUT for full update, DELETE for delete
+     - No GET with request body
+  3. Request/Response Contract:
+     - All endpoints return unified ApiResponse<T> wrapper
+     - Pagination uses PageResult with page/size/total
+     - Request validation via @Valid or manual checks
+  4. Error Handling:
+     - Consistent error codes (not HTTP status abuse)
+     - Error messages are user-facing safe (no stack traces)
+     - Business exceptions use framework exception hierarchy
+  5. Naming Consistency:
+     - Controller method names follow get/list/page/add/update/delete convention
+     - DTO/VO suffix matches purpose (Dto for transfer, Vo for view)
+  6. Security:
+     - @RequiresPermissions on all mutating endpoints
+     - Role-based access documented
+
+  Module: {{module_path}}
+  Controllers: {{target_controllers}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/notice"
+      target_controllers: ["NoticeController"]
+    output:
+      summary: "API review: 2 URL pattern issues, 1 missing permission, consistent response wrapper."
+      artifacts:
+        - "A1_api_review_report.md"
+      risks:
+        - level: "medium"
+          why: "POST /notice/delete uses POST instead of DELETE"
+          impact: "Non-RESTful API design"
+          mitigation: "Refactor to DELETE /notice/{id} in next iteration"
+          rollback: "N/A (read-only review)"
+      next_actions:
+        - "Standardize HTTP methods for CRUD operations"

@@ -1,0 +1,118 @@
+name: "skill_security_audit"
+description: "Security audit checklist for Java8/Spring Boot modules. Checks SQL injection, XSS, CSRF, authentication/authorization, sensitive data exposure, and dependency vulnerabilities."
+version: "1.0.0"
+domain: "security"
+tags:
+  - "security"
+  - "audit"
+  - "java"
+  - "spring"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to the module under audit."
+  - name: "audit_depth"
+    type: "string"
+    required: false
+    enum: ["surface", "standard", "deep"]
+    description: "Audit depth. Default: standard."
+  - name: "focus_areas"
+    type: "array"
+    required: false
+    items: string
+    description: "Specific areas to focus (e.g. sql_injection, auth, xss)."
+
+mode: "security"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "read_only"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+decision_policy:
+  dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"]
+  choose_best_route_with_tradeoff: true
+
+prompt_template: |
+  You are a security auditor for Hongzhi company Java8/Spring Boot modules.
+
+  Security audit checklist:
+  1. SQL Injection:
+     - Verify all MyBatis queries use #{} (parameterized), not ${} (concatenated)
+     - Check dynamic SQL fragments for user-controlled input
+     - Verify order-by / table-name params are whitelisted
+  2. XSS (Cross-Site Scripting):
+     - Check controller outputs are HTML-escaped
+     - Verify Layui/frontend templates escape user input
+     - Check file upload content-type validation
+  3. Authentication / Authorization:
+     - Verify @RequiresPermissions or equivalent on all sensitive endpoints
+     - Check role-based access control in ACT_ROLE_NODE configuration
+     - Verify session management (timeout, invalidation)
+  4. Sensitive Data Exposure:
+     - Check logs for password/token/jdbc leaks
+     - Verify API responses don't include internal IDs or stack traces
+     - Check company_profile.yaml redact_fields enforcement
+  5. CSRF Protection:
+     - Verify Spring Security CSRF token is active or explicitly disabled with justification
+  6. File Upload Security:
+     - Verify file type whitelist
+     - Check max file size limit
+     - Verify storage path is not web-accessible
+  7. Dependency Vulnerabilities:
+     - Flag known CVEs in pom.xml dependencies
+     - Check for outdated critical libraries
+
+  Module: {{module_path}}
+  Depth: {{audit_depth}}
+  Focus: {{focus_areas}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/notice"
+      audit_depth: "standard"
+    output:
+      summary: "Security audit: 2 critical (SQL injection in dynamic query), 3 medium (missing permission checks), 1 low (verbose error response)."
+      artifacts:
+        - "A1_security_audit_report.md"
+        - "A2_vulnerability_matrix.md"
+      risks:
+        - level: "critical"
+          why: "Dynamic SQL uses ${} with user input"
+          impact: "SQL injection possible"
+          mitigation: "Replace ${} with #{} and add whitelist for dynamic columns"
+          rollback: "N/A (read-only audit)"
+      next_actions:
+        - "Fix critical SQL injection issues immediately"
+        - "Add permission annotations to unprotected endpoints"

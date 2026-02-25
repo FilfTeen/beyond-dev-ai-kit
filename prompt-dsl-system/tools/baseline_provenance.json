@@ -1,10 +1,10 @@
 {
   "tool": "baseline_provenance_guard",
   "provenance_version": "1.0.0",
-  "generated_at": "2026-02-12T09:45:33+00:00",
+  "generated_at": "2026-02-25T10:29:36+00:00",
   "repo_root": ".",
   "repo_snapshot": {
-    "git_head": "e8f21f0127f2ea6fc6a255a13e7052b815b77c76",
+    "git_head": "4d394ff22b5e15a4cc6af076417a4c6789743e67",
     "git_head_available": true
   },
   "tracked": {
@@ -19,8 +19,8 @@
   "entries": [
     {
       "path": ".github/workflows/kit_guardrails.yml",
-      "sha256": "9db429fe1b7914e65e9bf170f7440e76bfa4b07704948769b654dbcc764332e4",
-      "size": 6505
+      "sha256": "f158c2d3603c872f7cdcdb32b35939c1c0381ff68ec100653c82fc6d3a542bd6",
+      "size": 7186
     },
     {
       "path": "prompt-dsl-system/00_conventions/COMPLIANCE_MATRIX.md",
@@ -29,18 +29,18 @@
     },
     {
       "path": "prompt-dsl-system/00_conventions/FACT_BASELINE.md",
-      "sha256": "575bb5b2302c277e4b92d9f1d42e80c3b4d44169bf8747eaad316f59565ce4b0",
-      "size": 43734
+      "sha256": "da582efd45c8dfb90782cb6ef782d7b0d3a2a85429ba97ccfdfcc60a47316b04",
+      "size": 45129
     },
     {
       "path": "prompt-dsl-system/00_conventions/HONGZHI_COMPANY_CONSTITUTION.md",
-      "sha256": "9f69b8d72b9ee79c3ae057e6b13ca75444ba9f403f4d834e487fbda37d452e64",
-      "size": 34050
+      "sha256": "eda37b04a00c0883aa98b57db2a0adbb01eb9b135a4e8c4d188648fcbd5e4355",
+      "size": 35439
     },
     {
       "path": "prompt-dsl-system/tools/pipeline_trust_whitelist.json",
-      "sha256": "f1b92bfa24c25024768830b386008eed86c4cfe79efc7be83cf4771df73b4187",
-      "size": 3308
+      "sha256": "8e96e965e75da199a4b0090507c69da28226e02aae913dbfc9504ecad224d238",
+      "size": 3728
     }
   ],
   "summary": {
@@ -48,7 +48,7 @@
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "f0594f5aa74a7ba33820f46e5f5ff0b2ee27489877b6863a7e9d21c0134f845b",
-    "signed_at": "2026-02-12T09:45:33+00:00"
+    "content_sha256": "40de1f61c227dcaadd510488b212d4309bce74c69e6ab43f5258e72bb62d4dbd",
+    "signed_at": "2026-02-25T10:29:36+00:00"
   }
 }

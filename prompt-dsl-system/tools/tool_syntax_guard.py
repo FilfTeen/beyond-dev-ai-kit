@@ -27,7 +27,6 @@ DEFAULT_SHELL_FILES = [
     "prompt-dsl-system/tools/run.sh",
     "prompt-dsl-system/tools/golden_path_regression.sh",
     "prompt-dsl-system/tools/contract_samples/replay_contract_samples.sh",
-    "prompt-dsl-system/tools/health_runbook.sh",
 ]
 
 

@@ -45,7 +45,13 @@ Every skill output MUST use this structure:
   - `tags[]`
   - `path` (repository-relative skill YAML path)
   - `status` (optional, default `"deployed"` for backward compatibility)
+  - `covers[]` (optional, list of skill names covered/compat-inherited by this skill)
 - Registry entries MUST map 1:1 to YAML skill files.
+
+`covers[]` usage rule:
+
+- If pipeline references `skill_A`, and `skill_A.covers` contains `skill_B`, then reference guards may treat `skill_B` as covered by that pipeline call.
+- Keep `covers[]` minimal and explicit; avoid broad wildcard-style inheritance.
 
 ## Skill Status Lifecycle
 

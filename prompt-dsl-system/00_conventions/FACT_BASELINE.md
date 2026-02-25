@@ -1,22 +1,26 @@
 # FACT BASELINE (prompt-dsl-system)
 
-Generated at: 2026-02-12 (local)
+Generated at: 2026-02-25 (local)
 Scope: `prompt-dsl-system/**`
 
 ## 1) Current Skills Baseline
 
 - Active registry file: `prompt-dsl-system/05_skill_registry/skills.json`
-- Active skills count: `6`
-- Domain distribution: `universal=1, governance=5`
+- Active skills count: `17`
+- Domain distribution: `code=3, docs=2, frontend=1, governance=5, process=1, release=1, security=1, sql=1, test=1, universal=1`
+- Skill lifecycle distribution: `deployed=17`
 - Universal/super skill status: `present`
   - `skill_hongzhi_universal_ops` (modes: sql/code/process/frontend/release/governance/docs/meta)
   - meta mode: supports template-based skill creation + progressive disclosure
-- Governance plugin skills:
+- Core deployed governance skills:
   - `skill_governance_plugin_discover` (deployed)
   - `skill_governance_plugin_runner` (deployed, contract v4-aware)
   - `skill_governance_plugin_status` (deployed, governance preflight only)
   - `skill_governance_plugin_discover_with_hints` (deployed, hint-loop aware discover orchestration)
   - `skill_governance_audit_kit_quality` (deployed, kit quality scorecard and upgrade recommendation bridge)
+- Newly added skills (v1.2.0):
+  - deployed: `skill_test_gen`, `skill_security_audit`, `skill_api_design_review`, `skill_performance_analysis`, `skill_docs_i18n`
+  - deployed (migration batch): `skill_code_review_checklist`, `skill_sql_dual_stack_delivery`, `skill_frontend_layui_standard`, `skill_process_activiti_node_audit`, `skill_release_preflight_checklist`, `skill_docs_module_readme_gen`
 - Skill templates: `prompt-dsl-system/05_skill_registry/templates/skill_template/`
   - Files: `skill.yaml.template`, `references/README.template`, `scripts/README.template`, `assets/README.template`
 - Deprecated skills status:
@@ -25,20 +29,22 @@ Scope: `prompt-dsl-system/**`
 
 ## 2) Current Pipelines Baseline
 
-- Pipeline files (`pipeline_*.md`) count: `13`
-- `pipeline_sql_oracle_to_dm8.md`: `4` steps, all reference `skill_hongzhi_universal_ops`
-- `pipeline_ownercommittee_audit_fix.md`: `5` steps, all reference `skill_hongzhi_universal_ops`
-- `pipeline_bpmn_state_audit_testgen.md`: `5` steps, all reference `skill_hongzhi_universal_ops`
-- `pipeline_db_delivery_batch_and_runbook.md`: `3` steps, all reference `skill_hongzhi_universal_ops`
-- `pipeline_bugfix_min_scope_with_tree.md`: `4` steps, all reference `skill_hongzhi_universal_ops`
+- Pipeline files (`pipeline_*.md`) count: `15`
+- `pipeline_sql_oracle_to_dm8.md`: `4` steps, references `skill_hongzhi_universal_ops` + `skill_sql_dual_stack_delivery` + `skill_performance_analysis`
+- `pipeline_ownercommittee_audit_fix.md`: `5` steps, references `skill_hongzhi_universal_ops` + `skill_docs_i18n`
+- `pipeline_bpmn_state_audit_testgen.md`: `4` steps, references `skill_hongzhi_universal_ops` + `skill_process_activiti_node_audit`
+- `pipeline_db_delivery_batch_and_runbook.md`: `3` steps, references `skill_hongzhi_universal_ops` + `skill_release_preflight_checklist`
+- `pipeline_bugfix_min_scope_with_tree.md`: `4` steps, references `skill_hongzhi_universal_ops` + `skill_code_review_checklist` + `skill_docs_module_readme_gen`
 - `pipeline_skill_creator.md`: `5` steps, all reference `skill_hongzhi_universal_ops` (modes: governance/meta/meta/meta/docs)
 - `pipeline_project_bootstrap.md`: `5` steps, all reference `skill_hongzhi_universal_ops` — batch skill generation + profile input
 - `pipeline_skill_promote.md`: `3` steps, all reference `skill_hongzhi_universal_ops` — staging→deployed promotion + mandatory ledger
 - `pipeline_module_migration.md`: `7` steps (Step0–Step5 + acceptance), all reference `skill_hongzhi_universal_ops` — single-module migration assembly line + materialize_skills switch + Step0 auto-discovery
 - `pipeline_plugin_discover.md`: `3` steps (status → decide → discover hard gate), references `skill_governance_plugin_status` + `skill_governance_plugin_runner`
 - `pipeline_project_stack_bootstrap.md`: `4` steps, all reference `skill_hongzhi_universal_ops` — project stack KB bootstrap (declared/discovered + evidence + closure)
-- `pipeline_requirement_to_prototype.md`: `4` steps, all reference `skill_hongzhi_universal_ops` — PM链路（需求澄清→流程切片→原型）
+- `pipeline_requirement_to_prototype.md`: `4` steps, references `skill_hongzhi_universal_ops` + `skill_api_design_review` + `skill_frontend_layui_standard` — PM链路（需求澄清→流程切片→原型）
 - `pipeline_kit_self_upgrade.md`: `4` steps, references `skill_governance_audit_kit_quality` + `skill_hongzhi_universal_ops` — kit 主线升级前质量评分与改造闭环
+- `pipeline_test_gen.md`: `3` steps, references `skill_test_gen` + `skill_hongzhi_universal_ops` — 测试生成与覆盖率验证闭环
+- `pipeline_security_audit.md`: `3` steps, references `skill_security_audit` + `skill_hongzhi_universal_ops` — 安全审计与风险报告闭环
 
 ## 3) Current Tools Boundary
 
@@ -55,14 +61,14 @@ Scope: `prompt-dsl-system/**`
 - `ops_guard.py`: module boundary + forbidden-path + loop-risk + VCS metadata strict check (HONGZHI_GUARD_REQUIRE_VCS) + multi-path + ignore patterns
 - `skill_template_audit.py`: post-validate audit (placeholder + schema + registry↔fs consistency + --scope + --fail-on-empty)
 - `pipeline_contract_lint.py`: post-validate lint (module_root + NavIndex + --fail-on-empty + profile template check + strict TODO reject + identity hints)
-- `golden_path_regression.sh`: end-to-end regression (169 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics + Phase28 profile_delta hint assetization/verification/scope gating/index gating + Phase29 federated index write/query/explain/scope gating/zero-write governance + Phase30 zero-touch/status-index, full snapshot guard, policy parse fail-closed, machine-path safety, jsonl concurrency, IO stats stability, composed endpoint extraction, hint effectiveness + Phase31 unified scan graph/cross-command reuse/mismatch gate + Phase32 schema/versioned scan-graph + mismatch reason + machine-line json + default hot-reuse/no-rescan + governance zero-write + full snapshot/limits decoupling guard + Phase33 machine-json roundtrip/no-newline + deterministic artifacts/candidates ordering + mismatch enum/suggestion + read-command zero-touch probe guard + Phase34 contract schema v1/v2 + validator + additive guard + Phase35 company scope gate + governance skill lifecycle convergence + Phase36 strict self-upgrade preflight + contract sample replay + A3 template baseline + Phase37 validate default post-gates + Phase38 health_report post-gate section + Phase39 runbook post-gate fail-first + Phase40 selfcheck quality threshold gate + Phase41 selfcheck dimension contract gate + Phase42 selfcheck freshness gate + Phase43 kit integrity manifest gate + Phase44 pipeline trust whitelist gate + Phase45 baseline signature gate + Phase46 dual approval gate + Phase47 CI workflow gate + Phase48 HMAC strict smoke gate + Phase49 CI baseline proof/fuzz/governance+syntax+coverage + shard report/summary contract gate check + Phase50 fuzz robustness gate + Phase51 governance consistency gate + Phase52 tool syntax gate + Phase53 pipeline trust coverage gate + Phase54 baseline provenance gate + Phase55 mutation-resilience gate + Phase56 performance budget gate + concurrent mutation stress + trend regression block)
+- `golden_path_regression.sh`: end-to-end regression (172 checks: Phase1-8 core + Phase9-14 discovery + Phase15-19 plugin runner/governance + Phase20-22 capability registry/smart reuse/no-state-write + Phase23 packaging/contract v4 + uninstalled install-hint check + Phase24 release build/version triplet/gitignore/governance no-write guard + Phase25 token TTL/scope/symlink/limits/capability-index-gating/pipeline-decision chain + Phase26 calibration low-confidence/strict-exit21/workspace artifacts/capability fields + Phase27 hint loop/layout adapters/reuse validation/governance zero-write/index hint metrics + Phase28 profile_delta hint assetization/verification/scope gating/index gating + Phase29 federated index write/query/explain/scope gating/zero-write governance + Phase30 zero-touch/status-index, full snapshot guard, policy parse fail-closed, machine-path safety, jsonl concurrency, IO stats stability, composed endpoint extraction, hint effectiveness + Phase31 unified scan graph/cross-command reuse/mismatch gate + Phase32 schema/versioned scan-graph + mismatch reason + machine-line json + default hot-reuse/no-rescan + governance zero-write + full snapshot/limits decoupling guard + Phase33 machine-json roundtrip/no-newline + deterministic artifacts/candidates ordering + mismatch enum/suggestion + read-command zero-touch probe guard + Phase34 contract schema v1/v2 + validator + additive guard + Phase35 company scope gate + governance skill lifecycle convergence + Phase36 strict self-upgrade preflight + contract sample replay + A3 template baseline + Phase37 validate default post-gates + Phase38 health_report post-gate section + Phase39 runbook post-gate fail-first + Phase40 selfcheck quality threshold gate + Phase41 selfcheck dimension contract gate + Phase42 selfcheck freshness gate + Phase43 kit integrity manifest gate + Phase44 pipeline trust whitelist gate + Phase45 baseline signature gate + Phase46 dual approval gate + Phase47 CI workflow gate + Phase48 HMAC strict smoke gate + Phase49 CI baseline proof/fuzz/governance+syntax+coverage + shard report/summary contract gate check + Phase50 fuzz robustness gate + Phase51 governance consistency gate + Phase52 tool syntax gate + Phase53 pipeline trust coverage gate + Phase54 baseline provenance gate + Phase55 mutation-resilience gate + Phase56 performance budget gate + concurrent mutation stress + trend regression block)
 - `module_profile_scanner.py`: generates discovered profile (Layer2) — scanning + grep + fingerprint + multi-root + concurrent + incremental + `--out-root`/`--read-only`/`--workspace-root`
 - `module_roots_discover.py`: auto-discovers module roots from identity hints + structure fallback + optional `--module-key` (auto-discover) + `--out-root`/`--read-only` (Layer2R)
 - `structure_discover.py` v2: auto-identifies module structure — endpoint v2, per-file incremental cache, `--out-root`/`--read-only`/`--workspace-root` (Layer2S)
 - `cross_project_structure_diff.py` v2: compares endpoint signatures, reports added/removed/changed, `--read-only`
 - `auto_module_discover.py`: discovers module candidates without `--module-key` — package prefix clustering, scoring, top-k, `--read-only`
 - `project_stack_scanner.py`: scans target repository and outputs `project_stacks/<project_key>/stack_profile.discovered.yaml` with machine-verifiable evidence list
-- `kit_selfcheck.py`: outputs toolkit quality scorecards (`kit_selfcheck_report.json` + `.md`) across 7 dimensions with missing-path recommendations
+- `kit_selfcheck.py`: outputs toolkit quality scorecards (`kit_selfcheck_report.json` + `.md`) across 8 dimensions with missing-path recommendations
   - machine signal: `KIT_CAPS <abs_json_path> path="..." json='...'`
 - `kit_selfcheck_gate.py`: enforces strict self-upgrade quality + dimension contract from selfcheck report (`overall_score`, `overall_level`, `low_dimensions`, `required_dimensions`, `summary.dimension_count`)
 - `kit_selfcheck_freshness_gate.py`: enforces strict self-upgrade selfcheck freshness and repo/head consistency (`generated_at`, `repo_root`, `repo_snapshot.git_head`)
@@ -75,6 +81,8 @@ Scope: `prompt-dsl-system/**`
 - `tool_syntax_guard.py`: validates python/shell syntax for core toolkit scripts
 - `gate_mutation_guard.py`: validates mutation-resilience of critical governance gates
 - `performance_budget_guard.py`: validates runtime performance budgets for core governance gates
+- `docs_facts_guard.py`: validates README + FACT_BASELINE key counters against source-of-truth (skills/pipelines/lifecycle/golden checks)
+- `deployed_skill_ref_guard.py`: validates every deployed skill is referenced by at least one pipeline YAML `skill:` call
 - `kit_dual_approval_guard.py`: enforces dual-approval evidence for baseline changes (fingerprint + required distinct approvers)
 - `baseline_dual_approval.template.json`: baseline change approval evidence template
 - `baseline_provenance.json`: machine-verifiable provenance baseline for governance assets
@@ -87,7 +95,7 @@ Scope: `prompt-dsl-system/**`
 - `tools/artifacts/templates/kit_self_upgrade/`: A3 closure templates (`change_ledger`, `rollback_plan`, `cleanup_report`)
 - `kit_self_upgrade_template_guard.py`: validates A3 template existence + required sections/placeholders
 - `health_post_validate_sync.py`: syncs validate post-gate summary into `health_report` JSON/Markdown section
-- `.github/workflows/kit_guardrails.yml`: CI mandatory gate workflow (`validate` + `golden_path_regression` + baseline diff dual approval + hmac/fuzz + governance-consistency + tool-syntax + trust-coverage + provenance + mutation + performance gates)
+- `.github/workflows/kit_guardrails.yml`: CI mandatory gate workflow (baseline rebuild + baseline diff dual approval + hmac/fuzz + governance-consistency + tool-syntax + trust-coverage + provenance + mutation + performance + docs-facts + deployed-skill-ref gates + `validate` + `golden_path_regression`)
 - `hongzhi_plugin.py`: v4 contract-capable runner — discover/diff/profile/migrate/status/clean, snapshot-diff read-only contract, governance (enabled/deny/allow/token), smart incremental, capability registry, `HONGZHI_CAPS` line, capabilities.jsonl journal
 - `calibration_engine.py`: lightweight calibration layer for discover confidence, reasons enum, and workspace-only hint/report artifacts
 - `layout_adapters.py`: layout adapters v1 for multi-module/non-standard Java root detection and roots mapping
@@ -312,7 +320,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Endpoint extraction hardening:
   - `structure_discover.py` gains composed-annotation/symbolic path fallback; symbolic signals persisted in structure output.
 
-## 17) Unified Scan Graph & Cross-Command Reuse (R25)
+## 18) Unified Scan Graph & Cross-Command Reuse (R25)
 
 - Added `scan_graph.py` as a reusable scan middle layer:
   - output: workspace `scan_graph.json`
@@ -327,7 +335,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Strict consistency guard:
   - scan graph spot-check mismatch in strict mode exits `25` (`exit_hint=scan_graph_mismatch`)
 
-## 18) Additive Contract & Scan Graph Explainability (R26)
+## 19) Additive Contract & Scan Graph Explainability (R26)
 
 - Scan graph contract is versioned and auditable:
   - `schema_version` (v1.1 additive field)
@@ -350,7 +358,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - `profile`/`diff` can auto-locate latest discover scan graph even if latest pointer was updated by non-discover run.
   - hot reuse emits command-local no-rescan counters (`java_files_indexed=0`, `bytes_read=0`) while preserving source stats additively.
 
-## 19) Machine JSON Roundtrip & Deterministic Output (R27)
+## 20) Machine JSON Roundtrip & Deterministic Output (R27)
 
 - Machine-line additive JSON payload contract is now roundtrip-safe:
   - single-line payload
@@ -372,7 +380,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - `mismatch_detail`
   - `mismatch_suggestion` (short remediation guidance)
 
-## 20) Company Scope Gate & Skills Lifecycle Convergence (R29)
+## 21) Company Scope Gate & Skills Lifecycle Convergence (R29)
 
 - Governance plugin skills lifecycle converged to deployed state:
   - `skill_governance_plugin_discover`
@@ -390,7 +398,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Regression hardening:
   - Phase35 validates lifecycle convergence, company scope machine fields, mismatch block semantics, and mismatch-path zero-write.
 
-## 21) Kit Strict Self-Upgrade + Contract v2 Compatibility (R39/R40)
+## 22) Kit Strict Self-Upgrade + Contract v2 Compatibility (R39/R40)
 
 - `run.sh` strict self-upgrade preflight chain is available:
   - `selfcheck -> contract_validator -> selfcheck_gate -> selfcheck_freshness -> kit_integrity -> pipeline_trust -> pipeline_contract_lint -> skill_template_audit -> validate(strict)`
@@ -406,7 +414,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - strategy document: `CONTRACT_COMPATIBILITY_STRATEGY.md`.
   - policy: schema upgrades are additive-only unless explicit migration approval exists.
 
-## 22) Self-Upgrade Templates & Contract Replay Baseline (R41)
+## 23) Self-Upgrade Templates & Contract Replay Baseline (R41)
 
 - Closure templates are standardized for kit self-upgrade:
   - `tools/artifacts/templates/kit_self_upgrade/A3_change_ledger.template.md`
@@ -420,7 +428,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase36 validates contract sample replay.
   - Phase36 validates A3 template baseline presence.
 
-## 23) Validate Default Post-Gates (R42)
+## 24) Validate Default Post-Gates (R42)
 
 - `run.sh validate` now runs post-gates after core validate/audit/lint:
   1. `contract_samples/replay_contract_samples.sh`
@@ -433,7 +441,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
     - `[contract_replay] PASS`
     - `[template_guard] PASS`
 
-## 24) Health Report Post-Gate Section (R43)
+## 25) Health Report Post-Gate Section (R43)
 
 - Validate chain now writes a dedicated `post_validate_gates` section into:
   - `health_report.json`
@@ -447,7 +455,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Regression hardening:
   - Phase38 validates health report JSON section and markdown section markers.
 
-## 25) Strict Selfcheck Quality Threshold Gate (R44)
+## 26) Strict Selfcheck Quality Threshold Gate (R44)
 
 - Strict preflight now enforces quality thresholds from selfcheck report before lint/audit/validate.
 - Default thresholds:
@@ -462,7 +470,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase40 validates low-quality report is blocked.
   - Phase40 validates high-quality report is accepted.
 
-## 26) Strict Selfcheck Dimension Contract Gate (R45)
+## 27) Strict Selfcheck Dimension Contract Gate (R45)
 
 - Strict preflight now validates selfcheck dimension contract:
   - required dimensions set must be complete
@@ -475,7 +483,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase41 validates missing required dimensions are blocked.
   - Phase41 validates summary dimension count mismatch is blocked.
 
-## 27) Strict Selfcheck Freshness Gate (R46)
+## 28) Strict Selfcheck Freshness Gate (R46)
 
 - Strict preflight now validates selfcheck report freshness and repo snapshot consistency:
   - `generated_at` must be within max age window
@@ -488,7 +496,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase42 validates stale selfcheck report is blocked.
   - Phase42 validates fresh selfcheck report is accepted.
 
-## 28) Kit Integrity Manifest Gate (R47)
+## 29) Kit Integrity Manifest Gate (R47)
 
 - Strict preflight now validates critical-asset supply-chain integrity:
   - core tracked files hash (`sha256`) must match manifest
@@ -503,7 +511,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase43 validates baseline manifest verify pass.
   - Phase43 validates hash mismatch is blocked.
 
-## 29) Pipeline Trust Whitelist Gate (R48)
+## 30) Pipeline Trust Whitelist Gate (R48)
 
 - Pipeline execution now requires trust whitelist (`path + sha256 + status`) validation:
   - strict self-upgrade preflight gate (`run.sh`)
@@ -521,7 +529,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase44 validates hash mismatch is blocked.
   - Phase44 validates runner blocks untrusted pipeline.
 
-## 30) Baseline Signature Tamper-Evident Gate (R49)
+## 31) Baseline Signature Tamper-Evident Gate (R49)
 
 - Integrity/trust baselines now include embedded `signature` block and fail on signature drift:
   - `signature.scheme` (`sha256` or `hmac-sha256`)
@@ -536,7 +544,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase45 validates integrity manifest signature mismatch is blocked.
   - Phase45 validates trust whitelist signature mismatch is blocked.
 
-## 31) CI Mandatory Validate + Golden Gates (R50)
+## 32) CI Mandatory Validate + Golden Gates (R50)
 
 - CI baseline workflow is now mandatory:
   - `./prompt-dsl-system/tools/run.sh validate -r .`
@@ -547,7 +555,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase47 validates workflow file exists.
   - Phase47 validates workflow enforces both validate and golden commands.
 
-## 32) Dual-Approval Baseline Gate (R51)
+## 33) Dual-Approval Baseline Gate (R51)
 
 - Optional dual-approval mode now blocks baseline changes unless approval evidence matches current change fingerprint.
 - Approval evidence requirements:
@@ -567,7 +575,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase46 validates changed baseline without approval is blocked.
   - Phase46 validates matching fingerprint + two approvers passes.
 
-## 33) Strict HMAC Baseline Smoke Gate (R52)
+## 34) Strict HMAC Baseline Smoke Gate (R52)
 
 - Added strict-HMAC smoke suite to guarantee `require_hmac=true` readiness:
   - build HMAC-signed manifest/whitelist
@@ -582,7 +590,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase48 validates strict HMAC smoke pass.
   - Phase48 validates HMAC smoke report contract.
 
-## 34) CI Baseline Diff Dual-Approval Proof (R53)
+## 35) CI Baseline Diff Dual-Approval Proof (R53)
 
 - CI workflow now enforces dual-approval proof only when baseline files changed in compared diff range.
 - Compared files:
@@ -593,7 +601,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Regression hardening:
   - Phase49 validates CI workflow includes baseline diff dual-approval proof and shard report/summary contract guard.
 
-## 35) Baseline Signing Key Governance (R54)
+## 36) Baseline Signing Key Governance (R54)
 
 - Added explicit signing key governance policy:
   - key rotation cadence
@@ -604,7 +612,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
 - Governance requirement:
   - no raw signing key values committed in repository.
 
-## 36) Parser/Contract Fuzz Robustness Gate (R55)
+## 37) Parser/Contract Fuzz Robustness Gate (R55)
 
 - Added deterministic fuzz gate for:
   - pipeline parser (`extract_yaml_blocks` + `parse_yaml_step_block`)
@@ -617,7 +625,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase50 validates fuzz gate pass.
   - Phase50 validates fuzz report contract (`crash_total=0`, `structural_violations=0`).
 
-## 37) Governance Document Consistency Gate (R56)
+## 38) Governance Document Consistency Gate (R56)
 
 - Added governance consistency guard for constitution/compliance/fact chain:
   - compliance matrix `Rxx` continuity + title max alignment
@@ -633,7 +641,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase51 validates governance consistency pass.
   - Phase51 validates governance consistency report contract.
 
-## 38) Tool Syntax Gate (R57)
+## 39) Tool Syntax Gate (R57)
 
 - Added syntax guard for core toolkit scripts:
   - python compile check (`py_compile`)
@@ -648,7 +656,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase52 validates syntax gate pass.
   - Phase52 validates syntax gate report contract.
 
-## 39) Pipeline Trust Full-Coverage Gate (R58)
+## 40) Pipeline Trust Full-Coverage Gate (R58)
 
 - Added trust coverage guard to verify whitelist quality for all pipeline files:
   - per-pipeline entry existence + active status + hash alignment
@@ -666,7 +674,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase53 validates trust coverage report contract.
   - Phase53 validates direct runner blocks non-selected pipeline hash drift.
 
-## 40) Baseline Provenance Attestation Gate (R59)
+## 41) Baseline Provenance Attestation Gate (R59)
 
 - Added provenance attestation gate for critical governance baseline assets:
   - tracked file hash consistency
@@ -685,7 +693,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase54 validates provenance gate pass.
   - Phase54 validates provenance hash mismatch is blocked.
 
-## 41) Mutation Resilience Gate (R60)
+## 42) Mutation Resilience Gate (R60)
 
 - Added deterministic mutation-resilience guard for critical governance gates:
   - integrity manifest tamper mutation
@@ -703,7 +711,7 @@ Note: the 15 points below are mapped from the user-provided original requirement
   - Phase55 validates mutation guard report contract.
   - Phase55 validates concurrent mutation guard runs pass without temp-file race.
 
-## 42) Performance Budget Gate (R61)
+## 43) Performance Budget Gate (R61)
 
 - Added runtime budget gate for core governance checks:
   - `kit_selfcheck`

@@ -59,6 +59,13 @@ def make_goal(rng: random.Random, idx: int) -> str:
         "修复",
         "改进",
         "模块",
+        "agent",
+        "主动感知",
+        "主动调用",
+        "覆盖度",
+        "完整性",
+        "并发",
+        "高压",
         "ownercommittee",
         "self-upgrade",
         "validate",
@@ -79,6 +86,8 @@ def make_goal(rng: random.Random, idx: int) -> str:
         return f"执行 beyond-dev-ai-kit 自升级并走严格前置校验 {noise}"
     if mode == 2:
         return f"修复 ownercommittee 模块状态流转问题，最小改动 {noise}"
+    if mode == 8:
+        return f"beyond-dev-ai-kit 以 agent 使用、主动感知、主动调用为核心，验证覆盖度完整性并做并发高压测试后升级 {noise}"
     if mode == 3:
         return f"module_path=\"/tmp/mod_{idx}\" 修复接口错误 {noise}"
     if mode == 4:

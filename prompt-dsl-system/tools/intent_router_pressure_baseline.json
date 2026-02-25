@@ -1,0 +1,17 @@
+{
+  "single_thread_calls": 12000,
+  "single_thread_errors": 0,
+  "single_thread_latency_ms": {
+    "p50": 1.345,
+    "p95": 1.744,
+    "p99": 2.095,
+    "max": 116.265
+  },
+  "concurrent_calls": 16000,
+  "concurrency": 48,
+  "concurrent_seconds": 40.155,
+  "concurrent_errors": 0,
+  "long_input_ms": 10.974,
+  "long_input_ok": true,
+  "seed": 20260213
+}
