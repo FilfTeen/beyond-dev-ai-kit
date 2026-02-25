@@ -3198,10 +3198,10 @@ if [ -f "$RUN_WRAPPER" ] && [ -d "$REPO_ROOT/prompt-dsl-system" ]; then
   set -e
   printf '%s\n' "$P36_OUT" > "$REGRESSION_TMP/phase36_self_upgrade.log"
   if [ "$P36_RC" -eq 0 ] && \
-     echo "$P36_OUT" | grep -q 'cmd_alias=self-upgrade->run' && \
-     echo "$P36_OUT" | grep -q '\[hongzhi\]\[self-upgrade\]\[strict\] preflight PASS' && \
-     echo "$P36_OUT" | grep -q '\[selfcheck_gate\] PASS' && \
-     echo "$P36_OUT" | grep -q '^CONTRACT_OK=1 '; then
+     [[ "$P36_OUT" == *"cmd_alias=self-upgrade->run"* ]] && \
+     [[ "$P36_OUT" == *"[hongzhi][self-upgrade][strict] preflight PASS"* ]] && \
+     [[ "$P36_OUT" == *"[selfcheck_gate] PASS"* ]] && \
+     [[ "$P36_OUT" == *"CONTRACT_OK=1 "* ]]; then
     check "Phase36:self_upgrade_strict_preflight_on_temp_repo" "PASS"
   else
     check "Phase36:self_upgrade_strict_preflight_on_temp_repo" "FAIL"
@@ -3260,13 +3260,13 @@ if [ -f "$RUN_WRAPPER" ] && [ -d "$REPO_ROOT/prompt-dsl-system" ]; then
   set -e
   printf '%s\n' "$P37_OUT" > "$REGRESSION_TMP/phase37_validate.log"
 
-  if [ "$P37_RC" -eq 0 ] && echo "$P37_OUT" | grep -q '\[contract_replay\] PASS'; then
+  if [[ "$P37_OUT" == *"[contract_replay] PASS"* ]]; then
     check "Phase37:validate_runs_contract_sample_replay" "PASS"
   else
     check "Phase37:validate_runs_contract_sample_replay" "FAIL"
   fi
 
-  if [ "$P37_RC" -eq 0 ] && echo "$P37_OUT" | grep -q '\[template_guard\] PASS'; then
+  if [[ "$P37_OUT" == *"[template_guard] PASS"* ]]; then
     check "Phase37:validate_runs_template_guard" "PASS"
   else
     check "Phase37:validate_runs_template_guard" "FAIL"
@@ -3439,7 +3439,7 @@ JSON
   "summary": {
     "overall_score": 0.95,
     "overall_level": "high",
-    "dimension_count": 7
+    "dimension_count": 8
   },
   "dimensions": {
     "generality": {"score": 1.0, "level": "high"},
@@ -3448,7 +3448,8 @@ JSON
     "efficiency": {"score": 0.9, "level": "high"},
     "extensibility": {"score": 0.9, "level": "high"},
     "security_governance": {"score": 0.9, "level": "high"},
-    "kit_mainline_focus": {"score": 0.9, "level": "high"}
+    "kit_mainline_focus": {"score": 0.9, "level": "high"},
+    "agent_active_ops": {"score": 0.9, "level": "high"}
   }
 }
 JSON
@@ -3658,7 +3659,7 @@ if [ -f "$KIT_INTEGRITY" ] && [ -f "$P43_MANIFEST" ]; then
   P43_PASS_RC=$?
   set -e
   printf '%s\n' "$P43_OUT_PASS" > "$REGRESSION_TMP/phase43_integrity_pass.log"
-  if [ "$P43_PASS_RC" -eq 0 ] && echo "$P43_OUT_PASS" | grep -q '\[kit_integrity\] PASS'; then
+  if [ "$P43_PASS_RC" -eq 0 ] && [[ "$P43_OUT_PASS" == *"[kit_integrity] PASS"* ]]; then
     check "Phase43:kit_integrity_accepts_manifest_baseline" "PASS"
   else
     check "Phase43:kit_integrity_accepts_manifest_baseline" "FAIL"
@@ -4473,6 +4474,90 @@ else
   check "Phase56:performance_guard_pass" "FAIL"
   check "Phase56:performance_guard_report_contract" "FAIL"
   check "Phase56:performance_trend_regression_block" "FAIL"
+fi
+
+# ─── Phase 57: intent router Chinese specialized probes ───
+echo "[phase 57] intent_router_cn_specialized_probes"
+INTENT_ROUTER_SCRIPT="$SCRIPT_DIR/intent_router.py"
+if [ -f "$INTENT_ROUTER_SCRIPT" ]; then
+  set +e
+  P57_TEST_OUT=$("$PYTHON_BIN" "$INTENT_ROUTER_SCRIPT" \
+    --repo-root "$REPO_ROOT" \
+    --goal "为 notice 模块生成单元测试并输出覆盖率报告" 2>/dev/null)
+  P57_TEST_RC=$?
+  set -e
+  P57_TEST_OK=0
+  if [ "$P57_TEST_RC" -eq 0 ]; then
+    P57_TEST_OK=$("$PYTHON_BIN" - "$P57_TEST_OUT" <<'PY'
+import json
+import sys
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    print("0")
+    raise SystemExit(0)
+selected = data.get("selected", {}) if isinstance(data.get("selected"), dict) else {}
+target = str(selected.get("target", ""))
+mode = str(selected.get("selection_mode", ""))
+print("1" if target.endswith("pipeline_test_gen.md") and mode == "specialized_pipeline" else "0")
+PY
+)
+  fi
+  [ "$P57_TEST_OK" = "1" ] && check "Phase57:intent_routes_cn_test_gen" "PASS" || check "Phase57:intent_routes_cn_test_gen" "FAIL"
+
+  set +e
+  P57_SEC_OUT=$("$PYTHON_BIN" "$INTENT_ROUTER_SCRIPT" \
+    --repo-root "$REPO_ROOT" \
+    --goal "对 ownercommittee 模块做安全审计并输出风险报告" 2>/dev/null)
+  P57_SEC_RC=$?
+  set -e
+  P57_SEC_OK=0
+  if [ "$P57_SEC_RC" -eq 0 ]; then
+    P57_SEC_OK=$("$PYTHON_BIN" - "$P57_SEC_OUT" <<'PY'
+import json
+import sys
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    print("0")
+    raise SystemExit(0)
+selected = data.get("selected", {}) if isinstance(data.get("selected"), dict) else {}
+target = str(selected.get("target", ""))
+mode = str(selected.get("selection_mode", ""))
+print("1" if target.endswith("pipeline_security_audit.md") and mode == "specialized_pipeline" else "0")
+PY
+)
+  fi
+  [ "$P57_SEC_OK" = "1" ] && check "Phase57:intent_routes_cn_security_audit" "PASS" || check "Phase57:intent_routes_cn_security_audit" "FAIL"
+
+  set +e
+  P57_KIT_OUT=$("$PYTHON_BIN" "$INTENT_ROUTER_SCRIPT" \
+    --repo-root "$REPO_ROOT" \
+    --goal "基于最新创建提示词改进 beyond-dev-ai-kit 的 prompt/DSL/skill/pipeline 套件并落地" 2>/dev/null)
+  P57_KIT_RC=$?
+  set -e
+  P57_KIT_OK=0
+  if [ "$P57_KIT_RC" -eq 0 ]; then
+    P57_KIT_OK=$("$PYTHON_BIN" - "$P57_KIT_OUT" <<'PY'
+import json
+import sys
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    print("0")
+    raise SystemExit(0)
+selected = data.get("selected", {}) if isinstance(data.get("selected"), dict) else {}
+target = str(selected.get("target", ""))
+mode = str(selected.get("selection_mode", ""))
+print("1" if target.endswith("pipeline_kit_self_upgrade.md") and mode == "kit_self_upgrade_priority" else "0")
+PY
+)
+  fi
+  [ "$P57_KIT_OK" = "1" ] && check "Phase57:intent_routes_kit_self_upgrade_priority" "PASS" || check "Phase57:intent_routes_kit_self_upgrade_priority" "FAIL"
+else
+  check "Phase57:intent_routes_cn_test_gen" "FAIL"
+  check "Phase57:intent_routes_cn_security_audit" "FAIL"
+  check "Phase57:intent_routes_kit_self_upgrade_priority" "FAIL"
 fi
 
 

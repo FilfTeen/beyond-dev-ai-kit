@@ -2,10 +2,10 @@
 """Natural-language router with scan-first adaptive strategy.
 
 Design goals:
-1) Avoid hard-coded specialized pipeline routing.
-2) Prefer one generic adaptive pipeline for non-explicit requests.
+1) Keep scan-first adaptive routing for most non-explicit requests.
+2) Support one deterministic exception for kit self-evolution intents.
 3) Scan available pipelines for evidence and report top candidates.
-4) Use specialized pipeline only when user explicitly names it.
+4) Use explicit pipeline path/name with highest priority when provided.
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 PIPELINE_DIR = Path("prompt-dsl-system/04_ai_pipeline_orchestration")
 RUN_SH = Path("prompt-dsl-system/tools/run.sh")
 GENERIC_FALLBACK_PIPELINE = "pipeline_bugfix_min_scope_with_tree.md"
+KIT_SELF_UPGRADE_PIPELINE = "pipeline_kit_self_upgrade.md"
 
 _TEXT_SPLIT_RE = re.compile(r"[^a-z0-9\u4e00-\u9fff./_-]+")
 _PIPELINE_PATH_RE = re.compile(
@@ -47,12 +48,38 @@ _ALIASES = (
     ("自升级", "self upgrade"),
     ("自检", "selfcheck"),
     ("查漏补缺", "validate"),
+    ("单元测试", "unit test"),
+    ("测试生成", "test generation"),
+    ("测试用例", "test case"),
+    ("安全审计", "security audit"),
+    ("风险报告", "risk report"),
     ("业主委员会", "ownercommittee"),
     ("业委会", "ownercommittee"),
     ("自然语言", "nl"),
 )
 
 _GENERIC_PIPELINE_NAME_HINTS = ("bugfix", "generic", "universal", "adaptive")
+_LOW_SIGNAL_TOKENS = {
+    "对",
+    "请",
+    "并",
+    "和",
+    "与",
+    "把",
+    "将",
+    "做",
+    "给",
+    "为",
+    "了",
+    "的",
+    "及",
+    "在",
+    "按",
+    "to",
+    "for",
+    "and",
+    "the",
+}
 
 
 @dataclass(frozen=True)
@@ -83,7 +110,27 @@ class RankedPipeline:
     matched: Tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class SpecializedPipelineRule:
+    pipeline_name: str
+    description: str
+    groups: Tuple[Tuple[str, ...], ...]
+    min_hits: int = 2
+    weight: int = 4
+
+
 COMMAND_RULES: Tuple[CommandRule, ...] = (
+    CommandRule(
+        key="agent_audit",
+        target="agent-audit",
+        description="Run agent capability coverage and pressure efficiency audit.",
+        groups=(
+            ("agent audit", "agent-audit", "能力审计", "主动能力审计"),
+            ("agent", "beyond-dev-ai-kit", "kit", "套件"),
+        ),
+        min_hits=2,
+        weight=6,
+    ),
     CommandRule(
         key="self_upgrade",
         target="self-upgrade",
@@ -121,6 +168,26 @@ COMMAND_RULES: Tuple[CommandRule, ...] = (
 )
 
 
+SPECIALIZED_PIPELINE_RULES: Tuple[SpecializedPipelineRule, ...] = (
+    SpecializedPipelineRule(
+        pipeline_name="pipeline_test_gen",
+        description="Test generation intent detected; route to test generation pipeline.",
+        groups=(
+            ("test", "unit test", "测试", "junit", "mockito", "coverage", "覆盖率"),
+            ("generate", "generation", "生成", "test case", "用例", "编写"),
+        ),
+    ),
+    SpecializedPipelineRule(
+        pipeline_name="pipeline_security_audit",
+        description="Security audit intent detected; route to security audit pipeline.",
+        groups=(
+            ("security", "audit", "安全", "审计", "漏洞", "注入", "xss", "csrf", "auth"),
+            ("risk", "风险", "report", "报告", "整改", "修复计划"),
+        ),
+    ),
+)
+
+
 def normalize_text(text: str) -> str:
     out = text.strip().lower()
     for src, dst in _ALIASES:
@@ -144,6 +211,16 @@ def term_hit(term: str, norm_text: str, token_set: set[str]) -> bool:
     return term_norm in token_set or term_norm in norm_text
 
 
+def is_low_signal_token(token: str) -> bool:
+    if not token:
+        return True
+    if token in _LOW_SIGNAL_TOKENS:
+        return True
+    if len(token) == 1 and re.fullmatch(r"[\u4e00-\u9fff]", token):
+        return True
+    return False
+
+
 def has_change_signal(norm_text: str, token_set: set[str]) -> bool:
     return any(
         term_hit(term, norm_text, token_set)
@@ -162,6 +239,63 @@ def has_change_signal(norm_text: str, token_set: set[str]) -> bool:
             "implement",
         )
     )
+
+
+def detect_kit_self_upgrade_intent(norm_text: str, token_set: set[str]) -> bool:
+    has_kit_name = any(
+        term_hit(term, norm_text, token_set)
+        for term in ("beyond-dev-ai-kit", "beyond dev ai kit")
+    )
+    if not has_kit_name:
+        return False
+
+    asset_hits = sum(
+        1
+        for term in ("prompt", "dsl", "skill", "pipeline", "套件")
+        if term_hit(term, norm_text, token_set)
+    )
+    has_upgrade_signal = any(
+        term_hit(term, norm_text, token_set)
+        for term in ("self upgrade", "self-upgrade", "自升级", "升级", "改进", "优化", "演进", "完善")
+    )
+    has_agent_focus = any(
+        term_hit(term, norm_text, token_set)
+        for term in (
+            "agent",
+            "主动感知",
+            "主动调用",
+            "自感知",
+            "自调用",
+            "active sensing",
+            "active invoke",
+        )
+    )
+    has_quality_efficiency_focus = any(
+        term_hit(term, norm_text, token_set)
+        for term in (
+            "覆盖",
+            "覆盖度",
+            "完整",
+            "完整性",
+            "能效",
+            "并发",
+            "高压",
+            "压力",
+            "stress",
+            "concurrent",
+            "efficiency",
+        )
+    )
+
+    if asset_hits >= 3:
+        return True
+    if has_upgrade_signal and asset_hits >= 1:
+        return True
+    if has_upgrade_signal and has_agent_focus:
+        return True
+    if has_agent_focus and has_quality_efficiency_focus:
+        return True
+    return False
 
 
 def infer_module_path(goal_raw: str) -> Optional[str]:
@@ -300,6 +434,8 @@ def rank_pipelines(goal_norm: str, profiles: Sequence[PipelineProfile]) -> List[
         score = 0
 
         for token in token_set:
+            if is_low_signal_token(token):
+                continue
             if token in profile.tokens:
                 score += 3
                 matched.append(token)
@@ -329,6 +465,47 @@ def rank_pipelines(goal_norm: str, profiles: Sequence[PipelineProfile]) -> List[
     return ranked
 
 
+def score_specialized_pipeline(
+    goal_norm: str, profiles: Sequence[PipelineProfile]
+) -> Tuple[Optional[SpecializedPipelineRule], Optional[PipelineProfile], int, List[str]]:
+    token_set = build_token_set(goal_norm)
+    profile_map = {profile.name: profile for profile in profiles}
+    best_rule: Optional[SpecializedPipelineRule] = None
+    best_profile: Optional[PipelineProfile] = None
+    best_score = -10**9
+    best_hits: List[str] = []
+
+    for rule in SPECIALIZED_PIPELINE_RULES:
+        profile = profile_map.get(rule.pipeline_name)
+        if profile is None:
+            continue
+
+        hits = 0
+        hit_terms: List[str] = []
+        for group in rule.groups:
+            group_hit = False
+            for term in group:
+                if term_hit(term, goal_norm, token_set):
+                    hits += 1
+                    hit_terms.append(term)
+                    group_hit = True
+                    break
+            if not group_hit:
+                continue
+
+        score = hits * rule.weight
+        if hits < rule.min_hits:
+            score -= (rule.min_hits - hits) * (rule.weight + 2)
+
+        if score > best_score or (score == best_score and len(hit_terms) > len(best_hits)):
+            best_rule = rule
+            best_profile = profile
+            best_score = score
+            best_hits = hit_terms
+
+    return best_rule, best_profile, best_score, best_hits
+
+
 def detect_explicit_pipeline(goal_raw: str, profiles: Sequence[PipelineProfile]) -> Optional[PipelineProfile]:
     goal_norm = normalize_text(goal_raw)
     explicit_match = _PIPELINE_PATH_RE.search(goal_raw)
@@ -353,6 +530,11 @@ def calibrate_confidence(mode: str, top_score: int, margin: int) -> float:
         base = top_score / 12.0
         if margin >= 5:
             base += 0.15
+        return max(0.05, min(0.99, round(base, 2)))
+    if mode == "specialized_pipeline":
+        base = 0.72 if top_score >= 8 else 0.66
+        if margin <= 1:
+            base -= 0.05
         return max(0.05, min(0.99, round(base, 2)))
     # Adaptive fallback mode.
     if top_score >= 5:
@@ -379,7 +561,11 @@ def choose_action(goal_raw: str, repo_root: Path) -> Dict[str, Any]:
     pipeline_margin = top_pipeline.score - (second_pipeline.score if second_pipeline else 0)
 
     cmd_rule, cmd_score, cmd_hits = score_command(goal_norm=goal_norm)
+    specialized_rule, specialized_profile, specialized_score, specialized_hits = score_specialized_pipeline(
+        goal_norm=goal_norm, profiles=profiles
+    )
     explicit_profile = detect_explicit_pipeline(goal_raw=goal_raw, profiles=profiles)
+    kit_self_upgrade_intent = detect_kit_self_upgrade_intent(goal_norm, build_token_set(goal_norm))
     selected_profile: Optional[PipelineProfile] = None
 
     # Explicit pipeline path/name always takes precedence over generic command terms.
@@ -393,6 +579,33 @@ def choose_action(goal_raw: str, repo_root: Path) -> Dict[str, Any]:
         hits = [explicit_profile.name]
         confidence = calibrate_confidence(mode=mode, top_score=10, margin=10)
         ambiguous = False
+    elif kit_self_upgrade_intent:
+        selected_profile = next(
+            (p for p in profiles if p.name == Path(KIT_SELF_UPGRADE_PIPELINE).stem),
+            None,
+        )
+        if selected_profile is None:
+            selected_profile = top_pipeline.profile
+        mode = "kit_self_upgrade_priority"
+        selected_key = "pipeline:kit_self_upgrade"
+        action_kind = "pipeline"
+        target = selected_profile.path
+        description = "Kit self-evolution intent detected; route to kit self-upgrade pipeline."
+        hits = ["beyond-dev-ai-kit", "kit_self_upgrade_intent"]
+        confidence = 0.78
+        ambiguous = False
+    elif specialized_rule is not None and specialized_profile is not None and specialized_score >= 6:
+        selected_profile = specialized_profile
+        mode = "specialized_pipeline"
+        selected_key = f"pipeline:{specialized_profile.name}"
+        action_kind = "pipeline"
+        target = specialized_profile.path
+        description = specialized_rule.description
+        hits = specialized_hits
+        confidence = calibrate_confidence(
+            mode=mode, top_score=specialized_score, margin=specialized_score - top_pipeline.score
+        )
+        ambiguous = specialized_score - top_pipeline.score <= 1
     elif cmd_rule is not None and cmd_score >= 6:
         mode = "command"
         selected_key = cmd_rule.key

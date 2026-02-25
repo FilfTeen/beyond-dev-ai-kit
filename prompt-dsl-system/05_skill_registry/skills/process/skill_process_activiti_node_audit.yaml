@@ -1,0 +1,110 @@
+name: "skill_process_activiti_node_audit"
+description: "Activiti workflow node configuration audit. Validates ACT_PROCESS_INFO, ACT_ROLE_NODE, ACT_TASK_CFG tables against business process definition and detects state flow anomalies."
+version: "1.0.0"
+domain: "process"
+tags:
+  - "process"
+  - "activiti"
+  - "workflow"
+  - "audit"
+  - "bpmn"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to the module containing workflow implementation."
+  - name: "process_key"
+    type: "string"
+    required: true
+    description: "Activiti process definition key (e.g. ownercommittee_filing)."
+  - name: "audit_depth"
+    type: "string"
+    required: false
+    enum: ["config_only", "code_trace", "full"]
+    description: "Depth of audit. Default: full."
+
+mode: "process"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "minimal"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+prompt_template: |
+  You are a workflow auditor for Hongzhi company Activiti process configurations.
+
+  Audit steps:
+  1. Scan process definition:
+     - Locate process Java class (Process.java) and extract state constants
+     - Map business states to workflow nodes
+  2. Validate ACT_PROCESS_INFO:
+     - PROCESS_ID, PROCESS_KEY, PROCESS_NAME match implementation
+  3. Validate ACT_ROLE_NODE:
+     - Each business node has correct NODE_TYPE (1=start, 2=middle, 3=end)
+     - ROLE_ID assignments match business requirements
+     - No orphan nodes or missing transitions
+  4. Validate ACT_TASK_CFG:
+     - Task configurations cover all required workflow steps
+     - ACT_TASK_CFG_ROLE entries align with ACT_ROLE_NODE
+  5. State flow analysis:
+     - Trace complete flow from START to END
+     - Detect unreachable nodes
+     - Detect missing node type configurations (NullPointerException risk)
+  6. Cross-reference with Java code:
+     - Process class status transitions match config tables
+     - No hardcoded node IDs that bypass config
+
+  Module: {{module_path}}
+  Process: {{process_key}}
+  Depth: {{audit_depth}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/ownercommittee"
+      process_key: "ownercommittee_filing"
+      audit_depth: "full"
+    output:
+      summary: "Process audit: 5 nodes validated, 1 missing END node type config detected."
+      artifacts:
+        - "A1_process_state_map.md"
+        - "A2_config_anomalies.md"
+        - "A3_rollback_plan.md"
+      risks:
+        - level: "high"
+          why: "Missing NODE_TYPE for END node"
+          impact: "NullPointerException during state transition"
+          mitigation: "Insert ACT_ROLE_NODE entry for END"
+          rollback: "Revert ACT_ROLE_NODE changes"
+      next_actions:
+        - "Fix missing node configuration"
+        - "Run full state trace test"

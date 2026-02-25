@@ -82,12 +82,12 @@ parameters:
 ## Step 3 — 接口/数据/验收与低保真原型
 
 ```yaml
-skill: skill_hongzhi_universal_ops
+skill: skill_api_design_review
 parameters:
-  mode: "docs"
+  mode: "code"
   module_path: "{{allowed_module_root}}"
   allowed_module_root: "{{allowed_module_root}}"
-  objective: "输出开发可执行说明：API 草案、数据实体草案、验收标准（Given-When-Then）、页面原型说明（页面块+交互状态+字段）。"
+  objective: "输出开发可执行说明：API 草案、数据实体草案、验收标准（Given-When-Then）、页面原型说明（页面块+交互状态+字段）；并执行 skill_api_design_review 审查。"
   constraints:
     - "api paths should follow existing module style"
     - "sql and db notes must keep oracle/mysql compatibility awareness"
@@ -108,6 +108,7 @@ parameters:
   self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
   decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
   sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+  target_controllers: []
   context_id: "{{context_id}}"
   trace_id: "{{trace_id}}"
   input_artifact_refs: ["A2_process_flow.md", "A2_feature_slices.md"]
@@ -116,12 +117,12 @@ parameters:
 ## Step 4 — 收尾文档与作业日志
 
 ```yaml
-skill: skill_hongzhi_universal_ops
+skill: skill_frontend_layui_standard
 parameters:
-  mode: "docs"
+  mode: "frontend"
   module_path: "{{allowed_module_root}}"
   allowed_module_root: "{{allowed_module_root}}"
-  objective: "生成收尾包（变更台账、回退计划、清理报告、下一步开发建议），并更新相关 README/目录说明。"
+  objective: "生成收尾包（变更台账、回退计划、清理报告、下一步开发建议），并对低保真页面说明执行 LayUI 规范校验（skill_frontend_layui_standard）。"
   constraints:
     - "closure mandatory"
     - "if no cleanup: cleanup report must explicitly state none"
@@ -141,6 +142,8 @@ parameters:
   self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
   decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
   sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+  reference_module: "/vote"
+  check_scope: "full"
   context_id: "{{context_id}}"
   trace_id: "{{trace_id}}"
   input_artifact_refs: ["A3_api_contract_draft.md", "A3_low_fidelity_prototype.md"]

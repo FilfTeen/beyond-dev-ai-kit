@@ -72,6 +72,9 @@
       "meta"
     ],
     "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_plugin_discover_with_hints.yaml",
+    "covers": [
+      "skill_governance_plugin_discover"
+    ],
     "status": "deployed"
   },
   {
@@ -88,6 +91,166 @@
       "docs"
     ],
     "path": "prompt-dsl-system/05_skill_registry/skills/governance/skill_governance_audit_kit_quality.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_code_review_checklist",
+    "description": "Automated code review checklist for Java8/Spring Boot modules with C++-aligned naming validation.",
+    "version": "1.0.0",
+    "domain": "code",
+    "tags": [
+      "code",
+      "review",
+      "quality",
+      "naming",
+      "java"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_code_review_checklist.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_sql_dual_stack_delivery",
+    "description": "SQL dual-stack delivery validation ensuring portable SQL first with Oracle/MySQL dual versions.",
+    "version": "1.0.0",
+    "domain": "sql",
+    "tags": [
+      "sql",
+      "dual-stack",
+      "oracle",
+      "mysql",
+      "delivery"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/sql/skill_sql_dual_stack_delivery.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_frontend_layui_standard",
+    "description": "LayUI frontend template alignment and standardization validator.",
+    "version": "1.0.0",
+    "domain": "frontend",
+    "tags": [
+      "frontend",
+      "layui",
+      "html",
+      "javascript",
+      "template"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/frontend/skill_frontend_layui_standard.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_process_activiti_node_audit",
+    "description": "Activiti workflow node configuration audit and state flow anomaly detection.",
+    "version": "1.0.0",
+    "domain": "process",
+    "tags": [
+      "process",
+      "activiti",
+      "workflow",
+      "audit",
+      "bpmn"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/process/skill_process_activiti_node_audit.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_release_preflight_checklist",
+    "description": "Pre-release checklist for module deployment covering SQL, menu, permissions, and readiness.",
+    "version": "1.0.0",
+    "domain": "release",
+    "tags": [
+      "release",
+      "checklist",
+      "deployment",
+      "verification"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/release/skill_release_preflight_checklist.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_docs_module_readme_gen",
+    "description": "Automated module README and documentation generator with directory tree and API reference.",
+    "version": "1.0.0",
+    "domain": "docs",
+    "tags": [
+      "docs",
+      "readme",
+      "documentation",
+      "generator"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/docs/skill_docs_module_readme_gen.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_test_gen",
+    "description": "Automated test case generation for Java8/Spring Boot modules with JUnit4/Mockito conventions.",
+    "version": "1.0.0",
+    "domain": "test",
+    "tags": [
+      "test",
+      "junit",
+      "quality",
+      "java"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/test/skill_test_gen.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_security_audit",
+    "description": "Security audit checklist covering SQL injection, XSS, authentication, and sensitive data exposure.",
+    "version": "1.0.0",
+    "domain": "security",
+    "tags": [
+      "security",
+      "audit",
+      "java",
+      "spring"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/security/skill_security_audit.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_api_design_review",
+    "description": "API design review for RESTful endpoints validating URL patterns, HTTP methods, and response contracts.",
+    "version": "1.0.0",
+    "domain": "code",
+    "tags": [
+      "api",
+      "rest",
+      "design",
+      "java",
+      "spring"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_api_design_review.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_performance_analysis",
+    "description": "Performance analysis identifying N+1 queries, missing indexes, slow SQL, and memory leaks.",
+    "version": "1.0.0",
+    "domain": "code",
+    "tags": [
+      "performance",
+      "sql",
+      "optimization",
+      "java"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/code/skill_performance_analysis.yaml",
+    "status": "deployed"
+  },
+  {
+    "name": "skill_docs_i18n",
+    "description": "Documentation internationalization for Chinese/English translation preserving code blocks and formatting.",
+    "version": "1.0.0",
+    "domain": "docs",
+    "tags": [
+      "docs",
+      "i18n",
+      "translation",
+      "chinese",
+      "english"
+    ],
+    "path": "prompt-dsl-system/05_skill_registry/skills/docs/skill_docs_i18n.yaml",
     "status": "deployed"
   }
 ]

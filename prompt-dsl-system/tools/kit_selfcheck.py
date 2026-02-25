@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -81,6 +82,16 @@ def load_json_file(path: Path) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def read_text_file(repo_root: Path, rel_path: str) -> str:
+    path = repo_root / rel_path
+    if not path.is_file():
+        return ""
+    try:
+        return path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
 def list_pipelines(repo_root: Path) -> List[str]:
     pipeline_root = repo_root / "prompt-dsl-system" / "04_ai_pipeline_orchestration"
     if not pipeline_root.is_dir():
@@ -126,6 +137,97 @@ def collect_repo_snapshot(repo_root: Path) -> dict:
         "git_status_entries": len(status_lines),
         "git_status_available": bool(status_ok),
     }
+
+
+def run_intent_probe(repo_root: Path, goal: str) -> dict:
+    router = repo_root / "prompt-dsl-system" / "tools" / "intent_router.py"
+    if not router.is_file():
+        return {
+            "goal": goal,
+            "passed": False,
+            "reason": "router_missing",
+            "target": "",
+            "selection_mode": "",
+        }
+
+    cmd = [sys.executable, str(router), "--repo-root", str(repo_root), "--goal", goal]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    except OSError:
+        return {
+            "goal": goal,
+            "passed": False,
+            "reason": "router_exec_error",
+            "target": "",
+            "selection_mode": "",
+        }
+    if proc.returncode != 0:
+        return {
+            "goal": goal,
+            "passed": False,
+            "reason": f"router_exit_{proc.returncode}",
+            "target": "",
+            "selection_mode": "",
+        }
+
+    try:
+        routed = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return {
+            "goal": goal,
+            "passed": False,
+            "reason": "router_output_parse_error",
+            "target": "",
+            "selection_mode": "",
+        }
+    selected = routed.get("selected", {}) if isinstance(routed.get("selected"), dict) else {}
+    return {
+        "goal": goal,
+        "passed": False,
+        "reason": "",
+        "target": str(selected.get("target", "")),
+        "selection_mode": str(selected.get("selection_mode", "")),
+    }
+
+
+def score_route_probes(repo_root: Path) -> Tuple[float, List[dict]]:
+    probes = [
+        {
+            "goal": "为 notice 模块生成单元测试并输出覆盖率报告",
+            "expect_target_suffix": "pipeline_test_gen.md",
+            "expect_mode": "specialized_pipeline",
+        },
+        {
+            "goal": "对 ownercommittee 模块做安全审计并输出风险报告",
+            "expect_target_suffix": "pipeline_security_audit.md",
+            "expect_mode": "specialized_pipeline",
+        },
+        {
+            "goal": "基于最新创建提示词改进 beyond-dev-ai-kit 的 prompt/DSL/skill/pipeline 套件并落地",
+            "expect_target_suffix": "pipeline_kit_self_upgrade.md",
+            "expect_mode": "kit_self_upgrade_priority",
+        },
+    ]
+    results: List[dict] = []
+    passed = 0
+    for item in probes:
+        result = run_intent_probe(repo_root=repo_root, goal=str(item["goal"]))
+        target_ok = result.get("target", "").endswith(str(item["expect_target_suffix"]))
+        mode_ok = result.get("selection_mode", "") == str(item["expect_mode"])
+        ok = bool(target_ok and mode_ok)
+        if ok:
+            passed += 1
+        results.append(
+            {
+                **item,
+                "target": result.get("target", ""),
+                "selection_mode": result.get("selection_mode", ""),
+                "passed": ok,
+                "reason": result.get("reason", ""),
+            }
+        )
+    score = (passed / len(probes)) if probes else 1.0
+    return score, results
 
 
 def run_selfcheck(repo_root: Path) -> dict:
@@ -186,6 +288,18 @@ def run_selfcheck(repo_root: Path) -> dict:
             "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_project_stack_bootstrap.md",
             "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_requirement_to_prototype.md",
         ],
+        "agent_active_ops": [
+            "AGENTS.md",
+            "AGENTS.zh-CN.md",
+            "prompt-dsl-system/tools/run.sh",
+            "prompt-dsl-system/tools/intent_router.py",
+            "prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md",
+            "prompt-dsl-system/05_skill_registry/skills/universal/skill_hongzhi_universal_ops.yaml",
+            "prompt-dsl-system/tools/loop_detector.py",
+            "prompt-dsl-system/tools/risk_gate.py",
+            "prompt-dsl-system/tools/performance_budget_guard.py",
+            "prompt-dsl-system/tools/tests/intent_router/intent_router_pressure.py",
+        ],
     }
 
     recommendations: List[str] = []
@@ -231,6 +345,52 @@ def run_selfcheck(repo_root: Path) -> dict:
         dimensions["kit_mainline_focus"]["score"] = round(dimensions["kit_mainline_focus"]["score"] * 0.6, 3)
         dimensions["kit_mainline_focus"]["level"] = score_to_level(dimensions["kit_mainline_focus"]["score"])
         recommendations.append("kit_mainline_focus: add Rule 24 enforcement in constitution.")
+
+    agent_dim = dimensions.get("agent_active_ops", {})
+    if isinstance(agent_dim, dict):
+        signal_rules = [
+            ("prompt-dsl-system/tools/intent_router.py", "detect_kit_self_upgrade_intent", "router_has_kit_intent_detector"),
+            ("prompt-dsl-system/tools/intent_router.py", "can_auto_execute", "router_has_auto_execute_gate"),
+            ("prompt-dsl-system/tools/run.sh", "[ \"$subcommand\" = \"intent\" ]", "run_sh_has_intent_entry"),
+            ("prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md", "A0_authority_alignment.md", "pipeline_has_authority_alignment_step"),
+            ("prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_kit_self_upgrade.md", "A3_authority_sync_log.md", "pipeline_has_authority_sync_acceptance"),
+            ("AGENTS.md", "pipeline_kit_self_upgrade.md", "agents_rule_mentions_kit_upgrade_pipeline"),
+            ("prompt-dsl-system/tools/tests/intent_router/intent_router_pressure.py", "concurrent-calls", "pressure_test_has_concurrency_control"),
+        ]
+        signal_checks: List[dict] = []
+        signal_found = 0
+        for rel_path, marker, name in signal_rules:
+            text = read_text_file(repo_root, rel_path)
+            found = marker in text
+            signal_checks.append(
+                {
+                    "name": name,
+                    "path": rel_path,
+                    "marker": marker,
+                    "found": bool(found),
+                }
+            )
+            if found:
+                signal_found += 1
+
+        signal_score = (signal_found / len(signal_rules)) if signal_rules else 1.0
+        route_probe_score, route_probes = score_route_probes(repo_root=repo_root)
+        base_score = float(agent_dim.get("score", 0.0))
+        adjusted_agent_score = (base_score * 0.45) + (signal_score * 0.30) + (route_probe_score * 0.25)
+        agent_dim["signal_checks"] = signal_checks
+        agent_dim["signal_found_count"] = signal_found
+        agent_dim["signal_count"] = len(signal_rules)
+        agent_dim["route_probe_score"] = round(route_probe_score, 3)
+        agent_dim["route_probes"] = route_probes
+        agent_dim["score"] = round(adjusted_agent_score, 3)
+        agent_dim["level"] = score_to_level(adjusted_agent_score)
+        dimensions["agent_active_ops"] = agent_dim
+        if signal_found < len(signal_rules):
+            recommendations.append(
+                "agent_active_ops: strengthen proactive-sensing/invocation links in router/pipeline/tests."
+            )
+        if route_probe_score < 1.0:
+            recommendations.append("agent_active_ops: route probes failed for specialized/company intents.")
 
     dim_scores = [float(v.get("score", 0.0)) for v in dimensions.values()]
     overall_score = (sum(dim_scores) / len(dim_scores)) if dim_scores else 0.0

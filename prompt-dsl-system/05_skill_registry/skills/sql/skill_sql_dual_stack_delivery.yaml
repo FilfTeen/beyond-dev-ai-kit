@@ -1,0 +1,106 @@
+name: "skill_sql_dual_stack_delivery"
+description: "Automated SQL dual-stack delivery validation. Ensures portable SQL first, generates Oracle/MySQL dual versions when needed, and validates directory structure compliance."
+version: "1.0.0"
+domain: "sql"
+tags:
+  - "sql"
+  - "dual-stack"
+  - "oracle"
+  - "mysql"
+  - "delivery"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to module containing SQL scripts."
+  - name: "target_db"
+    type: "string"
+    required: false
+    enum: ["oracle", "mysql", "dm8"]
+    description: "Primary target database."
+  - name: "sql_dir"
+    type: "string"
+    required: false
+    description: "Relative path to SQL directory within module. Default: sql/"
+
+mode: "sql"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "minimal"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+sql_policy:
+  prefer_portable_sql: true
+  dual_sql_when_needed: ["oracle", "mysql"]
+
+prompt_template: |
+  You are a SQL delivery validator for Hongzhi company projects.
+
+  Validation steps:
+  1. Scan SQL files in {{module_path}}/{{sql_dir}}
+  2. Classify each statement as portable (ANSI) or vendor-specific
+  3. For portable statements: verify ANSI compliance
+     - COALESCE not NVL/IFNULL
+     - CASE WHEN not DECODE
+     - CAST not TO_NUMBER/TO_CHAR
+     - CONCAT or || not +
+  4. For vendor-specific statements: verify dual-version existence
+     - oracle/ and mysql/ directories both present
+     - Corresponding version numbers match (V001, V002...)
+  5. Validate directory structure (SQL_COMPAT_STRATEGY.md):
+     - portable/ for ANSI SQL
+     - oracle/ for Oracle-specific
+     - mysql/ for MySQL-specific
+     - README.md with execution order
+  6. Check business code SQL compatibility:
+     - No hardcoded dialect in Java/XML
+     - MyBatis databaseId or dialect config used
+
+  Module: {{module_path}}
+  SQL dir: {{sql_dir}}
+  Target DB: {{target_db}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/notice"
+      target_db: "oracle"
+    output:
+      summary: "SQL delivery validated: 8 portable, 2 dual-stack, 0 violations."
+      artifacts:
+        - "A1_sql_classification.md"
+        - "A2_change_ledger.md"
+        - "A3_rollback_plan.md"
+      risks: []
+      next_actions:
+        - "Execute portable scripts first, then dialect-specific"

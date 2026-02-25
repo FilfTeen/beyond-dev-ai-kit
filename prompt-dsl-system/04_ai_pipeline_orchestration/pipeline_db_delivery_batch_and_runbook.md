@@ -41,11 +41,11 @@ parameters:
 
 ## Step 2 - 完整性闸门
 ```yaml
-skill: skill_hongzhi_universal_ops
+skill: skill_release_preflight_checklist
 parameters:
-  mode: "governance"
+  mode: "release"
   module_path: "{{allowed_module_root}}"
-  objective: "{{objective}}；refs_hint: merged integrity gate；生成发布前闸门规则和命令模板。"
+  objective: "{{objective}}；refs_hint: skill_release_preflight_checklist；生成发布前闸门规则和命令模板。"
   constraints:
     - "must consume Step1 artifacts"
   acceptance:
@@ -62,6 +62,7 @@ parameters:
   self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
   decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
   sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+  release_type: "migration"
   context_id: "{{context_id}}"
   trace_id: "{{trace_id}}"
   input_artifact_refs: ["A1", "A2"]

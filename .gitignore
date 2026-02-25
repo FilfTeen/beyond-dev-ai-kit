@@ -3,14 +3,21 @@
 
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 *.egg-info/
 .venv/
 venv/
 build/
 dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # kit generated / tmp
 _regression_tmp/
@@ -20,7 +27,52 @@ prompt-dsl-system/tools/deliveries/
 prompt-dsl-system/tools/snapshots/
 prompt-dsl-system/tools/.structure_cache/
 prompt-dsl-system/tools/.cache/
+
+# runtime outputs (do not track)
+prompt-dsl-system/tools/guard_report.json
+prompt-dsl-system/tools/health_report.json
+prompt-dsl-system/tools/health_report.md
+prompt-dsl-system/tools/health_runbook.json
+prompt-dsl-system/tools/health_runbook.md
+prompt-dsl-system/tools/health_runbook.sh
+prompt-dsl-system/tools/validate_report.json
+prompt-dsl-system/tools/run_plan.yaml
+prompt-dsl-system/tools/loop_diagnostics.json
+prompt-dsl-system/tools/loop_diagnostics.md
+prompt-dsl-system/tools/risk_gate_report.json
+prompt-dsl-system/tools/move_report.json
+prompt-dsl-system/tools/rollback_report.json
+prompt-dsl-system/tools/trace_history.jsonl
+prompt-dsl-system/tools/trace_index.json
+prompt-dsl-system/tools/trace_index.md
+prompt-dsl-system/tools/policy.json
+prompt-dsl-system/tools/policy_effective.json
+prompt-dsl-system/tools/policy_sources.json
+prompt-dsl-system/tools/ops_guard_report.json
+prompt-dsl-system/tools/snapshot_index.json
+prompt-dsl-system/tools/snapshot_index.md
+prompt-dsl-system/tools/snapshot_prune_report.json
+prompt-dsl-system/tools/snapshot_prune_report.md
+prompt-dsl-system/tools/trace_diff.json
+prompt-dsl-system/tools/trace_diff.md
+prompt-dsl-system/tools/bisect_plan.json
+prompt-dsl-system/tools/bisect_plan.md
+prompt-dsl-system/tools/bisect_plan.sh
+prompt-dsl-system/tools/conflict_plan.json
+prompt-dsl-system/tools/conflict_plan.md
+prompt-dsl-system/tools/followup_checklist.md
+prompt-dsl-system/tools/followup_patch.diff
+prompt-dsl-system/tools/followup_patch_plan.json
+prompt-dsl-system/tools/followup_patch_plan.md
+prompt-dsl-system/tools/followup_scan_report.json
+prompt-dsl-system/tools/followup_verify_report.json
+prompt-dsl-system/tools/runtime_outputs_tracking_report.json
+prompt-dsl-system/tools/double_run_consistency_report.json
 prompt-dsl-system/tools/kit_selfcheck_report.json
 prompt-dsl-system/tools/kit_selfcheck_report.md
+prompt-dsl-system/tools/skill_promotion_matrix.json
+prompt-dsl-system/tools/skill_promotion_matrix.md
+prompt-dsl-system/tools/delivery_closure_report.json
+prompt-dsl-system/tools/cpp_naming_report.json
 prompt-dsl-system/tools/performance_history.jsonl
 *.discovered.yaml

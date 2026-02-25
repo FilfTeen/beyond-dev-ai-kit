@@ -1,0 +1,112 @@
+name: "skill_code_review_checklist"
+description: "Automated code review checklist for Java8/Spring Boot modules. Validates naming consistency, boundary compliance, exception handling, and C++-aligned coding standards."
+version: "1.0.0"
+domain: "code"
+tags:
+  - "code"
+  - "review"
+  - "quality"
+  - "naming"
+  - "java"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to the module under review."
+  - name: "review_scope"
+    type: "string"
+    required: false
+    enum: ["full", "changed_only", "single_file"]
+    description: "Scope of review. Default: changed_only."
+  - name: "target_files"
+    type: "array"
+    required: false
+    items: string
+    description: "Specific files to review (when review_scope=single_file)."
+
+mode: "code"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "minimal"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+decision_policy:
+  dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"]
+  choose_best_route_with_tradeoff: true
+
+prompt_template: |
+  You are a code reviewer for Hongzhi company Java8/Spring Boot modules.
+
+  Review checklist:
+  1. Naming consistency (CPP_STYLE_NAMING.md rules):
+     - Classes: UpperCamelCase (Entity/Vo/Dto/Service/Controller/Mapper)
+     - Methods: lowerCamelCase (get/list/page/add/update/delete/is/has)
+     - Constants: UPPER_SNAKE_CASE
+     - DB fields: lower_snake_case
+     - No pinyin, no invented abbreviations
+  2. Boundary compliance:
+     - No edits outside allowed_module_root
+     - No imports from forbidden paths
+  3. Exception handling:
+     - Uses system framework exception classes
+     - No swallowed exceptions
+  4. SQL compatibility:
+     - Portable SQL preferred
+     - No hardcoded dialect
+  5. Code quality:
+     - Minimal, composable functions
+     - No dead code or unused imports
+     - Comments add value (not noise)
+
+  Module: {{module_path}}
+  Scope: {{review_scope}}
+  Files: {{target_files}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/notice"
+      review_scope: "changed_only"
+    output:
+      summary: "Code review completed: 3 naming issues, 1 boundary warning, 0 critical."
+      artifacts:
+        - "A1_review_checklist.md"
+        - "A2_change_ledger.md"
+      risks:
+        - level: "low"
+          why: "Minor naming inconsistencies"
+          impact: "Readability"
+          mitigation: "Batch rename in next iteration"
+          rollback: "No code changes made"
+      next_actions:
+        - "Fix naming issues in next development cycle"

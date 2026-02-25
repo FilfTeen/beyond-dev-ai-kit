@@ -3,6 +3,7 @@
 ## 输入（必须）
 - `allowed_module_root`：允许改动根目录（必填）。
 - `objective`：BPMN 路径、变量与状态来源。
+- `process_key`：流程定义 key（必填，如 `ownercommittee_filing`）。
 - `context_id` / `trace_id` / `input_artifact_refs`。
 
 ## 缺失边界时的硬规则
@@ -38,11 +39,11 @@ parameters:
 
 ## Step 2 - 状态映射审计
 ```yaml
-skill: skill_hongzhi_universal_ops
+skill: skill_process_activiti_node_audit
 parameters:
   mode: "process"
   module_path: "{{allowed_module_root}}"
-  objective: "{{objective}}；refs_hint: state mapping audit；输出状态映射与异常清单。"
+  objective: "{{objective}}；refs_hint: skill_process_activiti_node_audit；输出状态映射与异常清单。"
   constraints:
     - "facts from bpmn and implementation only"
   acceptance:
@@ -58,6 +59,8 @@ parameters:
   self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
   decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
   sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+  process_key: "{{process_key}}"
+  audit_depth: "full"
   context_id: "{{context_id}}"
   trace_id: "{{trace_id}}"
   input_artifact_refs: ["A1", "A2"]

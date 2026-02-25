@@ -1,0 +1,109 @@
+name: "skill_performance_analysis"
+description: "Performance analysis for Java8/Spring Boot modules. Identifies N+1 queries, missing indexes, slow SQL, memory leaks, and provides optimization recommendations."
+version: "1.0.0"
+domain: "code"
+tags:
+  - "performance"
+  - "sql"
+  - "optimization"
+  - "java"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to the module to analyze."
+  - name: "analysis_focus"
+    type: "string"
+    required: false
+    enum: ["sql", "memory", "api_latency", "full"]
+    description: "Focus area. Default: full."
+
+mode: "code"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "read_only"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+decision_policy:
+  dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"]
+  choose_best_route_with_tradeoff: true
+
+prompt_template: |
+  You are a performance analyst for Hongzhi company Java8/Spring Boot modules.
+
+  Performance analysis checklist:
+  1. SQL Performance:
+     - Identify N+1 query patterns (loop-inside-query via MyBatis)
+     - Check for missing indexes on WHERE/JOIN/ORDER BY columns
+     - Flag SELECT * usage (should select only needed columns)
+     - Identify full-table scans in large tables
+     - Check pagination implementation (LIMIT vs ROWNUM vs page helper)
+  2. Memory:
+     - Identify unbounded list loading (loading all records without pagination)
+     - Check for resource leaks (unclosed streams, connections)
+     - Flag large object caching without eviction policy
+  3. API Latency:
+     - Identify synchronous calls that could be async
+     - Check for unnecessary serialization/deserialization
+     - Flag cascading service calls (A -> B -> C -> D)
+  4. Oracle/DM8 Specific:
+     - Verify index strategy is compatible across both databases
+     - Check sequence usage patterns
+     - Verify CLOB/BLOB handling efficiency
+  5. Recommendations:
+     - Prioritize by impact (high/medium/low)
+     - Provide specific fix suggestions with code examples
+     - Estimate performance improvement
+
+  Module: {{module_path}}
+  Focus: {{analysis_focus}}
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/notice"
+      analysis_focus: "sql"
+    output:
+      summary: "Performance analysis: 2 N+1 patterns, 3 missing indexes, 1 full-table scan."
+      artifacts:
+        - "A1_performance_report.md"
+        - "A2_index_recommendations.sql"
+      risks:
+        - level: "high"
+          why: "N+1 query in NoticeServiceImpl.listWithDetails"
+          impact: "O(n) DB calls per page request"
+          mitigation: "Use LEFT JOIN in single MyBatis query"
+          rollback: "N/A (read-only analysis)"
+      next_actions:
+        - "Add composite index on PUBLIC_NOTICE(SECT_ID, STATUS, CREATE_TIME)"
+        - "Refactor N+1 to batch query with IN clause"

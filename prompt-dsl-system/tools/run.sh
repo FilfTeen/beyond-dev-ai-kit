@@ -319,7 +319,7 @@ if [ -z "$repo_root" ]; then
 fi
 
 if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 <list|validate|run|intent|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
+  echo "Usage: $0 <list|validate|run|intent|agent-audit|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
   exit 2
 fi
 
@@ -328,10 +328,10 @@ requested_subcommand="$subcommand"
 shift
 
 case "$subcommand" in
-  list|validate|run|intent|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade) ;;
+  list|validate|run|intent|agent-audit|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade) ;;
   *)
     echo "[ERROR] Unsupported subcommand: $subcommand" >&2
-    echo "Usage: $0 <list|validate|run|intent|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
+    echo "Usage: $0 <list|validate|run|intent|agent-audit|debug-guard|apply-move|resolve-move-conflicts|scan-followup|apply-followup-fixes|verify-followup-fixes|snapshot-restore-guide|snapshot-prune|snapshot-index|snapshot-open|trace-index|trace-open|trace-diff|trace-bisect|rollback|selfcheck|self-upgrade> [args...]" >&2
     exit 2
     ;;
 esac
@@ -784,8 +784,21 @@ if [ "$subcommand" = "intent" ]; then
   exit "$intent_rc"
 fi
 
+if [ "$subcommand" = "agent-audit" ]; then
+  AGENT_AUDIT_SCRIPT="${SCRIPT_DIR}/agent_capability_audit.py"
+  if [ ! -f "$AGENT_AUDIT_SCRIPT" ]; then
+    echo "[ERROR] agent_capability_audit.py not found: $AGENT_AUDIT_SCRIPT" >&2
+    exit 2
+  fi
+  set +e
+  "$PYTHON_BIN" "$AGENT_AUDIT_SCRIPT" "${invoke_args[@]-}"
+  agent_audit_rc=$?
+  set -e
+  exit "$agent_audit_rc"
+fi
+
 if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 1 ]; then
-  echo "[hongzhi][self-upgrade][strict] preflight start (selfcheck(contract) -> selfcheck_gate -> selfcheck_freshness -> kit_integrity -> pipeline_trust -> pipeline_trust_coverage -> baseline_provenance -> governance_consistency -> tool_syntax -> mutation_guard -> performance_guard -> dual_approval(opt) -> lint -> audit -> validate)"
+  echo "[hongzhi][self-upgrade][strict] preflight start (selfcheck(contract) -> selfcheck_gate -> selfcheck_freshness -> kit_integrity -> pipeline_trust -> pipeline_trust_coverage -> baseline_provenance -> governance_consistency -> tool_syntax -> mutation_guard -> performance_guard -> agent_audit -> dual_approval(opt) -> lint -> audit -> validate)"
 
   SELFCHECK_SCRIPT="${SCRIPT_DIR}/kit_selfcheck.py"
   SELFCHECK_GATE_SCRIPT="${SCRIPT_DIR}/kit_selfcheck_gate.py"
@@ -799,6 +812,7 @@ if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 
   MUTATION_GUARD_SCRIPT="${SCRIPT_DIR}/gate_mutation_guard.py"
   PERFORMANCE_GUARD_SCRIPT="${SCRIPT_DIR}/performance_budget_guard.py"
   DUAL_APPROVAL_SCRIPT="${SCRIPT_DIR}/kit_dual_approval_guard.py"
+  AGENT_AUDIT_SCRIPT="${SCRIPT_DIR}/agent_capability_audit.py"
   VALIDATOR_SCRIPT="${SCRIPT_DIR}/contract_validator.py"
   LINT_SCRIPT="${SCRIPT_DIR}/pipeline_contract_lint.py"
   AUDIT_SCRIPT="${SCRIPT_DIR}/skill_template_audit.py"
@@ -855,6 +869,10 @@ if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 
     echo "[ERROR] missing strict gate dependency: $DUAL_APPROVAL_SCRIPT" >&2
     exit 2
   fi
+  if [ ! -f "$AGENT_AUDIT_SCRIPT" ]; then
+    echo "[ERROR] missing strict gate dependency: $AGENT_AUDIT_SCRIPT" >&2
+    exit 2
+  fi
   if [ ! -f "$LINT_SCRIPT" ]; then
     echo "[ERROR] missing strict gate dependency: $LINT_SCRIPT" >&2
     exit 2
@@ -883,13 +901,15 @@ if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 
   strict_tmp_syntax_json="/tmp/hz_selfupgrade_${$}_tool_syntax.json"
   strict_tmp_mutation_json="/tmp/hz_selfupgrade_${$}_mutation_guard.json"
   strict_tmp_perf_json="/tmp/hz_selfupgrade_${$}_performance_guard.json"
+  strict_tmp_agent_audit_json="/tmp/hz_selfupgrade_${$}_agent_capability_audit.json"
+  strict_tmp_agent_audit_md="/tmp/hz_selfupgrade_${$}_agent_capability_audit.md"
   strict_tmp_dual_json="/tmp/hz_selfupgrade_${$}_dual_approval.json"
   cleanup_strict_temp() {
     rm -f "$strict_tmp_json" "$strict_tmp_md" "$strict_tmp_gate_json" \
       "$strict_tmp_fresh_json" "$strict_tmp_integrity_json" "$strict_tmp_trust_json" \
       "$strict_tmp_trust_coverage_json" "$strict_tmp_provenance_json" \
       "$strict_tmp_consistency_json" "$strict_tmp_syntax_json" "$strict_tmp_mutation_json" "$strict_tmp_perf_json" \
-      "$strict_tmp_dual_json" >/dev/null 2>&1 || true
+      "$strict_tmp_agent_audit_json" "$strict_tmp_agent_audit_md" "$strict_tmp_dual_json" >/dev/null 2>&1 || true
   }
   strict_validator_args=(--stdin --schema "$strict_schema")
   if [ "$strict_schema" = "$strict_schema_v2" ] && [ -f "$strict_schema_v1" ]; then
@@ -1204,6 +1224,45 @@ if [ "$requested_subcommand" = "self-upgrade" ] && [ "$strict_self_upgrade" -eq 
     echo "[hongzhi][self-upgrade][strict] performance_guard enforce=0 (skipped)"
   fi
 
+  strict_agent_audit_enforce_raw="${HONGZHI_AGENT_AUDIT_ENFORCE:-1}"
+  strict_agent_audit_enforce="$(parse_bool "$strict_agent_audit_enforce_raw" || true)"
+  if [ -z "$strict_agent_audit_enforce" ]; then
+    cleanup_strict_temp
+    echo "[hongzhi][self-upgrade][strict] FAIL: invalid HONGZHI_AGENT_AUDIT_ENFORCE=$strict_agent_audit_enforce_raw" >&2
+    exit 2
+  fi
+  if [ "$strict_agent_audit_enforce" -eq 1 ]; then
+    strict_agent_audit_min_score="${HONGZHI_AGENT_AUDIT_MIN_SCORE:-0.85}"
+    strict_agent_audit_min_level="${HONGZHI_AGENT_AUDIT_MIN_LEVEL:-high}"
+    strict_agent_audit_single_calls="${HONGZHI_AGENT_AUDIT_SINGLE_CALLS:-6000}"
+    strict_agent_audit_concurrent_calls="${HONGZHI_AGENT_AUDIT_CONCURRENT_CALLS:-8000}"
+    strict_agent_audit_concurrency="${HONGZHI_AGENT_AUDIT_CONCURRENCY:-32}"
+    strict_agent_audit_max_p99="${HONGZHI_AGENT_AUDIT_MAX_P99_MS:-12}"
+    strict_agent_audit_require_pressure="${HONGZHI_AGENT_AUDIT_REQUIRE_PRESSURE_PASS:-1}"
+    echo "[hongzhi][self-upgrade][strict] agent_audit enforce=1 min_score=$strict_agent_audit_min_score min_level=$strict_agent_audit_min_level require_pressure=$strict_agent_audit_require_pressure"
+    set +e
+    "$PYTHON_BIN" "$AGENT_AUDIT_SCRIPT" \
+      --repo-root "$effective_repo_root" \
+      --single-calls "$strict_agent_audit_single_calls" \
+      --concurrent-calls "$strict_agent_audit_concurrent_calls" \
+      --concurrency "$strict_agent_audit_concurrency" \
+      --max-p99-ms "$strict_agent_audit_max_p99" \
+      --min-overall-score "$strict_agent_audit_min_score" \
+      --min-overall-level "$strict_agent_audit_min_level" \
+      --require-pressure-pass "$strict_agent_audit_require_pressure" \
+      --out-json "$strict_tmp_agent_audit_json" \
+      --out-md "$strict_tmp_agent_audit_md"
+    strict_agent_audit_rc=$?
+    set -e
+    if [ "$strict_agent_audit_rc" -ne 0 ]; then
+      cleanup_strict_temp
+      echo "[hongzhi][self-upgrade][strict] FAIL: agent capability audit failed (exit=$strict_agent_audit_rc)" >&2
+      exit "$strict_agent_audit_rc"
+    fi
+  else
+    echo "[hongzhi][self-upgrade][strict] agent_audit enforce=0 (skipped)"
+  fi
+
   strict_dual_approval_raw="${HONGZHI_BASELINE_DUAL_APPROVAL:-0}"
   strict_dual_approval="$(parse_bool "$strict_dual_approval_raw" || true)"
   if [ -z "$strict_dual_approval" ]; then
@@ -1297,6 +1356,11 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
   lint_rc=-1
   replay_rc=-1
   template_guard_rc=-1
+  closure_rc=-1
+  docs_facts_rc=-1
+  deployed_skill_ref_rc=-1
+  runtime_outputs_rc=-1
+  naming_rc=-1
   governance_consistency_rc=-1
   tool_syntax_rc=-1
   trust_coverage_rc=-1
@@ -1514,6 +1578,122 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
     runner_rc=2
   fi
 
+  CLOSURE_GUARD_SCRIPT="${SCRIPT_DIR}/delivery_closure_guard.py"
+  closure_enforce_raw="${HONGZHI_DELIVERY_CLOSURE_ENFORCE:-}"
+  if [ -z "$closure_enforce_raw" ]; then
+    if [ "${HONGZHI_VALIDATE_STRICT:-0}" = "1" ]; then
+      closure_enforce=1
+    else
+      closure_enforce=0
+    fi
+  else
+    closure_enforce="$(parse_bool "$closure_enforce_raw" || true)"
+    if [ -z "$closure_enforce" ]; then
+      closure_enforce=0
+      echo "[hongzhi][WARN] invalid HONGZHI_DELIVERY_CLOSURE_ENFORCE=$closure_enforce_raw, fallback=0" >&2
+    fi
+  fi
+  if [ -f "$CLOSURE_GUARD_SCRIPT" ]; then
+    set +e
+    "$PYTHON_BIN" "$CLOSURE_GUARD_SCRIPT" --repo-root "$effective_repo_root"
+    closure_rc=$?
+    set -e
+    if [ "$closure_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] delivery_closure_guard FAIL (exit=$closure_rc)" >&2
+      if [ "$closure_enforce" -eq 1 ]; then
+        runner_rc="$closure_rc"
+      fi
+    fi
+  fi
+
+  DOCS_FACTS_GUARD_SCRIPT="${SCRIPT_DIR}/docs_facts_guard.py"
+  docs_facts_enforce_raw="${HONGZHI_DOCS_FACTS_GUARD_ENFORCE:-1}"
+  docs_facts_enforce="$(parse_bool "$docs_facts_enforce_raw" || true)"
+  if [ -z "$docs_facts_enforce" ]; then
+    docs_facts_rc=2
+    echo "[hongzhi][WARN] invalid HONGZHI_DOCS_FACTS_GUARD_ENFORCE=$docs_facts_enforce_raw" >&2
+    runner_rc=2
+  elif [ "$docs_facts_enforce" -eq 1 ]; then
+    if [ -f "$DOCS_FACTS_GUARD_SCRIPT" ]; then
+      set +e
+      "$PYTHON_BIN" "$DOCS_FACTS_GUARD_SCRIPT" --repo-root "$effective_repo_root"
+      docs_facts_rc=$?
+      set -e
+      if [ "$docs_facts_rc" -ne 0 ]; then
+        echo "[hongzhi][WARN] docs_facts_guard FAIL (exit=$docs_facts_rc)" >&2
+        runner_rc="$docs_facts_rc"
+      fi
+    else
+      echo "[hongzhi][WARN] docs_facts_guard missing: $DOCS_FACTS_GUARD_SCRIPT" >&2
+      docs_facts_rc=2
+      runner_rc=2
+    fi
+  fi
+
+  DEPLOYED_SKILL_REF_GUARD_SCRIPT="${SCRIPT_DIR}/deployed_skill_ref_guard.py"
+  deployed_skill_ref_enforce_raw="${HONGZHI_DEPLOYED_SKILL_REF_ENFORCE:-1}"
+  deployed_skill_ref_enforce="$(parse_bool "$deployed_skill_ref_enforce_raw" || true)"
+  if [ -z "$deployed_skill_ref_enforce" ]; then
+    deployed_skill_ref_rc=2
+    echo "[hongzhi][WARN] invalid HONGZHI_DEPLOYED_SKILL_REF_ENFORCE=$deployed_skill_ref_enforce_raw" >&2
+    runner_rc=2
+  elif [ "$deployed_skill_ref_enforce" -eq 1 ]; then
+    if [ -f "$DEPLOYED_SKILL_REF_GUARD_SCRIPT" ]; then
+      set +e
+      "$PYTHON_BIN" "$DEPLOYED_SKILL_REF_GUARD_SCRIPT" --repo-root "$effective_repo_root"
+      deployed_skill_ref_rc=$?
+      set -e
+      if [ "$deployed_skill_ref_rc" -ne 0 ]; then
+        echo "[hongzhi][WARN] deployed_skill_ref_guard FAIL (exit=$deployed_skill_ref_rc)" >&2
+        runner_rc="$deployed_skill_ref_rc"
+      fi
+    else
+      echo "[hongzhi][WARN] deployed_skill_ref_guard missing: $DEPLOYED_SKILL_REF_GUARD_SCRIPT" >&2
+      deployed_skill_ref_rc=2
+      runner_rc=2
+    fi
+  fi
+
+  RUNTIME_OUTPUTS_GUARD_SCRIPT="${SCRIPT_DIR}/runtime_outputs_tracking_guard.py"
+  runtime_outputs_enforce_raw="${HONGZHI_RUNTIME_OUTPUTS_GUARD_ENFORCE:-1}"
+  runtime_outputs_enforce="$(parse_bool "$runtime_outputs_enforce_raw" || true)"
+  if [ -z "$runtime_outputs_enforce" ]; then
+    runtime_outputs_rc=2
+    echo "[hongzhi][WARN] invalid HONGZHI_RUNTIME_OUTPUTS_GUARD_ENFORCE=$runtime_outputs_enforce_raw" >&2
+    runner_rc=2
+  elif [ "$runtime_outputs_enforce" -eq 1 ]; then
+    if [ -f "$RUNTIME_OUTPUTS_GUARD_SCRIPT" ]; then
+      set +e
+      "$PYTHON_BIN" "$RUNTIME_OUTPUTS_GUARD_SCRIPT" --repo-root "$effective_repo_root"
+      runtime_outputs_rc=$?
+      set -e
+      if [ "$runtime_outputs_rc" -ne 0 ]; then
+        echo "[hongzhi][WARN] runtime_outputs_tracking_guard FAIL (exit=$runtime_outputs_rc)" >&2
+        runner_rc="$runtime_outputs_rc"
+      fi
+    else
+      echo "[hongzhi][WARN] runtime_outputs_tracking_guard missing: $RUNTIME_OUTPUTS_GUARD_SCRIPT" >&2
+      runtime_outputs_rc=2
+      runner_rc=2
+    fi
+  fi
+
+  CPP_NAMING_GUARD_SCRIPT="${SCRIPT_DIR}/cpp_naming_guard.py"
+  if [ -f "$CPP_NAMING_GUARD_SCRIPT" ]; then
+    naming_args=(--repo-root "$effective_repo_root" --mode changed)
+    if [ -n "$normalized_module_path" ]; then
+      naming_args+=(--module-root "$normalized_module_path")
+    fi
+    set +e
+    "$PYTHON_BIN" "$CPP_NAMING_GUARD_SCRIPT" "${naming_args[@]}"
+    naming_rc=$?
+    set -e
+    if [ "$naming_rc" -ne 0 ]; then
+      echo "[hongzhi][WARN] cpp_naming_guard FAIL (exit=$naming_rc)" >&2
+      runner_rc="$naming_rc"
+    fi
+  fi
+
   if [ "$health_report_disabled" -eq 0 ]; then
     POST_VALIDATE_SYNC_SCRIPT="${SCRIPT_DIR}/health_post_validate_sync.py"
     if [ -f "$POST_VALIDATE_SYNC_SCRIPT" ]; then
@@ -1521,6 +1701,11 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
       lint_status="SKIP"
       replay_status="SKIP"
       template_status="SKIP"
+      closure_status="SKIP"
+      docs_facts_status="SKIP"
+      deployed_skill_ref_status="SKIP"
+      runtime_outputs_status="SKIP"
+      naming_status="SKIP"
       governance_consistency_status="SKIP"
       tool_syntax_status="SKIP"
       trust_coverage_status="SKIP"
@@ -1531,6 +1716,11 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
       [ "$lint_rc" -gt 0 ] && lint_status="FAIL"
       [ "$replay_rc" -gt 0 ] && replay_status="FAIL"
       [ "$template_guard_rc" -gt 0 ] && template_status="FAIL"
+      [ "$closure_rc" -gt 0 ] && closure_status="FAIL"
+      [ "$docs_facts_rc" -gt 0 ] && docs_facts_status="FAIL"
+      [ "$deployed_skill_ref_rc" -gt 0 ] && deployed_skill_ref_status="FAIL"
+      [ "$runtime_outputs_rc" -gt 0 ] && runtime_outputs_status="FAIL"
+      [ "$naming_rc" -gt 0 ] && naming_status="FAIL"
       [ "$governance_consistency_rc" -gt 0 ] && governance_consistency_status="FAIL"
       [ "$tool_syntax_rc" -gt 0 ] && tool_syntax_status="FAIL"
       [ "$trust_coverage_rc" -gt 0 ] && trust_coverage_status="FAIL"
@@ -1541,6 +1731,11 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
       [ "$lint_rc" -eq 0 ] && lint_status="PASS"
       [ "$replay_rc" -eq 0 ] && replay_status="PASS"
       [ "$template_guard_rc" -eq 0 ] && template_status="PASS"
+      [ "$closure_rc" -eq 0 ] && closure_status="PASS"
+      [ "$docs_facts_rc" -eq 0 ] && docs_facts_status="PASS"
+      [ "$deployed_skill_ref_rc" -eq 0 ] && deployed_skill_ref_status="PASS"
+      [ "$runtime_outputs_rc" -eq 0 ] && runtime_outputs_status="PASS"
+      [ "$naming_rc" -eq 0 ] && naming_status="PASS"
       [ "$governance_consistency_rc" -eq 0 ] && governance_consistency_status="PASS"
       [ "$tool_syntax_rc" -eq 0 ] && tool_syntax_status="PASS"
       [ "$trust_coverage_rc" -eq 0 ] && trust_coverage_status="PASS"
@@ -1567,7 +1762,12 @@ if [ "$subcommand" = "validate" ] && [ "$runner_rc" -eq 0 ]; then
         --gate "gate_mutation_guard:${mutation_status}:${mutation_rc}" \
         --gate "performance_budget_guard:${performance_status}:${performance_rc}" \
         --gate "contract_sample_replay:${replay_status}:${replay_rc}" \
-        --gate "kit_template_guard:${template_status}:${template_guard_rc}"
+        --gate "kit_template_guard:${template_status}:${template_guard_rc}" \
+        --gate "delivery_closure_guard:${closure_status}:${closure_rc}" \
+        --gate "docs_facts_guard:${docs_facts_status}:${docs_facts_rc}" \
+        --gate "deployed_skill_ref_guard:${deployed_skill_ref_status}:${deployed_skill_ref_rc}" \
+        --gate "runtime_outputs_tracking_guard:${runtime_outputs_status}:${runtime_outputs_rc}" \
+        --gate "cpp_naming_guard:${naming_status}:${naming_rc}"
       sync_rc=$?
       set -e
       if [ "$sync_rc" -ne 0 ]; then

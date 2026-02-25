@@ -11,7 +11,7 @@
 - `prompt-dsl-system/04_ai_pipeline_orchestration/pipeline_bugfix_min_scope_with_tree.md`
 - `prompt-dsl-system/tools/ops_guard.py`
 - `prompt-dsl-system/tools/ops_guard_report.json`
-- `prompt-dsl-system/tools/run_plan_bugfix.yaml`
+- `prompt-dsl-system/tools/history/run-plans/run_plan_bugfix.yaml`
 
 ## Modified Files
 - `prompt-dsl-system/00_conventions/SKILL_SPEC.md`
@@ -25,9 +25,9 @@
 - `prompt-dsl-system/tools/README.md`
 - `prompt-dsl-system/tools/validate_report.json`
 - `prompt-dsl-system/tools/run_plan.yaml`
-- `prompt-dsl-system/tools/run_plan_sql.yaml`
-- `prompt-dsl-system/tools/run_plan_ownercommittee.yaml`
-- `prompt-dsl-system/tools/run_plan_bpmn.yaml`
+- `prompt-dsl-system/tools/history/run-plans/run_plan_sql.yaml`
+- `prompt-dsl-system/tools/history/run-plans/run_plan_ownercommittee.yaml`
+- `prompt-dsl-system/tools/history/run-plans/run_plan_bpmn.yaml`
 
 ## Deprecated Skills (archived, not deleted)
 - Total archived skills: `28`

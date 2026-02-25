@@ -6,7 +6,7 @@
 最高权威规范：`prompt-dsl-system/00_conventions/HONGZHI_TASK_OPERATING_REQUIREMENTS.md`。
 若旧 skill 文本与该规范冲突，以权威规范为准。
 
-## 自动意图路由（聊天/自然语言优先，通用优先）
+## 自动意图路由（聊天/自然语言优先，支持 kit 自升级优先）
 
 当用户只给自然语言目标、未指定 pipeline 路径时：
 
@@ -25,9 +25,9 @@
    - 若被低置信度/高歧义阻断，仅提出一个澄清问题；未经用户明确确认，不强制执行
 
 路由策略：
-- 禁止基于硬编码业务意图自动挑选“专用 pipeline”。
-- 默认先扫描可用 pipeline，再回退到通用自适应 pipeline。
-- 仅当用户明确指定 pipeline/路径时才使用专用 pipeline。
+- 默认仍是先扫描，再回退到通用自适应 pipeline。
+- 例外：当目标明确为 `beyond-dev-ai-kit` 的 `prompt/DSL/skill/pipeline` 套件升级时，优先选择 `pipeline_kit_self_upgrade.md`。
+- 用户显式指定 pipeline/路径时，优先按显式指定执行。
 
 ## 边界规则（必须遵守）
 
@@ -42,5 +42,7 @@
   - `./prompt-dsl-system/tools/run.sh intent -r . --goal "修复 notice 模块接口状态流转 bug"`
 - 路由并执行（已知 module path）：
   - `./prompt-dsl-system/tools/run.sh intent -r . --module-path "/abs/path/to/module" --goal "Oracle SQL 迁移到 DM8" --execute`
+- kit 自升级路由：
+  - `./prompt-dsl-system/tools/run.sh intent -r . --module-path "prompt-dsl-system" --goal "升级 beyond-dev-ai-kit 的 prompt/DSL/skill/pipeline 套件" --execute`
 - 强制执行（仅在用户明确确认后）：
   - `./prompt-dsl-system/tools/run.sh intent -r . --goal "..." --execute --force-execute`

@@ -1,0 +1,111 @@
+name: "skill_docs_module_readme_gen"
+description: "Automated module README and documentation generator. Scans module structure, API endpoints, DB tables, and generates standardized documentation with directory tree and API reference."
+version: "1.0.0"
+domain: "docs"
+tags:
+  - "docs"
+  - "readme"
+  - "documentation"
+  - "generator"
+parameters:
+  - name: "context_id"
+    type: "string"
+    required: false
+    description: "Cross-step context id."
+  - name: "trace_id"
+    type: "string"
+    required: false
+    description: "Run trace id."
+  - name: "input_artifact_refs"
+    type: "array"
+    required: false
+    items: string
+    description: "Upstream artifact ids (A1/A2/...)."
+  - name: "module_path"
+    type: "string"
+    required: true
+    description: "Absolute path to the module."
+  - name: "doc_type"
+    type: "string"
+    required: false
+    enum: ["readme", "api", "db_dictionary", "full"]
+    description: "Type of documentation to generate. Default: readme."
+  - name: "output_path"
+    type: "string"
+    required: false
+    description: "Output path for generated docs. Default: module_path/README.md"
+
+mode: "docs"
+boundary_policy:
+  allowed_module_root: "{{module_path}}"
+  forbidden_paths:
+    - "/sys"
+    - "/error"
+    - "/util"
+    - "/vote"
+  max_change_scope: "minimal"
+
+fact_policy:
+  require_scan_before_change: true
+  unknown_requires_user: true
+
+self_monitor_policy:
+  loop_detection: true
+  auto_rollback_on_loop: true
+
+prompt_template: |
+  You are a documentation generator for Hongzhi company modules.
+
+  Generation workflow:
+  1. Scan module structure:
+     - Controller/Service/Mapper/Entity layers
+     - HTML template files
+     - SQL script directory
+     - Configuration files
+  2. Generate directory tree:
+     - Show file/directory hierarchy
+     - Annotate purpose of each component
+  3. Extract API reference:
+     - List all REST endpoints (method, path, description)
+     - Document request/response models
+  4. Extract DB table reference:
+     - List tables with columns and types
+     - Document foreign key relationships
+  5. Business flow summary:
+     - Describe main business processes
+     - Reference workflow/state machine if applicable
+  6. Setup instructions:
+     - SQL execution order
+     - Menu configuration steps
+     - Permission requirements
+
+  Module: {{module_path}}
+  Doc type: {{doc_type}}
+  Output: {{output_path}}
+
+  Format: standard Markdown with tables, code blocks, and Mermaid diagrams where helpful.
+
+output_contract:
+  summary: "string"
+  artifacts: "list"
+  risks: "list"
+  next_actions: "list"
+
+examples:
+  - input:
+      module_path: "/path/to/ownercommittee"
+      doc_type: "readme"
+    output:
+      summary: "Module README generated: 6 sections, 12 API endpoints, 3 DB tables documented."
+      artifacts:
+        - "A1_README.md"
+        - "A2_change_ledger.md"
+      risks:
+        - level: "low"
+          why: "Dynamic endpoints from parent class not fully traced"
+          impact: "Incomplete API listing"
+          mitigation: "Manual review of inherited endpoints"
+          rollback: "Restore previous README"
+      next_actions:
+        - "Review generated README for accuracy"
+        - "Commit to module directory"

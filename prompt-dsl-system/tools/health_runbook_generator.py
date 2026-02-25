@@ -131,10 +131,6 @@ def normalize_counter(raw: Any) -> Dict[str, int]:
     return out
 
 
-def bool_hint(value: bool) -> str:
-    return "true" if value else "false"
-
-
 def build_cmd(*parts: str) -> str:
     return " ".join(parts)
 

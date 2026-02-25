@@ -23,6 +23,7 @@ DEFAULT_REQUIRED_DIMENSIONS = [
     "extensibility",
     "security_governance",
     "kit_mainline_focus",
+    "agent_active_ops",
 ]
 
 

@@ -8,7 +8,7 @@ Use this repository as the execution kit for 博彦泓智科技（上海）有�
 Primary authority profile: `prompt-dsl-system/00_conventions/HONGZHI_TASK_OPERATING_REQUIREMENTS.md`.
 If any older skill text conflicts with this profile, follow the authority profile.
 
-## Auto Intent Routing (Chat/NL First, Generic-First)
+## Auto Intent Routing (Chat/NL First, Kit-Upgrade Aware)
 
 When the user gives a natural-language request and does not provide an explicit pipeline path:
 
@@ -27,9 +27,9 @@ When the user gives a natural-language request and does not provide an explicit 
    - If blocked by low confidence/ambiguity, ask one clarifying question; do not force execute unless user explicitly confirms.
 
 Routing policy:
-- Do not auto-select specialized pipelines by hardcoded business intent.
-- Default to generic adaptive pipeline after scanning available pipelines.
-- Use a specialized pipeline only when the user explicitly names that pipeline/path.
+- Default behavior remains scan-first and generic adaptive fallback.
+- Exception: for `beyond-dev-ai-kit` self-evolution goals (explicitly targeting prompt/DSL/skill/pipeline upgrades), prefer `pipeline_kit_self_upgrade.md`.
+- Use an explicitly named pipeline/path with highest priority.
 
 ## Boundary Rules (Must Follow)
 
@@ -44,5 +44,7 @@ Routing policy:
   - `./prompt-dsl-system/tools/run.sh intent -r . --goal "修复 notice 模块接口状态流转 bug"`
 - Route + execute (when module path known):
   - `./prompt-dsl-system/tools/run.sh intent -r . --module-path "/abs/path/to/module" --goal "Oracle SQL 迁移到 DM8" --execute`
+- Kit self-upgrade routing:
+  - `./prompt-dsl-system/tools/run.sh intent -r . --module-path "prompt-dsl-system" --goal "升级 beyond-dev-ai-kit 的 prompt/DSL/skill/pipeline 套件" --execute`
 - Force execute only after explicit confirmation:
   - `./prompt-dsl-system/tools/run.sh intent -r . --goal "..." --execute --force-execute`

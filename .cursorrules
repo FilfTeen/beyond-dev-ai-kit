@@ -1,0 +1,38 @@
+# Cursor Project Rules — beyond-dev-ai-kit
+# Cursor supports this file for backward compatibility.
+# For advanced rules, use .cursor/rules/*.mdc (see cursor.com/docs).
+
+## Scope
+
+This repository is the **beyond-dev-ai-kit** — a governed prompt/DSL/skill/pipeline toolkit
+scoped to 博彦泓智科技（上海）有限公司 (Beyondsoft Hongzhi Technology).
+
+## Mandatory First Step
+
+Before executing ANY task, read and follow `AGENTS.md` at the repository root.
+It contains the auto-intent-routing protocol and boundary rules.
+
+## Intent Routing Protocol
+
+When the user gives a natural-language request without an explicit pipeline path:
+
+1. Route first: `./prompt-dsl-system/tools/run.sh intent -r . --goal "<user_request>"`
+2. Read the JSON output for `selected.target` and `run_command`.
+3. Execute when `execution_ready=true` and `can_auto_execute=true`.
+4. If `module_path` is missing, ask the user for it (never guess).
+
+## Key Rules
+
+- Authority profile: `prompt-dsl-system/00_conventions/HONGZHI_TASK_OPERATING_REQUIREMENTS.md`
+- Constitution: `prompt-dsl-system/00_conventions/HONGZHI_COMPANY_CONSTITUTION.md` (50 rules)
+- For governance/meta pipelines, use `-m prompt-dsl-system`.
+- For business-code pipelines, require explicit business `module_path`.
+- Forbidden paths: `/sys`, `/error`, `/util`, `/vote`.
+- Always validate before promotion: `./prompt-dsl-system/tools/run.sh validate -r .`
+
+## Tech Stack Context
+
+- Plugin runner: Python 3.9+, stdlib-only, zero external dependencies
+- Target projects: Java 8 / Spring Boot / MyBatis / Layui / uni-app
+- Database: Universal SQL first; Oracle + MySQL dual-stack fallback (see SQL_COMPAT_STRATEGY.md)
+- Naming: CPP_STYLE_NAMING.md (UpperCamelCase classes, lowerCamelCase methods, UPPER_SNAKE constants)

@@ -1,6 +1,6 @@
 # move_plan
 
-- generated_at: 2026-02-12T08:20:06+00:00
+- generated_at: 2026-02-25T09:08:31+00:00
 - module_path_source: cli
 - module_path: /Users/dwight/Downloads/【洪智科技】本地存档/beyond-dev-ai-kit
 - module_path_normalized: .

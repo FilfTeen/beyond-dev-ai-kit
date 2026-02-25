@@ -34,6 +34,10 @@ Scope: toolkit repository only (`prompt-dsl-system/**` and package/docs tooling)
 - Does current work stay on toolkit mainline and avoid external repo mutation?
 - Signals: Rule 24 enforcement and kit-only change scope.
 
+8. `agent_active_ops`
+- Can agents actively perceive task intent, proactively invoke the right pipeline/tooling, and complete closed-loop execution under governance?
+- Signals: intent router proactive detection + auto-execute gate, kit self-upgrade pipeline authority alignment steps, pressure tests for concurrent routing, and active execution entry docs.
+
 ## Scoring
 
 - Per-dimension score range: `0.0 ~ 1.0`.
@@ -53,7 +57,7 @@ Scope: toolkit repository only (`prompt-dsl-system/**` and package/docs tooling)
   - `overall_level >= high`
   - `low_dimensions <= 0`
 - Default strict dimension contract:
-  - required dimensions: `generality`, `completeness`, `robustness`, `efficiency`, `extensibility`, `security_governance`, `kit_mainline_focus`
+  - required dimensions: `generality`, `completeness`, `robustness`, `efficiency`, `extensibility`, `security_governance`, `kit_mainline_focus`, `agent_active_ops`
   - `summary.dimension_count` equals actual `dimensions` size
 - Default strict freshness contract:
   - report age <= `HONGZHI_SELFCHECK_MAX_AGE_SECONDS` (default 900)

@@ -120,13 +120,13 @@ parameters:
   input_artifact_refs: ["A3"]
 ```
 
-## Step 5 - 文档收尾
+## Step 5 - 文档收尾（含双语同步）
 ```yaml
-skill: skill_hongzhi_universal_ops
+skill: skill_docs_i18n
 parameters:
   mode: "docs"
   module_path: "{{allowed_module_root}}"
-  objective: "{{objective}}；更新模块 README、变更台账、清理报告。"
+  objective: "{{objective}}；更新模块 README、变更台账、清理报告，并同步双语文档。"
   constraints:
     - "closure pack required"
   acceptance:
@@ -143,6 +143,9 @@ parameters:
   self_monitor_policy: {loop_detection: true, auto_rollback_on_loop: true}
   decision_policy: {dependency_strategy_order: ["compat", "self-contained", "minimal-invasive"], choose_best_route_with_tradeoff: true}
   sql_policy: {prefer_portable_sql: true, dual_sql_when_needed: ["oracle", "mysql"]}
+  source_file: "{{allowed_module_root}}/README.md"
+  target_language: "en"
+  output_suffix: ".en"
   context_id: "{{context_id}}"
   trace_id: "{{trace_id}}"
   input_artifact_refs: ["A4"]

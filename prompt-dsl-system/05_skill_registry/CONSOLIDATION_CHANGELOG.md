@@ -7,9 +7,9 @@
 - `prompt-dsl-system/04_ai_pipeline_orchestration/BASELINE_PIPELINE_SNAPSHOT.json`
 - `prompt-dsl-system/05_skill_registry/REDUNDANCY_REPORT.md`
 - `prompt-dsl-system/05_skill_registry/skills/universal/skill_hongzhi_universal_ops.yaml`
-- `prompt-dsl-system/tools/run_plan_sql.yaml`
-- `prompt-dsl-system/tools/run_plan_ownercommittee.yaml`
-- `prompt-dsl-system/tools/run_plan_bpmn.yaml`
+- `prompt-dsl-system/tools/history/run-plans/run_plan_sql.yaml`
+- `prompt-dsl-system/tools/history/run-plans/run_plan_ownercommittee.yaml`
+- `prompt-dsl-system/tools/history/run-plans/run_plan_bpmn.yaml`
 
 ### Modified
 - `prompt-dsl-system/05_skill_registry/skills.json` (active registry shrunk to single universal skill)
@@ -70,9 +70,9 @@
 
 - Validate: `./prompt-dsl-system/tools/run.sh validate --repo-root .` -> `Errors=0`, `Warnings=0`.
 - Run checks:
-  - `pipeline_sql_oracle_to_dm8.md` -> `prompt-dsl-system/tools/run_plan_sql.yaml`: steps=4, all_steps_universal=true, has_context_trace_input_refs_per_step=true
-  - `pipeline_ownercommittee_audit_fix.md` -> `prompt-dsl-system/tools/run_plan_ownercommittee.yaml`: steps=5, all_steps_universal=true, has_context_trace_input_refs_per_step=true
-  - `pipeline_bpmn_state_audit_testgen.md` -> `prompt-dsl-system/tools/run_plan_bpmn.yaml`: steps=5, all_steps_universal=true, has_context_trace_input_refs_per_step=true
+  - `pipeline_sql_oracle_to_dm8.md` -> `prompt-dsl-system/tools/history/run-plans/run_plan_sql.yaml`: steps=4, all_steps_universal=true, has_context_trace_input_refs_per_step=true
+  - `pipeline_ownercommittee_audit_fix.md` -> `prompt-dsl-system/tools/history/run-plans/run_plan_ownercommittee.yaml`: steps=5, all_steps_universal=true, has_context_trace_input_refs_per_step=true
+  - `pipeline_bpmn_state_audit_testgen.md` -> `prompt-dsl-system/tools/history/run-plans/run_plan_bpmn.yaml`: steps=5, all_steps_universal=true, has_context_trace_input_refs_per_step=true
 
 ## Rollback Guide
 

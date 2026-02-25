@@ -1,8 +1,13 @@
 # Hongzhi Company Constitution (Execution Rules)
 
 Scope binding: this constitution is only for company-domain work in `prompt-dsl-system/**`.
+> **Severity Legend**: CRITICAL = hard stop / data integrity / supply-chain / security (15). HIGH = mandatory gate / governance enforcement (25). MEDIUM = best practice / documentation / observability (10).
+
+
 
 ## Rule 01 - Company Domain Isolation
+
+> **Severity: MEDIUM**
 
 - Rule: execution policy is company-scoped only; do not propagate into personal/global systems.
 - Exception: user explicitly requests cross-system synchronization in writing.
@@ -12,6 +17,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 02 - Module Boundary Is Mandatory
 
+> **Severity: CRITICAL**
+
 - Rule: edits must stay within `allowed_module_root`.
 - Exception: scan-only/risk-only outputs when boundary is missing.
 - Check: `ops_guard.py --allowed-root <...>` pass required.
@@ -19,6 +26,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: revert out-of-scope files and regenerate scoped plan.
 
 ## Rule 03 - Forbidden Paths Hard Stop
+
+> **Severity: CRITICAL**
 
 - Rule: `/sys`, `/error`, `/util`, `/vote` are forbidden by default.
 - Exception: user explicitly lifts restriction for a named path.
@@ -28,6 +37,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 04 - Dependency Strategy Priority
 
+> **Severity: HIGH**
+
 - Rule: choose route in order `compat` > `self-contained` > `minimal-invasive`.
 - Exception: higher-priority route provably violates hard constraints.
 - Check: artifact contains route A/B comparison and selected route reason.
@@ -35,6 +46,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: revert selected route and apply next valid higher-priority route.
 
 ## Rule 05 - Fact-First, No Guessing
+
+> **Severity: CRITICAL**
 
 - Rule: never invent names/fields/routes/tables/logic.
 - Exception: none.
@@ -44,6 +57,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 06 - Impact Tree Before Change
 
+> **Severity: HIGH**
+
 - Rule: produce tree analysis before write actions.
 - Exception: pure report-only task with zero edits.
 - Check: `A*_impact_tree.md` exists.
@@ -51,6 +66,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: revert edits made without impact tree; regenerate tree first.
 
 ## Rule 07 - High-Risk Alarm
+
+> **Severity: HIGH**
 
 - Rule: high-risk actions must be explicitly flagged.
 - Exception: none.
@@ -60,6 +77,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 08 - Self-Monitor Loop Detection
 
+> **Severity: MEDIUM**
+
 - Rule: detect loops (`same file >3 edits` or `same failure >2`).
 - Exception: user-approved iterative experiment loop.
 - Check: self-monitor artifact includes loop status and evidence source.
@@ -67,6 +86,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: rollback partial loop changes before retry.
 
 ## Rule 09 - Auto Rollback on Loop
+
+> **Severity: MEDIUM**
 
 - Rule: loop signal triggers rollback-first behavior.
 - Exception: user explicitly asks to continue without rollback.
@@ -76,6 +97,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 10 - SQL Portability First
 
+> **Severity: HIGH**
+
 - Rule: SQL output defaults to portable SQL.
 - Exception: explicit vendor-specific requirement with evidence.
 - Check: sql policy declares `prefer_portable_sql=true`.
@@ -83,6 +106,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: revert vendor-only patch and provide portable fallback.
 
 ## Rule 11 - Dual SQL When Needed
+
+> **Severity: HIGH**
 
 - Rule: non-portable requirement must output Oracle+MySQL dual SQL.
 - Exception: user confirms single-dialect acceptance.
@@ -92,6 +117,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 12 - Pipeline Handoff Contract
 
+> **Severity: CRITICAL**
+
 - Rule: each step must include `context_id`, `trace_id`, `input_artifact_refs`.
 - Exception: none.
 - Check: `validate` passes and run plans show handoff fields in every step.
@@ -99,6 +126,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: regenerate run plan with corrected artifact refs.
 
 ## Rule 13 - Job Closure Package
+
+> **Severity: MEDIUM**
 
 - Rule: closure must include README/notes update, change ledger, cleanup report.
 - Exception: user explicitly waives document updates.
@@ -108,6 +137,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 14 - Tooling Gates Required
 
+> **Severity: CRITICAL**
+
 - Rule: pre/post gates are mandatory (`validate`, `ops_guard`; plus `merged_guard` for SQL merged deliveries).
 - Exception: read-only exploration with no artifact generation.
 - Check: JSON reports exist and gate result is pass.
@@ -116,6 +147,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 15 - Recoverability
 
+> **Severity: HIGH**
+
 - Rule: all major changes must be reversible via snapshot + deprecated archive.
 - Exception: none.
 - Check: baseline snapshots, deprecated mapping, rollback instructions all present.
@@ -123,6 +156,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: execute `ROLLBACK_INSTRUCTIONS.md` procedure.
 
 ## Rule 16 - Bypass Environment Variable Governance
+
+> **Severity: HIGH**
 
 - Rule: `HONGZHI_ALLOW_RUN_WITHOUT_MODULE_PATH=1` bypass is **only** permitted for:
   - Pipelines whose every step uses mode `meta` or `governance` (治理类 pipeline).
@@ -139,6 +174,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: revert all changes made under unauthorized bypass and re-run with proper boundary.
 
 ## Rule 17 - Plugin Runner Governance
+
+> **Severity: CRITICAL**
 
 - Rule: `hongzhi_plugin.py` is **disabled by default** and requires explicit enable.
 - Enable methods:
@@ -157,6 +194,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 18 - Capability Registry Isolation
 
+> **Severity: HIGH**
+
 - Rule: Capability Registry may only write to hongzhi-ai-kit owned state directories, never business repo paths.
 - Write scope:
   - Global: `capability_index.json`, `<fp>/latest.json`, `<fp>/runs/<run_id>/run_meta.json`
@@ -174,6 +213,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 19 - Governance Token & Limits Hardening
 
+> **Severity: CRITICAL**
+
 - Rule: Permit token override must be constrained by TTL and command scope when token metadata is provided.
   - Supported metadata: `expires_at`, or `issued_at + ttl_seconds`, and `scope`.
   - Expired or scope-mismatched token must be rejected.
@@ -190,6 +231,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 20 - Company Scope Signal & Optional Hard Gate
 
+> **Severity: MEDIUM**
+
 - Rule: plugin machine outputs must carry `company_scope` for agent-side routing and audit traceability.
   - Applies to: summary line and all `HONGZHI_*` machine lines.
 - Rule: company scope hard gate is optional and disabled by default.
@@ -205,6 +248,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 21 - Project Tech Stack Knowledge Base
 
+> **Severity: MEDIUM**
+
 - Rule: each project should maintain a stack profile pair (`declared` + `discovered`) under `project_stacks/<project_key>/`.
 - Rule: discovered stack facts must come from scanner evidence; no guessed framework/database/runtime entries.
 - Check:
@@ -214,6 +259,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: remove incorrect discovered file and regenerate from scanner with correct repo root.
 
 ## Rule 22 - Requirement To Prototype Chain
+
+> **Severity: HIGH**
 
 - Rule: when requirement input is ambiguous, enforce sequence:
   1) requirement baseline + unknown checklist
@@ -229,6 +276,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 23 - Personal Standard Under Team Priority
 
+> **Severity: MEDIUM**
+
 - Rule: personal C++-aligned naming/style is allowed only when compatible with team/system conventions.
 - Rule: naming must stay globally consistent for identical concepts across module boundaries.
 - Check:
@@ -238,6 +287,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: rename conflicting identifiers to module-aligned form with minimal invasive changes.
 
 ## Rule 24 - Kit Mainline First (No External Repo Mutation)
+
+> **Severity: CRITICAL**
 
 - Rule: `beyond-dev-ai-kit` optimization tasks must focus on toolkit assets (`prompt-dsl-system/**`, packaging/docs/tools) and must not mutate external business repositories.
 - Rule: external repositories may be used only as read-only evidence sources and only when the user explicitly requests that scan.
@@ -250,6 +301,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 25 - Kit Selfcheck Gate Before Major Upgrade
 
+> **Severity: HIGH**
+
 - Rule: major toolkit upgrades must run a quality selfcheck scorecard before implementation.
 - Rule: selfcheck dimensions must include at least:
   - `generality`, `completeness`, `robustness`, `efficiency`, `extensibility`, `security_governance`, `kit_mainline_focus`.
@@ -260,6 +313,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: discard upgrade plan that bypassed selfcheck and regenerate from scorecard baseline.
 
 ## Rule 26 - Machine-Readable Kit Capability Signal
+
+> **Severity: HIGH**
 
 - Rule: toolkit selfcheck runs must emit a machine-readable capability pointer line:
   - `KIT_CAPS <abs_json_path> path=\"...\" json='...'`.
@@ -273,6 +328,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 27 - Unified Self-Upgrade Entry
 
+> **Severity: MEDIUM**
+
 - Rule: toolkit self-upgrade should use a unified command entry:
   - `./prompt-dsl-system/tools/run.sh self-upgrade -r .`
 - Rule: `self-upgrade` must default to:
@@ -285,6 +342,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: stop current run, regenerate plan via unified entry, then replay approved steps.
 
 ## Rule 28 - Strict Self-Upgrade Preflight Chain
+
+> **Severity: CRITICAL**
 
 - Rule: strict self-upgrade must pass this gate chain before plan/run:
   1) `selfcheck` machine-line contract validation
@@ -307,6 +366,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 29 - Contract Evolution Additive Guard
 
+> **Severity: HIGH**
+
 - Rule: machine contract schema upgrades must be additive to previous stable schema.
 - Rule: v2+ schema validation should enforce baseline compatibility using:
   - `contract_validator.py --baseline-schema prompt-dsl-system/tools/contract_schema_v1.json`
@@ -318,6 +379,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: revert incompatible schema edits and re-validate against v1 baseline.
 
 ## Rule 30 - Self-Upgrade Closure Template & Replay Baseline
+
+> **Severity: MEDIUM**
 
 - Rule: kit self-upgrade closure artifacts should follow standard templates:
   - `A3_change_ledger`
@@ -332,6 +395,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 31 - Validate Default Post-Gates
 
+> **Severity: HIGH**
+
 - Rule: `run.sh validate` must execute post-gates after core validate pass:
   1) contract sample replay
   2) kit self-upgrade template integrity guard
@@ -344,6 +409,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 32 - Health Report Post-Gate Observability
 
+> **Severity: MEDIUM**
+
 - Rule: validate post-gate results must be synchronized into `health_report` as an explicit section.
 - Rule: section name is `post_validate_gates` and must include at least:
   - `contract_sample_replay`
@@ -355,6 +422,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: restore sync script/wrapper chain and regenerate health report via validate.
 
 ## Rule 33 - Strict Selfcheck Quality Threshold Gate
+
+> **Severity: HIGH**
 
 - Rule: strict self-upgrade preflight must enforce selfcheck quality thresholds before lint/audit/validate.
 - Rule: default threshold policy:
@@ -372,6 +441,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: discard outputs from threshold-bypassed run and rerun strict chain with explicit thresholds.
 
 ## Rule 34 - Selfcheck Dimension Contract Gate
+
+> **Severity: HIGH**
 
 - Rule: strict self-upgrade must validate selfcheck dimension contract in addition to score thresholds.
 - Rule: default required dimensions:
@@ -393,6 +464,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 35 - Selfcheck Freshness & Head Consistency Gate
 
+> **Severity: HIGH**
+
 - Rule: strict self-upgrade must verify selfcheck report freshness and repository snapshot consistency before downstream lint/audit/validate gates.
 - Rule: freshness gate should validate at least:
   - report `generated_at` age within configured window
@@ -409,6 +482,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 36 - Kit Supply-Chain Integrity Manifest Gate
 
+> **Severity: CRITICAL**
+
 - Rule: strict self-upgrade must verify integrity manifest for critical kit assets (schemas/templates/pipeline definitions/core gate scripts).
 - Rule: integrity gate must detect:
   - file hash mismatch
@@ -423,6 +498,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: restore baseline files or regenerate manifest through approved build flow, then rerun strict preflight.
 
 ## Rule 37 - Pipeline Trust Whitelist Gate
+
+> **Severity: CRITICAL**
 
 - Rule: pipeline execution must be gated by trusted whitelist (`path + sha256 + status`) to prevent unreviewed pipeline payloads from running.
 - Rule: gate must exist in both:
@@ -441,6 +518,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 38 - Baseline Signature Tamper-Evident Guard
 
+> **Severity: CRITICAL**
+
 - Rule: integrity manifest and pipeline trust whitelist must carry an embedded signature section (`signature.content_sha256`) and verification must fail on signature drift.
 - Rule: optional HMAC signing mode is supported for stronger tamper resistance:
   - `HONGZHI_BASELINE_SIGN_KEY`
@@ -453,6 +532,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 39 - CI Mandatory Validate + Golden Gates
 
+> **Severity: CRITICAL**
+
 - Rule: repository CI workflow must enforce:
   1) `run.sh validate -r .`
   2) `golden_path_regression.sh --repo-root .`
@@ -464,6 +545,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: restore workflow baseline and re-run CI gate suite.
 
 ## Rule 40 - Dual-Approval Mode for Baseline Changes
+
+> **Severity: HIGH**
 
 - Rule: when dual-approval mode is enabled, baseline changes (`kit_integrity_manifest.json`, `pipeline_trust_whitelist.json`) require approval evidence from at least two distinct approvers.
 - Rule: dual-approval gate should be enforceable in both strict wrapper and direct runner entry.
@@ -482,6 +565,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 41 - Strict HMAC Baseline Smoke Gate
 
+> **Severity: HIGH**
+
 - Rule: toolkit must provide a repeatable strict-HMAC smoke gate to verify that integrity/trust baselines can run in `require_hmac=true` mode.
 - Rule: strict preflight should support:
   - sign-key env indirection (`HONGZHI_BASELINE_SIGN_KEY_ENV`)
@@ -494,6 +579,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 42 - CI Baseline Diff Dual-Approval Proof
 
+> **Severity: HIGH**
+
 - Rule: CI must enforce dual-approval proof when baseline files are changed in the compared revision range.
 - Rule: CI check should compare baseline files against event base SHA and require approval evidence only when diff is non-empty.
 - Check:
@@ -503,6 +590,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: restore CI workflow gate and rerun required checks before promotion.
 
 ## Rule 43 - Baseline Sign Key Governance
+
+> **Severity: HIGH**
 
 - Rule: baseline signing keys must be governed by explicit rotation/revocation policy and auditable procedure.
 - Rule: raw key values must not be committed into repository; only env/secret manager injection is allowed.
@@ -514,6 +603,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 44 - Parser/Contract Fuzz Robustness Gate
 
+> **Severity: HIGH**
+
 - Rule: parser/contract toolchain must have a crash-resilience fuzz gate to detect unstable behavior under malformed/randomized input.
 - Rule: fuzz gate must run in CI and regression with deterministic seed.
 - Check:
@@ -523,6 +614,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: revert parser/validator changes to last stable commit and rerun fuzz gate.
 
 ## Rule 45 - Governance Document Consistency Gate
+
+> **Severity: HIGH**
 
 - Rule: constitution / compliance matrix / fact baseline must remain mutually consistent in requirement indexing and latest-range coverage.
 - Rule: consistency guard must validate at least:
@@ -539,6 +632,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 46 - Tool Syntax Gate
 
+> **Severity: HIGH**
+
 - Rule: toolkit core python/shell scripts must pass syntax validation before promotion.
 - Rule: syntax gate validates:
   - python compile (`py_compile`) for tooling modules.
@@ -551,6 +646,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: revert syntax-breaking changes and rerun syntax gate + regression.
 
 ## Rule 47 - Pipeline Trust Full-Coverage Gate
+
+> **Severity: CRITICAL**
 
 - Rule: trust whitelist verification must cover every pipeline file, not only the currently selected pipeline.
 - Rule: coverage gate validates:
@@ -569,6 +666,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: restore trusted whitelist baseline and rerun strict preflight chain.
 
 ## Rule 48 - Baseline Provenance Attestation Gate
+
+> **Severity: CRITICAL**
 
 - Rule: toolkit must maintain a machine-verifiable provenance attestation for baseline governance assets.
 - Rule: provenance gate validates at least:
@@ -591,6 +690,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 
 ## Rule 49 - Mutation Resilience Gate
 
+> **Severity: HIGH**
+
 - Rule: critical governance gates must prove mutation resilience through deterministic adversarial smoke mutations.
 - Rule: mutation guard must include at least:
   - integrity manifest tamper mutation
@@ -607,6 +708,8 @@ Scope binding: this constitution is only for company-domain work in `prompt-dsl-
 - Rollback: revert recent gate-chain changes and rerun mutation guard before merge.
 
 ## Rule 50 - Performance Budget Gate
+
+> **Severity: HIGH**
 
 - Rule: core governance gates must remain within bounded runtime budgets to keep toolkit feedback loops responsive.
 - Rule: performance guard should measure and gate:
