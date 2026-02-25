@@ -23,9 +23,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Baseline Rebuild (strict order)
-        run: bash prompt-dsl-system/tools/baseline_rebuild_all.sh --repo-root .
-
       - name: Baseline Dual Approval Proof
         shell: bash
         run: |
@@ -62,6 +59,9 @@ jobs:
             --required-approvers 2 \
             --enforce-always true \
             --require-git true
+
+      - name: Baseline Rebuild (strict order)
+        run: bash prompt-dsl-system/tools/baseline_rebuild_all.sh --repo-root .
 
       - name: HMAC Strict Smoke
         run: /usr/bin/python3 prompt-dsl-system/tools/hmac_strict_smoke.py --repo-root .

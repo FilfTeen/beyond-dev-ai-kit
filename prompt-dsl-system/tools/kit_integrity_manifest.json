@@ -44,7 +44,7 @@
   "entries": [
     {
       "path": ".github/workflows/kit_guardrails.yml",
-      "sha256": "bf8f9b08d366a9b5bf98e48720c1d96ed1c926aa583d95f5bdd3391c464aa10e",
+      "sha256": "f158c2d3603c872f7cdcdb32b35939c1c0381ff68ec100653c82fc6d3a542bd6",
       "size": 7186
     },
     {
@@ -154,7 +154,7 @@
     },
     {
       "path": "prompt-dsl-system/tools/baseline_provenance.json",
-      "sha256": "42bc1fcc94e994b89a9dbf01b4693c0b6995b19a48cdda7cff2654379708e114",
+      "sha256": "4758de31b17cf386e4bf201e27152fb8e3af1afd3194049c4c75f7ff88a33305",
       "size": 1772
     },
     {
@@ -298,7 +298,7 @@
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "d7226e8c2d8fb88b0b6250f6a83ff117899fffc4d01b5df70021fe8b6377477f",
+    "content_sha256": "daebaa2cd174859845774d65d42f0807537f6c5dc110a35ebae2865093aba945",
     "signed_at": "1970-01-01T00:00:00+00:00"
   }
 }

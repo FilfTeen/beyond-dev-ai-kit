@@ -1,10 +1,10 @@
 {
   "approved": true,
-  "change_fingerprint": "ffcd1571fd078b0209a77b7d593519ded2e5760df4b583a45c03a605006665d6",
+  "change_fingerprint": "cd7478d6e0f9ef7c6166cbc324312cb447afd55ab8234c79816254977e467008",
   "approvers": [
     "dwight",
     "codex"
   ],
-  "approved_at": "2026-02-25T10:24:41Z",
-  "note": "Dual approval for v1.3.0 baseline refresh (stable metadata)"
+  "approved_at": "2026-02-25T10:29:36Z",
+  "note": "Dual approval for v1.3.0 baseline refresh (workflow reordered)"
 }

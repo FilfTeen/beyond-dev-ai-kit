@@ -1,10 +1,10 @@
 {
   "tool": "baseline_provenance_guard",
   "provenance_version": "1.0.0",
-  "generated_at": "2026-02-25T10:20:16+00:00",
+  "generated_at": "2026-02-25T10:29:36+00:00",
   "repo_root": ".",
   "repo_snapshot": {
-    "git_head": "c0aca36f1717c57d6a0e551ce4401f86974f59b8",
+    "git_head": "4d394ff22b5e15a4cc6af076417a4c6789743e67",
     "git_head_available": true
   },
   "tracked": {
@@ -19,7 +19,7 @@
   "entries": [
     {
       "path": ".github/workflows/kit_guardrails.yml",
-      "sha256": "bf8f9b08d366a9b5bf98e48720c1d96ed1c926aa583d95f5bdd3391c464aa10e",
+      "sha256": "f158c2d3603c872f7cdcdb32b35939c1c0381ff68ec100653c82fc6d3a542bd6",
       "size": 7186
     },
     {
@@ -48,7 +48,7 @@
   },
   "signature": {
     "scheme": "sha256",
-    "content_sha256": "cbc3f33ca029f783ed1a264a016608988f260c6805d47f4ad9362cea959ac576",
-    "signed_at": "2026-02-25T10:20:16+00:00"
+    "content_sha256": "40de1f61c227dcaadd510488b212d4309bce74c69e6ab43f5258e72bb62d4dbd",
+    "signed_at": "2026-02-25T10:29:36+00:00"
   }
 }
