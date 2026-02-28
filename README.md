@@ -1,4 +1,4 @@
-# beyond-dev-ai-kit
+# beyond-dev-ai-kit(prompt / DSL / skill / pipeline Kit)
 
 Repository for `prompt-dsl-system` governance pipelines and the `hongzhi-ai-kit` plugin runner package.
 
